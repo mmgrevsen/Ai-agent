@@ -11,6 +11,7 @@ import { MODEL, Receptionist } from "./agent.js";
 import { Kalender } from "./kalender.js";
 import { indlaesKunde } from "./kunde.js";
 import { lavReferat } from "./referat.js";
+import { HEADER, TEKNISK_FEJL, VapiOpkald, erGyldigNoegle, skrivSvar } from "./vapi.js";
 
 const rod = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.PORT) || 3000;
@@ -18,7 +19,18 @@ const kunde = indlaesKunde(process.env.KUNDE || "glanspunkt");
 const kalender = new Kalender(kunde, { fil: path.join(rod, "data", `bookinger-${kunde.id}.json`) });
 const klient = new Anthropic();
 const receptionist = new Receptionist(kunde, kalender, { klient });
-const opkald = new Map(); // aktive opkald, nøgle = opkalds-id
+const opkald = new Map(); // aktive browser-opkald, nøgle = opkalds-id
+const VAPI_HEMMELIGHED = process.env.VAPI_HEMMELIGHED || "";
+const vapi = new VapiOpkald(receptionist, { afslut: afslutOgGem });
+
+// Laver referat og gemmer opkaldet i data/opkald/. Bruges af både browser og telefon.
+async function afslutOgGem(id, o) {
+  const referat = await lavReferat(o, kunde, { klient });
+  const gemt = { id, kunde: kunde.id, kilde: o.kilde ?? "browser", telefon: o.telefon ?? null, startet: o.startet, referat, haendelser: o.haendelser, transskription: o.transskription };
+  mkdirSync(path.join(rod, "data", "opkald"), { recursive: true });
+  writeFileSync(path.join(rod, "data", "opkald", `${o.startet.replace(/[:.]/g, "-")}_${id.slice(0, 8)}.json`), JSON.stringify(gemt, null, 2));
+  return referat;
+}
 
 const ruter = {
   "GET /api/kunde": () => ({
@@ -50,11 +62,7 @@ const ruter = {
   "POST /api/opkald/:id/afslut": async ({ id }) => {
     const o = hentOpkald(id);
     opkald.delete(id);
-    const referat = await lavReferat(o, kunde, { klient });
-    const gemt = { id, kunde: kunde.id, startet: o.startet, referat, haendelser: o.haendelser, transskription: o.transskription };
-    mkdirSync(path.join(rod, "data", "opkald"), { recursive: true });
-    writeFileSync(path.join(rod, "data", "opkald", `${o.startet.replace(/[:.]/g, "-")}_${id.slice(0, 8)}.json`), JSON.stringify(gemt, null, 2));
-    return { referat };
+    return { referat: await afslutOgGem(id, o) };
   },
 
   "GET /api/bookinger": () => kalender.bookinger,
@@ -108,18 +116,63 @@ function serverFil(sti, res) {
   }
 }
 
-async function laesKrop(req) {
+async function laesKrop(req, maks = 20_000) {
   let data = "";
   for await (const del of req) {
     data += del;
-    if (data.length > 20_000) throw new HttpFejl(413, "For stor forespørgsel.");
+    if (data.length > maks) throw new HttpFejl(413, "For stor forespørgsel.");
   }
   if (!data) return {};
   try { return JSON.parse(data); } catch { throw new HttpFejl(400, "Ugyldig JSON."); }
 }
 
+// Vapi: telefonopkald. Kræver den hemmelige nøgle, så fremmede ikke kan bruge
+// din server (og din API-kredit) gennem den offentlige adresse.
+async function haandterVapi(req, res, sti) {
+  if (!VAPI_HEMMELIGHED) return svarJson(res, 503, { fejl: "VAPI_HEMMELIGHED er ikke sat i .env." });
+  if (!erGyldigNoegle(req.headers[HEADER], VAPI_HEMMELIGHED)) return svarJson(res, 401, { fejl: "Forkert nøgle." });
+  const krop = await laesKrop(req, 2_000_000); // Vapi sender hele opkaldet med
+
+  if (sti === "/vapi/chat/completions") {
+    let tekst;
+    try {
+      tekst = await vapi.svar(krop);
+    } catch (fejl) {
+      console.error("Fejl i telefonsvar:", fejl);
+      tekst = TEKNISK_FEJL;
+    }
+    return skrivSvar(res, tekst, { stream: krop.stream === true });
+  }
+
+  // Webhook: Vapi fortæller, at opkaldet er slut.
+  const besked = krop.message ?? {};
+  if (besked.type === "end-of-call-report" && besked.call?.id) {
+    vapi.opkaldSlut(besked.call.id)
+      .then((r) => r && console.log(`Telefonopkald afsluttet: ${r.resume}`))
+      .catch((fejl) => console.error("Kunne ikke afslutte telefonopkald:", fejl));
+  }
+  return svarJson(res, 200, {});
+}
+
+function svarJson(res, status, data) {
+  res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
+  if (req.method === "GET" && url.pathname === "/vapi/ping") return svarJson(res, 200, { ok: true });
+  if (req.method === "POST" && (url.pathname === "/vapi/chat/completions" || url.pathname === "/vapi/webhook")) {
+    return haandterVapi(req, res, url.pathname).catch((fejl) => {
+      const [status, besked] = oversaetFejl(fejl);
+      if (!res.headersSent) svarJson(res, status, { fejl: besked });
+    });
+  }
+  // Testsiden har intet login, så den må kun bruges fra din egen computer – ikke
+  // gennem tunnelen. Tunneller sætter disse headers på alle forespørgsler udefra.
+  if (req.headers["cf-connecting-ip"] || req.headers["x-forwarded-for"]) {
+    return svarJson(res, 403, { fejl: "Testsiden kan kun bruges lokalt på http://localhost." });
+  }
   const rute = findRute(req.method, url.pathname);
   if (!rute) {
     if (req.method === "GET" && serverFil(url.pathname, res)) return;
@@ -145,4 +198,5 @@ server.listen(PORT, () => {
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
     console.log("  Bemærk: ANTHROPIC_API_KEY er ikke sat. Se README, afsnit 'API-nøgle'.\n");
   }
+  console.log(VAPI_HEMMELIGHED ? "  Telefon (Vapi): klar på /vapi\n" : "  Telefon (Vapi): slået fra – se VAPI.md\n");
 });

@@ -5,6 +5,7 @@ En dansktalende AI, der tager telefonen for lokale virksomheder: svarer på spø
 Dette er **fase 1 – demoen**. Du tester den i browseren med din egen stemme, før du betaler for et rigtigt telefonnummer. Demo-kunden er den fiktive bilplejevirksomhed *Glanspunkt Bilpleje*.
 
 > Forretningsplanen, de næste faser og plugins til Claude Code står i [PLAN.md](PLAN.md).
+> **Rigtige telefonopkald via Vapi:** se [VAPI.md](VAPI.md).
 
 ## Hvad kan den?
 
@@ -57,6 +58,7 @@ npm start
 | `npm test` | Tjekker kalender, værktøjer og prompt. Gratis – kræver ingen nøgle. |
 | `npm run samtaletest` | Kører 7 rigtige samtaler mod AI'en og tjekker svarene automatisk (koster ca. et par kroner). |
 | `npm run dev` | Som `npm start`, men genstarter selv, når du ændrer koden. |
+| `npm run vapi:opsaet` | Opretter/opdaterer assistenten hos Vapi (se VAPI.md). |
 
 Kør `npm run samtaletest`, hver gang du ændrer prompten eller en kundefil. Den fanger fx, hvis AI'en begynder at opfinde priser.
 
@@ -82,6 +84,8 @@ src/vaerktoejer.js       Det AI'en kan gøre: tjekke tider, booke, gemme besked,
 src/kalender.js          Ledige tider ud fra åbningstider og bookinger
 src/referat.js           Referat til virksomheden efter opkaldet
 src/server.js            Webserveren
+src/vapi.js              Forbindelsen til Vapi (rigtige telefonopkald)
+scripts/vapi-opsaet.js   Opretter/opdaterer assistenten hos Vapi
 web/                     Testsiden med tale i browseren
 data/                    Bookinger og gemte opkald (oprettes automatisk, kommer ikke på GitHub)
 ```

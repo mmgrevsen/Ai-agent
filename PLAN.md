@@ -20,7 +20,10 @@ Der findes allerede danske AI-receptionister, så markedet er der – men det be
 - [x] Automatiske tests + samtaletests mod den rigtige AI
 
 ### Fase 2 – Første kunde
-- [ ] Rigtigt telefonnummer via en telefonplatform (se nedenfor)
+- [x] Forbindelse til Vapi bygget – se [VAPI.md](VAPI.md)
+- [ ] Første rigtige testopkald gennem Vapi
+- [ ] Dansk telefonnummer (importeret fra fx Twilio eller Telnyx)
+- [ ] Fast adresse til serveren (hosting i stedet for tunnel)
 - [ ] Kobl kalenderen til virksomhedens rigtige kalender (fx Google Kalender)
 - [ ] Send referat og beskeder til indehaveren på SMS eller e-mail
 - [ ] Viderestilling til en medarbejder, når AI'en er i tvivl
@@ -48,7 +51,7 @@ Kunde ringer → Telefonplatform (fx Vapi eller Retell AI)
                  └─ kalder vores server, når AI'en vil tjekke tider, booke eller gemme besked
 ```
 
-Det, der allerede er bygget, kan genbruges direkte: kundefilen, prompten, værktøjerne (`tjek_ledige_tider`, `opret_booking`, `gem_besked`, `afslut_opkald`), kalenderen og referatet. Næste skridt er at lave en webhook i `src/server.js`, som telefonplatformen kan kalde.
+Vapi er nu koblet på som "Custom LLM": Vapi klarer tale og telefon, og vores egen server er hjernen. Det betyder, at alt fra demoen bliver genbrugt – kundefilen, prompten, værktøjerne, kalenderen og referatet – og at vi selv vælger Claude-modellen. Vejledningen står i [VAPI.md](VAPI.md).
 
 **Før du vælger platform:** Lav en gratis prøvekonto hos to platforme, giv dem den samme prompt, og ring selv ind med de samme 10 spørgsmål. Vurder dansk forståelse, stemmekvalitet, ventetid og pris pr. minut. Tjek de aktuelle priser på deres egne sider – de ændrer sig ofte.
 
