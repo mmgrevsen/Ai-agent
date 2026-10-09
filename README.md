@@ -57,6 +57,7 @@ npm start
 |---|---|
 | `npm test` | Tjekker kalender, værktøjer og prompt. Gratis – kræver ingen nøgle. |
 | `npm run samtaletest` | Kører 7 rigtige samtaler mod AI'en og tjekker svarene automatisk (koster ca. et par kroner). |
+| `npm run opkaldstest` | **Stresstest:** En AI ringer på 50 forskellige måder (booking, klager, engelsk, vrede kunder, snyd …), og en AI-dommer bedømmer hvert opkald. Rapport i `rapporter/`. Koster groft anslået 40–80 kr. – start med `-- --antal 5`. |
 | `npm run dev` | Som `npm start`, men genstarter selv, når du ændrer koden. |
 | `npm run vapi:opsaet` | Opretter/opdaterer assistenten hos Vapi (se VAPI.md). |
 
