@@ -1,0 +1,87 @@
+{
+  "id": "glanspunkt",
+  "navn": "Glanspunkt Bilpleje",
+  "branche": "bilpleje",
+  "beskrivelse": "Fiktiv demovirksomhed. Lokal bilpleje med håndvask, indvendig rengøring, polering og keramisk coating.",
+  "adresse": "Eksempelvej 12, 8000 Aarhus C",
+  "telefon": "12 34 56 78",
+  "email": "kontakt@glanspunkt.example",
+  "assistent_navn": "Sofie",
+  "velkomst": "Hej, du har ringet til Glanspunkt Bilpleje. Du taler med Sofie, som er en AI-assistent. Jeg kan svare på spørgsmål om priser og behandlinger og booke en tid til dig. Hvad kan jeg hjælpe med?",
+  "aabningstider": {
+    "mandag": { "aaben": "08:00", "luk": "17:00" },
+    "tirsdag": { "aaben": "08:00", "luk": "17:00" },
+    "onsdag": { "aaben": "08:00", "luk": "17:00" },
+    "torsdag": { "aaben": "08:00", "luk": "17:00" },
+    "fredag": { "aaben": "08:00", "luk": "16:00" },
+    "loerdag": { "aaben": "09:00", "luk": "13:00" },
+    "soendag": null
+  },
+  "ydelser": [
+    {
+      "id": "udvendig-vask",
+      "navn": "Udvendig håndvask",
+      "pris": 349,
+      "varighed_min": 45,
+      "beskrivelse": "Skånsom håndvask, fælgrens og tørring med mikrofiberklude."
+    },
+    {
+      "id": "indvendig-rengoering",
+      "navn": "Indvendig rengøring",
+      "pris": 549,
+      "varighed_min": 60,
+      "beskrivelse": "Støvsugning, aftørring af alle flader, ruder indvendigt og måtter."
+    },
+    {
+      "id": "komplet",
+      "navn": "Komplet pakke (ind og ud)",
+      "pris": 849,
+      "varighed_min": 120,
+      "beskrivelse": "Udvendig håndvask og indvendig rengøring samlet til en lavere pris."
+    },
+    {
+      "id": "polering",
+      "navn": "Polering og voks",
+      "pris": 1499,
+      "varighed_min": 180,
+      "beskrivelse": "Maskinpolering, der fjerner fine ridser og mat lak, efterfulgt af voks."
+    },
+    {
+      "id": "keramisk-coating",
+      "navn": "Keramisk coating",
+      "pris": 4999,
+      "pris_er_fra_pris": true,
+      "varighed_min": 420,
+      "beskrivelse": "Polering og keramisk lakbeskyttelse, der holder op til 3 år. Endelig pris afhænger af lakkens stand og aftales ved besigtigelse."
+    },
+    {
+      "id": "lugtfjernelse",
+      "navn": "Lugtfjernelse med ozon",
+      "pris": 599,
+      "varighed_min": 90,
+      "beskrivelse": "Fjerner lugt fra røg, dyr og fugt med ozonbehandling."
+    }
+  ],
+  "tillaeg": [
+    "Store biler (SUV, varebil og 7-personers biler): 150 kr. ekstra på vask, rengøring og komplet pakke.",
+    "Ekstra beskidt bil, fx mange dyrehår eller sand: op til 300 kr. ekstra. Det vurderes, når bilen afleveres, og kunden får besked inden."
+  ],
+  "faq": [
+    { "spoergsmaal": "Hvordan kan man betale?", "svar": "Med MobilePay eller betalingskort. Erhvervskunder kan få faktura." },
+    { "spoergsmaal": "Kan man afbestille?", "svar": "Ja, gratis senest 24 timer før. Ved senere afbud eller udeblivelse opkræves 200 kr." },
+    { "spoergsmaal": "Kan man vente, mens bilen bliver gjort klar?", "svar": "Ja, ved behandlinger under to timer. Der er et venteområde med kaffe og wifi." },
+    { "spoergsmaal": "Henter I bilen?", "svar": "Nej, kunden afleverer og henter selv bilen." },
+    { "spoergsmaal": "Har I lånebil?", "svar": "Nej, vi har ikke lånebiler." },
+    { "spoergsmaal": "Hvor ligger I?", "svar": "Eksempelvej 12 i Aarhus C. Der er gratis parkering foran." },
+    { "spoergsmaal": "Giver I rabat?", "svar": "Komplet pakke er billigere end at købe vask og rengøring hver for sig. Andre rabatter aftales kun direkte med indehaveren." }
+  ],
+  "booking": {
+    "dage_frem": 14,
+    "interval_min": 30,
+    "foerste_tid_tidligst_om_timer": 2
+  },
+  "viderestilling": {
+    "muligt": false,
+    "besked": "Indehaveren ringer tilbage hurtigst muligt og senest næste hverdag."
+  }
+}

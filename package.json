@@ -1,0 +1,20 @@
+{
+  "name": "ai-receptionist",
+  "version": "0.1.0",
+  "description": "Dansk AI-receptionist til lokale virksomheder – første demo (bilpleje)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "samtaletest": "node --env-file-if-exists=.env scripts/samtaletest.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "zod": "^4.6.5"
+  }
+}
