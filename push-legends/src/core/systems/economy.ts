@@ -12,7 +12,12 @@ export const isValidStage = (index: number) => Number.isInteger(index) && index 
 /** Multiplier applied to enemy health and damage. */
 export function difficultyMultiplier(index: number, difficulty: Difficulty = 'normal'): number {
   const { world } = stageFromIndex(index);
-  return Math.pow(BALANCE.difficulty.stageGrowth, index) * Math.pow(BALANCE.difficulty.worldStep, world) * BALANCE.difficulty[difficulty].power;
+  return (
+    BALANCE.difficulty.baseEnemyPower *
+    Math.pow(BALANCE.difficulty.stageGrowth, index) *
+    Math.pow(BALANCE.difficulty.worldStep, world) *
+    BALANCE.difficulty[difficulty].power
+  );
 }
 
 export function rewardMultiplier(difficulty: Difficulty): number {

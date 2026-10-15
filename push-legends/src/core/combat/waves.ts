@@ -26,7 +26,7 @@ export function buildStageWaves(world: number, stage: number, seed: number, modi
   const eliteChance = stage >= w.eliteFromStage ? (modifiers.includes('elite_surge') ? 0.3 : 0.1) : 0;
 
   for (let i = 0; i < waveCount; i++) {
-    const count = Math.min(16, 4 + Math.floor(stage * 0.5) + world + i);
+    const count = Math.min(12, 4 + Math.floor(stage * 0.4) + Math.floor(world * 0.5) + i);
     const spawns: EnemySpawn[] = [];
     let elites = 0;
     for (let k = 0; k < count; k++) {
@@ -39,7 +39,7 @@ export function buildStageWaves(world: number, stage: number, seed: number, modi
 
   if (stage === MINI_BOSS_STAGE || stage === BOSS_STAGE) {
     const tier = stage === BOSS_STAGE ? 2 : 1;
-    const escorts: EnemySpawn[] = Array.from({ length: 2 + world }, () => ({ kind: 'enemy', role: rollRole(rng, roles, modifiers), elite: false }));
+    const escorts: EnemySpawn[] = Array.from({ length: 2 + Math.floor(world / 2) }, () => ({ kind: 'enemy', role: rollRole(rng, roles, modifiers), elite: false }));
     waves.push({
       spawns: [{ kind: 'boss', bossId: tier === 2 ? w.boss.id : w.miniBoss.id, tier }, ...escorts],
       isBossWave: true,

@@ -496,7 +496,7 @@ export class Battle {
     if (spawn.kind === 'boss') {
       const def = BOSS_BY_ID.get(spawn.bossId);
       if (!def) return;
-      const hp = def.hp * diff * (spawn.tier === 2 ? 1 : 1);
+      const hp = def.hp * diff * BALANCE.difficulty.bossHpMult;
       const u = this.newUnitBase({
         side: 'enemy',
         kind: 'boss',
@@ -509,7 +509,7 @@ export class Battle {
         size: def.size,
         hp,
         maxHp: hp,
-        damage: def.damage * diff * glass,
+        damage: def.damage * diff * glass * BALANCE.difficulty.bossDamageMult,
         attackInterval: def.attackInterval,
         range: def.range,
         speed: def.speed * swift,
@@ -526,7 +526,7 @@ export class Battle {
           castingUntil: 0,
           baseResist: { ...def.resist },
           baseAttackInterval: def.attackInterval,
-          baseDamage: def.damage * diff * glass,
+          baseDamage: def.damage * diff * glass * BALANCE.difficulty.bossDamageMult,
         },
       });
       this.units.push(u);
@@ -1013,7 +1013,8 @@ export class Battle {
         push({ ...base, kind: 'drain', x0: u.x - ab.length - reach, x1: u.x, damage: dmg * ab.damageMult, healPct: ab.healPct });
         break;
       case 'meteor': {
-        const allies = this.allies;
+        // Meteors aim at the army; the hero (who cannot dodge) is only targeted when no units are deployed.
+        const allies = this.allies.filter((a) => a.kind === 'card');
         for (let i = 0; i < ab.count; i++) {
           const target = allies.length ? this.rng.pick(allies) : this.hero;
           const cx = target.x + this.rng.range(-2, 2);
@@ -1108,7 +1109,11 @@ export class Battle {
       if (enemies.length >= 5 && ['splashBurn', 'frostNova', 'chain', 'armorBreak'].includes(d.ability.kind)) s += 3;
       return s;
     };
-    const best = cards.reduce((b, c) => (score(c) > score(b) ? c : b));
+    // Danger: enemies near the hero means deploy the best card we can afford right now.
+    const danger = enemies.some((e) => e.x < C.heroX + 30);
+    const pool = danger ? cards.filter((c) => c.spec.def.cost <= this.valor) : cards;
+    if (pool.length === 0) return;
+    const best = pool.reduce((b, c) => (score(c) > score(b) ? c : b));
     const threshold = Math.min(C.maxValor, Math.max(best.spec.def.cost, enemies.length > 3 ? best.spec.def.cost : Math.min(maxCost, best.spec.def.cost + 1)));
     if (this.valor >= threshold) this.deploy(best.slot);
   }

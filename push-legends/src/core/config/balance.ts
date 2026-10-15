@@ -10,7 +10,7 @@ export const BALANCE = {
     /** Reward multiplier for a verified knee push-up. */
     kneeRepMultiplier: 0.5,
     /** Battle valor (deploy energy) granted per rep, before multipliers. */
-    valorPerRep: 2.5,
+    valorPerRep: 1.5,
     /** Fraction of the hero special charged per full rep (8 reps = full charge). */
     specialChargePerRep: 0.125,
     /** Reps inside one battle needed to trigger a War Cry (army-wide damage boost). */
@@ -18,7 +18,7 @@ export const BALANCE = {
     warCryDurationSec: 10,
     warCryDamageBonus: 0.4,
     /** Bonus gold for each verified rep (scaled by stage gold rate, see economy.repGold). */
-    repGoldStageSeconds: 2.5,
+    repGoldStageSeconds: 6,
     /** Hero XP per verified rep. */
     repHeroXp: 3,
     /** Daily verified reps that grant full direct rewards; above this, rewards drop to the tail rate. */
@@ -57,10 +57,15 @@ export const BALANCE = {
   },
 
   difficulty: {
+    /** Baseline multiplier on all enemy health and damage. */
+    baseEnemyPower: 2.6,
+    /** Global multipliers for boss and mini-boss health and damage (relative to their data values). */
+    bossHpMult: 0.75,
+    bossDamageMult: 0.6,
     /** Enemy HP and damage multiply by this per global stage (world * 10 + stage). */
-    stageGrowth: 1.085,
+    stageGrowth: 1.05,
     /** Extra step multiplier applied at each new world. */
-    worldStep: 1.25,
+    worldStep: 1.06,
     story: { power: 0.65, rewards: 0.6 },
     normal: { power: 1, rewards: 1 },
     heroic: { power: 1.45, rewards: 1.8 },
@@ -70,7 +75,7 @@ export const BALANCE = {
 
   economy: {
     killGoldBase: 3,
-    killGoldGrowth: 1.095,
+    killGoldGrowth: 1.07,
     stageClearGoldBase: 40,
     firstClearMultiplier: 3,
     stageXpBase: 20,
@@ -80,7 +85,7 @@ export const BALANCE = {
     /** Gems are earned only through gameplay (achievements, bosses, quests). No real-money purchases exist. */
     gemsFromBossFirstClear: 25,
     fragmentsPerStageClearMin: 2,
-    fragmentsPerStageClearMax: 6,
+    fragmentsPerStageClearMax: 5,
   },
 
   cards: {
@@ -89,7 +94,7 @@ export const BALANCE = {
     statGrowth: 1.115,
     /** Gold to go from level L to L+1 = base * growth^(L-1). */
     upgradeGoldBase: 25,
-    upgradeGoldGrowth: 1.32,
+    upgradeGoldGrowth: 1.4,
     /** Fragments to go from level L to L+1 = perLevel[rarity] * L. */
     fragmentsPerLevel: { common: 4, rare: 3, epic: 2, legendary: 1, mythic: 1 },
     /** Glory tokens granted per surplus fragment once a card is max level. */
@@ -103,9 +108,10 @@ export const BALANCE = {
 
   hero: {
     baseHp: 420,
-    hpPerLevel: 0.07,
+    /** Hero health and damage grow geometrically per level so the hero keeps pace with enemy scaling. */
+    hpGrowth: 1.055,
     baseDamage: 26,
-    damagePerLevel: 0.07,
+    damageGrowth: 1.05,
     attackInterval: 1.0,
     attackRange: 9,
     xpToLevelBase: 60,
@@ -142,8 +148,12 @@ export const BALANCE = {
   },
 
   idle: {
-    /** Offline army income = this fraction of the active gold rate at the best cleared stage. */
-    armyIncomeFraction: 0.35,
+    /**
+     * Idle army income = this fraction of the active gold rate at the best cleared stage, per real second.
+     * Idle runs for many hours while active play lasts minutes, so the fraction is small: a day of idle
+     * income is worth roughly 20 minutes of active play.
+     */
+    armyIncomeFraction: 0.03,
     /** Offline time at full rate before diminishing returns start. */
     fullRateHours: 2,
     /** Rate after fullRateHours until the cap. */

@@ -33,8 +33,8 @@ export function buildHeroSpec(state: GameState): HeroSpec {
 export function normalizedHeroSpec(state: GameState): HeroSpec {
   const lvl = 10;
   return {
-    hp: Math.round(BALANCE.hero.baseHp * (1 + BALANCE.hero.hpPerLevel * (lvl - 1))),
-    damage: Math.round(BALANCE.hero.baseDamage * (1 + BALANCE.hero.damagePerLevel * (lvl - 1))),
+    hp: Math.round(BALANCE.hero.baseHp * Math.pow(BALANCE.hero.hpGrowth, lvl - 1)),
+    damage: Math.round(BALANCE.hero.baseDamage * Math.pow(BALANCE.hero.damageGrowth, lvl - 1)),
     attackInterval: BALANCE.hero.attackInterval,
     critChance: 0.05,
     bossDamage: 1,
@@ -106,6 +106,8 @@ export function campaignSetup(
     stageIndex: stageIdx,
     waves,
     startWave: canSkip ? bossWave : 0,
+    // Boss stages get extra time so the fight itself is never cut short.
+    timeLimit: bossWave >= 0 ? BALANCE.combat.stageTimeLimitSec + 120 : BALANCE.combat.stageTimeLimitSec,
     difficulty,
     difficultyMult: difficultyMultiplier(stageIdx, difficulty),
     rewardMult: rewardMultiplier(difficulty),

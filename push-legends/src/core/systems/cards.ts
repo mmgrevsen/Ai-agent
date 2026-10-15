@@ -135,3 +135,27 @@ export function discoverableCards(state: GameState): CardDef[] {
   const reachedWorld = Math.floor(Math.max(0, state.progress.highestCleared + 1) / 10);
   return CARDS.filter((c) => state.cards[c.id] || c.unlock.kind === 'start' || (c.unlock.kind === 'stage' && c.unlock.world <= reachedWorld));
 }
+
+const RARITY_SCORE: Record<Rarity, number> = { common: 0, rare: 1.2, epic: 2.2, legendary: 3, mythic: 3.8 };
+
+/** Rates owned cards and builds a balanced deck: a tank, anti-air, area damage, support, then the strongest rest. */
+export function suggestDeck(state: GameState): string[] {
+  const owned = Object.keys(state.cards).map((id) => ({ def: getCard(id), score: state.cards[id]!.level + RARITY_SCORE[getCard(id).rarity] - getCard(id).cost * 0.4 }));
+  owned.sort((a, b) => b.score - a.score);
+  const deck: string[] = [];
+  const take = (pred: (d: CardDef) => boolean, n: number) => {
+    for (const c of owned) {
+      if (n <= 0 || deck.length >= BALANCE.cards.deckSize) break;
+      if (!deck.includes(c.def.id) && pred(c.def)) {
+        deck.push(c.def.id);
+        n--;
+      }
+    }
+  };
+  take((d) => d.role === 'tank', 2);
+  take((d) => d.targetsAir && d.role !== 'support', 3);
+  take((d) => d.role === 'support', 1);
+  take((d) => ['splashBurn', 'frostNova', 'chain', 'armorBreak'].includes(d.ability.kind), 1);
+  take(() => true, BALANCE.cards.deckSize);
+  return deck;
+}

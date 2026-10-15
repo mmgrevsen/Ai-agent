@@ -76,13 +76,8 @@ export interface OfflineReport {
  * credited (and never removes anything), and future timestamps left by a wrong clock are re-anchored.
  */
 export function processReturn(state: GameState, now: number): OfflineReport | null {
-  let clockWarning = false;
-  if (now < state.maxSeenAt - 5 * 60_000) {
-    clockWarning = true;
-    // Re-anchor timers that are in the future relative to the corrected clock so income resumes normally.
-    if (state.idle.lastClaimAt > now) state.idle.lastClaimAt = now;
-    if (state.mine.lastCollectedAt > now) state.mine.lastCollectedAt = now;
-  }
+  const clockWarning = now < state.maxSeenAt - 5 * 60_000 || state.idle.lastClaimAt > now + 5 * 60_000;
+  reanchorFutureTimers(state, now);
   const awaySec = clockWarning ? 0 : Math.max(0, (now - state.lastSeenAt) / 1000);
   const buildingsCompleted = completeBuildingUpgrades(state, now);
   state.lastSeenAt = now;
@@ -105,8 +100,15 @@ export function processReturn(state: GameState, now: number): OfflineReport | nu
   };
 }
 
+/** Timers left in the future by a wrong device clock are pulled back so income resumes normally. */
+function reanchorFutureTimers(state: GameState, now: number): void {
+  if (state.idle.lastClaimAt > now) state.idle.lastClaimAt = now;
+  if (state.mine.lastCollectedAt > now) state.mine.lastCollectedAt = now;
+}
+
 /** Called periodically while the app is open. */
 export function touch(state: GameState, now: number): BuildingId[] {
+  reanchorFutureTimers(state, now);
   if (now >= state.maxSeenAt - 5 * 60_000) {
     state.lastSeenAt = now;
     state.maxSeenAt = Math.max(state.maxSeenAt, now);

@@ -66,8 +66,9 @@ export function computeHeroStats(state: GameState): HeroStats {
   totals.repPower += BUILDING_EFFECTS.trainingRepPower(b.training_grounds.level);
 
   const lvl = state.hero.level;
-  const hp = Math.round((BALANCE.hero.baseHp + totals.heroHp) * (1 + BALANCE.hero.hpPerLevel * (lvl - 1)));
-  const damage = Math.round((BALANCE.hero.baseDamage + totals.heroDamage) * (1 + BALANCE.hero.damagePerLevel * (lvl - 1)));
+  // The hero fights alongside the army, so barracks bonuses apply to the hero too.
+  const hp = Math.round((BALANCE.hero.baseHp + totals.heroHp) * Math.pow(BALANCE.hero.hpGrowth, lvl - 1) * (1 + totals.armyHp));
+  const damage = Math.round((BALANCE.hero.baseDamage + totals.heroDamage) * Math.pow(BALANCE.hero.damageGrowth, lvl - 1));
 
   return {
     level: lvl,
