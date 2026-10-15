@@ -1,5 +1,5 @@
-import { ENEMY_ROLES, type EnemyRole } from '../data/types';
-import { BOSS_STAGE, getWorld, MINI_BOSS_STAGE } from '../data/worlds';
+import { ENEMY_ROLES, type EnemyRole } from '../content/types';
+import { BOSS_STAGE, getWorld, MINI_BOSS_STAGE } from '../content/worlds';
 import { Rng } from '../rng';
 import type { BattleModifierId, EnemySpawn, WaveDef } from './types';
 

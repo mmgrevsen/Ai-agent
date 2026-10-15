@@ -1,5 +1,5 @@
 import { BALANCE } from '../config/balance';
-import { BUILDING_EFFECTS, BUILDINGS, getBuilding, type BuildingId } from '../data/buildings';
+import { BUILDING_EFFECTS, BUILDINGS, getBuilding, type BuildingId } from '../content/buildings';
 import type { GameState } from '../state/types';
 
 export function buildingUpgradeCost(id: BuildingId, currentLevel: number): number {

@@ -1,8 +1,8 @@
 import { BALANCE } from '../config/balance';
-import { CARDS, getCard } from '../data/cards';
-import { BOSS_COSMETICS } from '../data/cosmetics';
-import type { ChestKind, Reward } from '../data/quests';
-import { BOSS_STAGE, getWorld, MINI_BOSS_STAGE, TOTAL_STAGES } from '../data/worlds';
+import { CARDS, getCard } from '../content/cards';
+import { BOSS_COSMETICS } from '../content/cosmetics';
+import type { ChestKind, Reward } from '../content/quests';
+import { BOSS_STAGE, getWorld, MINI_BOSS_STAGE, TOTAL_STAGES } from '../content/worlds';
 import type { BattleResult } from '../combat/types';
 import type { Rng } from '../rng';
 import type { GameState } from '../state/types';

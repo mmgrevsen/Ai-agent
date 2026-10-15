@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance';
-import { ITEMS } from '../data/equipment';
-import type { ChestKind } from '../data/quests';
-import { RARITIES, type Rarity } from '../data/types';
+import { ITEMS } from '../content/equipment';
+import type { ChestKind } from '../content/quests';
+import { RARITIES, type Rarity } from '../content/types';
 import type { Rng } from '../rng';
 import type { GameState } from '../state/types';
 import { addCardFragments, discoverableCards } from './cards';

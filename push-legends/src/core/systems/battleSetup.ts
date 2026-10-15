@@ -1,6 +1,6 @@
 import { BALANCE, type Difficulty } from '../config/balance';
-import { getCard } from '../data/cards';
-import { BUILDING_EFFECTS } from '../data/buildings';
+import { getCard } from '../content/cards';
+import { BUILDING_EFFECTS } from '../content/buildings';
 import { buildStageWaves } from '../combat/waves';
 import type { BattleModifierId, BattleSetup, DeckCardSpec, HeroSpec, WaveDef } from '../combat/types';
 import { hashString } from '../rng';

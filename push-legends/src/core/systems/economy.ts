@@ -1,5 +1,5 @@
 import { BALANCE, type Difficulty } from '../config/balance';
-import { STAGES_PER_WORLD, TOTAL_STAGES } from '../data/worlds';
+import { STAGES_PER_WORLD, TOTAL_STAGES } from '../content/worlds';
 
 /** Global stage index: world 0 stage 1 → 0, world 1 stage 1 → 10. */
 export const stageIndex = (world: number, stage: number) => world * STAGES_PER_WORLD + (stage - 1);

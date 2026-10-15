@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance';
-import { CARDS, getCard } from '../data/cards';
-import type { CardDef, Rarity } from '../data/types';
-import { BUILDING_EFFECTS } from '../data/buildings';
+import { CARDS, getCard } from '../content/cards';
+import type { CardDef, Rarity } from '../content/types';
+import { BUILDING_EFFECTS } from '../content/buildings';
 import type { GameState } from '../state/types';
 
 export interface CardStats {

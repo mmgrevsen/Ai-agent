@@ -1,7 +1,7 @@
-import { STARTER_CARDS } from '../data/cards';
-import { STARTER_COSMETICS } from '../data/cosmetics';
-import type { BuildingId } from '../data/buildings';
-import { BUILDINGS } from '../data/buildings';
+import { STARTER_CARDS } from '../content/cards';
+import { STARTER_COSMETICS } from '../content/cosmetics';
+import type { BuildingId } from '../content/buildings';
+import { BUILDINGS } from '../content/buildings';
 import { Rng } from '../rng';
 import { dayKey } from '../util';
 import { SAVE_VERSION, type BuildingState, type GameState } from './types';

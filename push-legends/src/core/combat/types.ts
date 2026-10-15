@@ -1,7 +1,7 @@
 import type { Difficulty } from '../config/balance';
-import type { ItemEffect } from '../data/equipment';
-import type { PetActive } from '../data/pets';
-import type { AbilityDef, BossDef, CardDef, DamageType, EnemyRole, TargetPriority, UnitRole } from '../data/types';
+import type { ItemEffect } from '../content/equipment';
+import type { PetActive } from '../content/pets';
+import type { AbilityDef, BossDef, CardDef, DamageType, EnemyRole, TargetPriority, UnitRole } from '../content/types';
 
 export type BattleMode = 'campaign' | 'dungeon' | 'endless' | 'blitz' | 'weekly' | 'challenge';
 

@@ -1,6 +1,6 @@
 import { BALANCE } from '../config/balance';
-import type { DamageType, EnemyRole } from '../data/types';
-import { BOSS_BY_ID, ENEMY_ROLE_STATS, getWorld } from '../data/worlds';
+import type { DamageType, EnemyRole } from '../content/types';
+import { BOSS_BY_ID, ENEMY_ROLE_STATS, getWorld } from '../content/worlds';
 import { Rng } from '../rng';
 import type {
   BattleAnalysis,

@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance';
-import type { BuildingId } from '../data/buildings';
-import { BUILDING_EFFECTS } from '../data/buildings';
-import type { Reward } from '../data/quests';
+import type { BuildingId } from '../content/buildings';
+import { BUILDING_EFFECTS } from '../content/buildings';
+import type { Reward } from '../content/quests';
 import type { GameState } from '../state/types';
 import { completeBuildingUpgrades, mineStored } from './buildings';
 import { upgradeableCards } from './cards';

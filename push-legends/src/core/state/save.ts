@@ -1,8 +1,8 @@
-import { CARD_BY_ID } from '../data/cards';
-import { COSMETIC_BY_ID } from '../data/cosmetics';
-import { EQUIP_SLOTS, ITEM_BY_ID } from '../data/equipment';
-import { PET_BY_ID } from '../data/pets';
-import { BUILDINGS } from '../data/buildings';
+import { CARD_BY_ID } from '../content/cards';
+import { COSMETIC_BY_ID } from '../content/cosmetics';
+import { EQUIP_SLOTS, ITEM_BY_ID } from '../content/equipment';
+import { PET_BY_ID } from '../content/pets';
+import { BUILDINGS } from '../content/buildings';
 import { BALANCE } from '../config/balance';
 import { hashString } from '../rng';
 import { createInitialState } from './initial';

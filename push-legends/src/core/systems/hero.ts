@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance';
-import { BUILDING_EFFECTS } from '../data/buildings';
-import { getItem, type ItemEffect, type StatKey } from '../data/equipment';
-import { getPet, type PetActive } from '../data/pets';
+import { BUILDING_EFFECTS } from '../content/buildings';
+import { getItem, type ItemEffect, type StatKey } from '../content/equipment';
+import { getPet, type PetActive } from '../content/pets';
 import type { GameState } from '../state/types';
 import { equippedItems, itemStats } from './equipment';
 import { petPassiveValue } from './pets';

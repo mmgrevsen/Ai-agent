@@ -1,6 +1,6 @@
 import { BALANCE } from '../config/balance';
-import { BUILDING_EFFECTS } from '../data/buildings';
-import { FLAT_STATS, getItem, type EquipSlot, type StatKey } from '../data/equipment';
+import { BUILDING_EFFECTS } from '../content/buildings';
+import { FLAT_STATS, getItem, type EquipSlot, type StatKey } from '../content/equipment';
 import type { GameState, ItemInstance } from '../state/types';
 import { uid } from '../util';
 

@@ -1,7 +1,7 @@
 import type { Difficulty } from '../config/balance';
-import type { BuildingId } from '../data/buildings';
-import type { EquipSlot } from '../data/equipment';
-import type { ChestKind, Reward } from '../data/quests';
+import type { BuildingId } from '../content/buildings';
+import type { EquipSlot } from '../content/equipment';
+import type { ChestKind, Reward } from '../content/quests';
 
 export const SAVE_VERSION = 1;
 

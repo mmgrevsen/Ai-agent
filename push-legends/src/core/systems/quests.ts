@@ -1,6 +1,6 @@
 import { BALANCE } from '../config/balance';
-import { BUILDING_EFFECTS } from '../data/buildings';
-import { COSMETIC_BY_ID } from '../data/cosmetics';
+import { BUILDING_EFFECTS } from '../content/buildings';
+import { COSMETIC_BY_ID } from '../content/cosmetics';
 import {
   ACHIEVEMENTS,
   achievementReward,
@@ -11,7 +11,7 @@ import {
   type GameEvent,
   type QuestTemplate,
   type Reward,
-} from '../data/quests';
+} from '../content/quests';
 import { hashString, Rng } from '../rng';
 import type { GameState, QuestInstance } from '../state/types';
 import { dayKey, daysBetween, weekKey } from '../util';

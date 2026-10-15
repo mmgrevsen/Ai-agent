@@ -1,5 +1,5 @@
 import { BALANCE } from '../config/balance';
-import type { Reward } from '../data/quests';
+import type { Reward } from '../content/quests';
 import type { GameState } from '../state/types';
 
 /** Adds a reward to the player's resources. Rewards are always non-negative; this never removes anything. */

@@ -1,6 +1,6 @@
 import { BALANCE } from '../config/balance';
-import { BUILDING_EFFECTS } from '../data/buildings';
-import { getPet, PET_BY_ID } from '../data/pets';
+import { BUILDING_EFFECTS } from '../content/buildings';
+import { getPet, PET_BY_ID } from '../content/pets';
 import type { GameState, PetProgress } from '../state/types';
 
 export function petPowerMultiplier(progress: PetProgress, sanctuaryLevel: number): number {
