@@ -8,7 +8,7 @@ import type { Rng } from '../rng';
 import type { GameState } from '../state/types';
 import { dayKey, weekKey } from '../util';
 import { checkBuildingUpgrade } from './buildings';
-import { addCardFragments, discoverableCards, upgradeableCards } from './cards';
+import { addCardFragments, upgradeableCards } from './cards';
 import { goldRatePerSecond, progressIndex, stageClearGold, stageClearXp, stageFromIndex } from './economy';
 import { addItem } from './equipment';
 import { computeHeroStats } from './hero';
@@ -236,8 +236,9 @@ function finalizeCampaign(state: GameState, result: BattleResult, summary: Battl
   grantReward(state, bonus);
   summary.victoryBonus = bonus;
 
-  // Card fragments: a few random stacks from the deck and discoverable cards.
-  const pool = discoverableCards(state).map((c) => c.id);
+  // Card fragments: a few random stacks from the deck and owned cards. New cards come from their
+  // scheduled first-clear stage (and chests), so the "New card!" moments stay special.
+  const pool = Object.keys(state.cards).sort();
   const stacks = rng.int(1, 2);
   const total = rng.int(BALANCE.economy.fragmentsPerStageClearMin, BALANCE.economy.fragmentsPerStageClearMax) + academyFragmentBonus(state);
   for (let i = 0; i < stacks; i++) {

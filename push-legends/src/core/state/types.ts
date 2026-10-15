@@ -149,6 +149,8 @@ export interface GameState {
     friendCode: string;
     privacy: 'public' | 'friends' | 'private';
     title: string;
+    /** Set once developer shortcuts are used; shared challenge codes are then marked "assisted". */
+    devAssisted: boolean;
   };
   resources: {
     gold: number;

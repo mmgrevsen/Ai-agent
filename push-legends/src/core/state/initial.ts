@@ -32,6 +32,7 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
       friendCode: generateFriendCode(seed),
       privacy: 'friends',
       title: 'Recruit',
+      devAssisted: false,
     },
     resources: { gold: 150, gems: 20, ore: 5, petTreats: 0, glory: 0 },
     hero: {
@@ -86,7 +87,7 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
       musicVolume: 0.4,
       sfxVolume: 0.8,
       haptics: true,
-      reducedMotion: false,
+      reducedMotion: typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       largeText: false,
       devTools: false,
       exerciseMode: 'full',

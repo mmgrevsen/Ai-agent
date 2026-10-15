@@ -61,7 +61,7 @@ export class Battle {
   private nextId = 1;
   private acc = 0;
   private spawnQueue: { spawn: EnemySpawn; at: number }[] = [];
-  private nextWaveAt = 1.2;
+  private nextWaveAt = 3;
   private analysis: BattleAnalysis;
   private generatedWaves: WaveDef[];
 
@@ -1109,8 +1109,8 @@ export class Battle {
       if (enemies.length >= 5 && ['splashBurn', 'frostNova', 'chain', 'armorBreak'].includes(d.ability.kind)) s += 3;
       return s;
     };
-    // Danger: enemies near the hero means deploy the best card we can afford right now.
-    const danger = enemies.some((e) => e.x < C.heroX + 30);
+    // Danger (enemies approaching, or nobody defending): deploy the best card we can afford right now.
+    const danger = enemies.some((e) => e.x < C.heroX + 50) || (enemies.length > 0 && allies.length === 0);
     const pool = danger ? cards.filter((c) => c.spec.def.cost <= this.valor) : cards;
     if (pool.length === 0) return;
     const best = pool.reduce((b, c) => (score(c) > score(b) ? c : b));

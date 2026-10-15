@@ -121,7 +121,7 @@ describe('combat engine', () => {
 
   it('armor reduces physical damage more than elemental damage', () => {
     const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'armored', elite: false })]));
-    for (let i = 0; i < 60 && b.enemies.length === 0; i++) b.step(0.05);
+    for (let i = 0; i < 200 && b.enemies.length === 0; i++) b.step(0.05);
     const armored = b.enemies[0]!;
     const physicalMult = (b as unknown as { resistMultiplier: (t: unknown, d: string) => number }).resistMultiplier(armored, 'physical');
     const fireMult = (b as unknown as { resistMultiplier: (t: unknown, d: string) => number }).resistMultiplier(armored, 'fire');

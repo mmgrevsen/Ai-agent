@@ -1,3 +1,5 @@
+import { BALANCE } from '../config/balance';
+
 export type BuildingId =
   | 'castle'
   | 'gold_mine'
@@ -30,7 +32,7 @@ export const BUILDING_EFFECTS = {
   barracksArmyDamage: (level: number) => level * 0.025,
   academyCardDiscount: (level: number) => Math.min(0.35, level * 0.025),
   academyFragmentBonus: (level: number) => Math.floor(level / 3),
-  blacksmithItemMaxLevel: (level: number) => Math.max(5, level * 5),
+  blacksmithItemMaxLevel: (level: number) => Math.max(BALANCE.equipment.maxLevelPerBlacksmithLevel, level * BALANCE.equipment.maxLevelPerBlacksmithLevel),
   blacksmithDiscount: (level: number) => Math.min(0.3, level * 0.02),
   trainingRepPower: (level: number) => level * 0.05,
   trainingRepGold: (level: number) => level * 0.06,

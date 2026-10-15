@@ -5,3 +5,4 @@ public/models/*.task
 android/app/build
 ios/App/Pods
 *.log
+e2e-shots

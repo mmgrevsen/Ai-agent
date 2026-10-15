@@ -28,7 +28,6 @@ export const BALANCE = {
 
   combat: {
     tickSeconds: 0.05,
-    laneLength: 100,
     heroX: 7,
     enemySpawnX: 102,
     allySpawnX: 12,
@@ -46,8 +45,6 @@ export const BALANCE = {
     /** Seconds between individual enemy spawns inside a wave. */
     spawnSpacingSec: 0.9,
     stageTimeLimitSec: 210,
-    /** Auto-deploy waits until this much valor to build a reserve for strong cards. */
-    autoDeployReserve: 0,
     eliteHpMult: 3.2,
     eliteDamageMult: 1.6,
     eliteGoldMult: 5,
