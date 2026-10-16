@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { toonMaterial } from './style';
 
 /**
  * Low-poly model builder. Parts are added with a colour each and merged into ONE mesh with vertex
  * colours, so a whole building is a single draw call (important for phones).
  */
-export const SHARED = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+export const SHARED: THREE.Material = toonMaterial(0.35);
 const color = new THREE.Color();
 const pos = new THREE.Vector3();
 const quat = new THREE.Quaternion();
@@ -139,7 +140,7 @@ export function disposeTree(obj: THREE.Object3D): void {
     const material = m.material as THREE.Material | THREE.Material[] | undefined;
     if (!material) return;
     for (const mm of Array.isArray(material) ? material : [material]) {
-      if (mm !== SHARED) {
+      if (mm !== SHARED && !mm.userData.shared) {
         const tex = (mm as THREE.MeshBasicMaterial).map;
         tex?.dispose();
         mm.dispose();

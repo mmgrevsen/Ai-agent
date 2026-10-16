@@ -13,7 +13,15 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): arena camera and detailed cartoon models
+## Latest change (2026-10-16): cel shading, outlines, bloom and sculpted models
+
+New rendering style for the battle (and cel shading for the base): toon shading with rim light,
+ink outlines, bloom on glowing materials and soft unit shadows. All battle models were rebuilt
+from many more shape types (lathed, bevelled, curved and tapered parts, folded cloth). The arena
+gained lanterns and grass tufts. Mini-bosses now get their own models (they previously fell back
+to the stone golem because their sprite ids did not match).
+
+## Earlier change (2026-10-16): arena camera and detailed cartoon models
 
 The battle is now viewed like a mobile arena battler: the lane runs up the screen from the hero's
 gatehouse to the enemy portal, which makes units about twice as large on a phone. All battle models

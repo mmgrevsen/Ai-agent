@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { WorldDef } from '../../core/content/types';
 import { Kit } from '../base3d/kit';
 import { flag, tree } from '../base3d/models';
+import { glowMaterial, toonMaterial } from '../base3d/style';
 
 /** The 3D battlefield for one world: ground, lane, scenery, both bases and ambient particles. */
 export interface Battlefield {
@@ -111,7 +112,8 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   const props = new Kit();
   const glowGroup = new THREE.Group();
   group.add(glowGroup);
-  const glowMat = (hex: string) => new THREE.MeshBasicMaterial({ color: hex });
+  // Large scenery glows stay just above the bloom threshold so they shine without flooding the view
+  const glowMat = (hex: string) => glowMaterial(hex, 2.35);
   const addGlowBox = (geo: THREE.BufferGeometry, hex: string, x: number, y: number, z: number, ry = 0) => {
     const m = new THREE.Mesh(geo, glowMat(hex));
     m.position.set(x, y, z);
@@ -131,7 +133,9 @@ export function buildBattlefield(world: WorldDef): Battlefield {
         continue;
       }
       props.cyl(0.08, 0.1, 0.4, x, 0, z, '#f2ead0', 6);
-      addGlowBox(new THREE.CylinderGeometry(0.35, 0.1, 0.22, 7), rand() < 0.5 ? '#ff7ac8' : '#9be37a', x, 0.5, z);
+      props.add(new THREE.SphereGeometry(0.42, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), rand() < 0.5 ? '#ff6fb5' : '#e74c3c', x, 0.38, z);
+      props.sphere(0.07, x + 0.15, 0.62, z + 0.2, '#ffffff', 0);
+      props.sphere(0.06, x - 0.18, 0.6, z - 0.1, '#ffffff', 0);
     }
   } else if (idx === 1) {
     for (const [x, z] of back) {
@@ -243,7 +247,7 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   portal.box(1.4, 1.2, 7, px, 7, 0, '#3a3550');
   for (const z of [-2.8, 2.8]) portal.cone(0.5, 1.2, px, 8.2, z, world.accent, 4);
   group.add(portal.build(true));
-  const swirl = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.35, 5, 18), new THREE.MeshBasicMaterial({ color: world.enemyPalette.primary }));
+  const swirl = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.3, 8, 28), glowMaterial(world.enemyPalette.primary, 2.6));
   swirl.position.set(px, 3.6, 0);
   swirl.rotation.y = Math.PI / 2;
   group.add(swirl);
@@ -293,6 +297,56 @@ export function buildBattlefield(world: WorldDef): Battlefield {
     }
     a.needsUpdate = true;
   });
+
+  // Lanterns along the road (they glow and bloom)
+  const posts = new Kit();
+  const lanternHex = ['#ffd27a', '#bfe6ff', '#ff9a4a', '#a8ffcf', '#e0b8ff'][idx] ?? '#ffd27a';
+  for (let i = 0; i < 5; i++) {
+    const x = -16 + i * 8.5;
+    for (const z of [-6.1, 6.1]) {
+      const lz = z < 0 ? z + 0.7 : z - 0.7;
+      posts.cyl(0.14, 0.2, 3.0, x, 0, z, '#4a3a2e', 8);
+      posts.cyl(0.26, 0.26, 0.18, x, 0, z, '#3a2e24', 8);
+      posts.box(0.1, 0.1, 0.9, x, 2.9, (z + lz) / 2, '#4a3a2e');
+      posts.cyl(0.16, 0.22, 0.12, x, 2.66, lz, '#2e2620', 8);
+      posts.cyl(0.18, 0.14, 0.08, x, 2.0, lz, '#2e2620', 8);
+      const lamp = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), glowMaterial(lanternHex));
+      lamp.position.set(x, 2.35, lz);
+      group.add(lamp);
+      const halo = new THREE.Mesh(new THREE.CircleGeometry(1.4, 20), new THREE.MeshBasicMaterial({ color: lanternHex, transparent: true, opacity: 0.09, depthWrite: false }));
+      halo.rotation.x = -Math.PI / 2;
+      halo.position.set(x, 0.09, lz);
+      group.add(halo);
+    }
+  }
+  group.add(posts.build(true));
+
+  // Instanced grass tufts / pebbles / tiny crystals over the turf
+  const tuftGeo = new Kit();
+  if (idx === 4) tuftGeo.add(new THREE.OctahedronGeometry(0.16, 0), '#ffffff', 0, 0.2, 0, 0, 0, 0, 1, 2, 1);
+  else if (idx === 2 || idx === 3) tuftGeo.rock(0.16, 0, 0, 0, '#ffffff', 0, 0.6);
+  else for (let j = 0; j < 4; j++) tuftGeo.add(new THREE.ConeGeometry(0.07, 0.42, 4), '#ffffff', Math.cos(j * 1.6) * 0.08, 0.2, Math.sin(j * 1.6) * 0.08, Math.sin(j * 1.6) * 0.3, 0, -Math.cos(j * 1.6) * 0.3);
+  const tuftMesh = tuftGeo.build(false, toonMaterial(0.2));
+  const N = 520;
+  const tufts = new THREE.InstancedMesh(tuftMesh.geometry, tuftMesh.material as THREE.Material, N);
+  const m4 = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const sc = new THREE.Vector3();
+  const pv = new THREE.Vector3();
+  const base = new THREE.Color(idx === 1 ? '#ffffff' : idx === 4 ? '#b670ff' : mix(world.ground, idx >= 2 ? '#888888' : '#9be37a', 0.35));
+  for (let i = 0; i < N; i++) {
+    const x = (rand() * 2 - 1) * 31;
+    const z = (rand() < 0.5 ? -1 : 1) * (5.6 + rand() * 7.6);
+    pv.set(x, 0.02, z);
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6.28);
+    const s = 0.7 + rand() * 0.8;
+    sc.set(s, s, s);
+    m4.compose(pv, q, sc);
+    tufts.setMatrixAt(i, m4);
+    tufts.setColorAt(i, base.clone().offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.12));
+  }
+  tufts.receiveShadow = true;
+  group.add(tufts);
 
   return {
     group,

@@ -152,8 +152,14 @@ combat engine is unchanged; the 3D scene only reads its state and events.
   spikes, a volcano with lava pools and cracks, a ruined fortress with graves and pillars, and a
   crystal realm. Ambient particles (fireflies, snow, embers, dust, sparkles), the hero's keep with
   a flag on the left and a swirling enemy portal on the right.
-- Every card, enemy role (tinted per world), mini-boss and boss has a detailed, rounded cartoon
-  model with chibi proportions: big heads with eyes, pupils, highlights, brows that show the mood,
+- **Look:** cel ("toon") shading with a four-step light ramp and a soft rim light, ink outlines
+  around every character, soft blob shadows under units plus real shadows, and a bloom pass so
+  magic orbs, eyes, lanterns, lava, crystals, the portal and strike effects glow. Lights are kept
+  low and lifted by exposure in the output pass so only glowing materials bloom.
+- Every card, enemy role (tinted per world), mini-boss and boss has a detailed cartoon model with
+  chibi proportions and a wide shape vocabulary: lathed helmets, hats, robes, flasks and torsos
+  (V-shaped chests), bevelled blades, axe heads and kite shields, curved tapered horns, hair locks,
+  bows, roots and tails, folded capes and cloth panels, eyelids that set the mood, and: big heads with eyes, pupils, highlights, brows that show the mood,
   nose, mouth, cheeks, mustaches or beards; helmets with nose guards and plumes, hoods, hats,
   crowns; chest plates, shoulder pads, belts with buckles, boots and gloves; detailed swords, bows
   with quivers, staffs with glowing orbs, shields with rims and bosses. Models are rigged with legs,

@@ -8,6 +8,11 @@ import { BOSS_BY_ID, WORLDS } from '../../core/content/worlds';
 import { formatNumber } from '../../core/util';
 import { rr, type Ctx } from '../art/draw';
 import { disposeTree } from '../base3d/kit';
+import { addOutlines, glowColor, glowMaterial } from '../base3d/style';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildBattlefield, FLY_Y, toX, toZ, type Battlefield } from './battlefield3d';
 import { bossRig, cardRig, enemyRig, heroRig, type Rig } from './units3d';
 
@@ -44,6 +49,7 @@ const UNIT_SCALE = 3.2;
 
 interface UnitView {
   rig: Rig;
+  blob: THREE.Mesh;
   scale: number;
   baseY: number;
   facing: number;
@@ -103,6 +109,10 @@ export class BattleScene3D {
   private readonly scene = new THREE.Scene();
   /** Everything in battle-lane coordinates; rotated so the lane runs up the screen. */
   private readonly world = new THREE.Group();
+  private readonly composer: EffectComposer;
+  private readonly bloom: UnrealBloomPass;
+  private readonly blobGeo = new THREE.CircleGeometry(1, 20);
+  private readonly blobMat: THREE.MeshBasicMaterial;
   private readonly camera = new THREE.PerspectiveCamera(27, 1, 0.5, 600);
   private readonly field: Battlefield;
   private readonly views = new Map<number, UnitView>();
@@ -145,9 +155,9 @@ export class BattleScene3D {
     arrowAlly: new THREE.MeshBasicMaterial({ color: '#fdf2d0' }),
     arrowEnemy: new THREE.MeshBasicMaterial({ color: '#e0b0ff' }),
     bomb: new THREE.MeshLambertMaterial({ color: '#2b2b33' }),
-    crescent: new THREE.MeshBasicMaterial({ color: '#ffd23f', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }),
-    meteor: new THREE.MeshBasicMaterial({ color: '#ff8a3d' }),
-    type: Object.fromEntries(Object.entries(TYPE_COLOR).map(([k, c]) => [k, new THREE.MeshBasicMaterial({ color: c })])) as Record<DamageType, THREE.MeshBasicMaterial>,
+    crescent: new THREE.MeshBasicMaterial({ color: glowColor('#ffd23f', 5), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }),
+    meteor: glowMaterial('#ff8a3d'),
+    type: Object.fromEntries(Object.entries(TYPE_COLOR).map(([k, c]) => [k, glowMaterial(c)])) as Record<DamageType, THREE.MeshBasicMaterial>,
   };
   reducedMotion: boolean;
   private readonly opts: Scene3DOptions;
@@ -164,7 +174,7 @@ export class BattleScene3D {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.3;
     const canvas = this.renderer.domElement;
     canvas.className = `battle3d-canvas${opts.pixel ? ' pixel' : ''}`;
     host.prepend(canvas);
@@ -177,9 +187,11 @@ export class BattleScene3D {
     this.scene.background = this.field.sky;
     this.scene.fog = new THREE.Fog(this.field.fog, 220, 520);
     const dark = world.index >= 2;
-    this.scene.add(new THREE.HemisphereLight('#ffffff', dark ? '#8a7aa0' : world.ground, dark ? 1.9 : 1.7));
-    this.scene.add(new THREE.AmbientLight('#ffffff', dark ? 0.5 : 0.35));
-    const sun = new THREE.DirectionalLight(dark ? '#ffd8bc' : '#fff1d6', dark ? 2.6 : 2.8);
+    // Lights are kept at half strength and lifted by exposure in the output pass, so only glowing
+    // surfaces cross the bloom threshold.
+    this.scene.add(new THREE.HemisphereLight('#ffffff', dark ? '#8a7aa0' : world.ground, dark ? 0.95 : 0.85));
+    this.scene.add(new THREE.AmbientLight('#ffffff', dark ? 0.25 : 0.18));
+    const sun = new THREE.DirectionalLight(dark ? '#ffd8bc' : '#fff1d6', dark ? 1.3 : 1.45);
     sun.position.set(16, 42, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -192,6 +204,24 @@ export class BattleScene3D {
     this.particles.count = 0;
     this.particles.frustumCulled = false;
     this.world.add(this.particles);
+
+    const bc = document.createElement('canvas');
+    bc.width = bc.height = 64;
+    const bx = bc.getContext('2d')!;
+    const bg = bx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    bg.addColorStop(0, 'rgba(0,0,0,0.55)');
+    bg.addColorStop(0.6, 'rgba(0,0,0,0.3)');
+    bg.addColorStop(1, 'rgba(0,0,0,0)');
+    bx.fillStyle = bg;
+    bx.fillRect(0, 0, 64, 64);
+    this.blobMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), transparent: true, depthWrite: false });
+    this.blobMat.userData.shared = true;
+
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 2.3);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
 
     const aura = COSMETIC_BY_ID.get(opts.aura);
     if (aura && aura.color !== 'transparent') {
@@ -215,6 +245,8 @@ export class BattleScene3D {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.renderer.setPixelRatio(this.opts.pixel ? Math.min(dpr, PIXEL_HEIGHT / this.h) : dpr);
     this.renderer.setSize(this.w, this.h, false);
+    this.composer.setPixelRatio(this.renderer.getPixelRatio());
+    this.composer.setSize(this.w, this.h);
     this.camera.aspect = this.w / this.h;
     this.camera.updateProjectionMatrix();
   }
@@ -534,8 +566,14 @@ export class BattleScene3D {
     });
     const facing = u.side === 'ally' ? Math.PI / 2 : -Math.PI / 2;
     rig.root.rotation.y = facing;
+    addOutlines(rig.root, u.kind === 'boss' ? 0.016 : 0.02, (m) => m.material === rig.material);
     this.world.add(rig.root);
-    return { rig, scale, baseY: 0, facing, seed: (u.id * 0.61803) % 1 };
+    const blob = new THREE.Mesh(this.blobGeo, this.blobMat);
+    blob.rotation.x = -Math.PI / 2;
+    const br = (rig.kind === 'quad' ? 1.0 : rig.kind === 'flyer' ? 0.7 : 0.62) * scale * (rig.height > 3 ? 1.5 : 1);
+    blob.scale.set(br, br * 0.8, 1);
+    this.world.add(blob);
+    return { rig, blob, scale, baseY: 0, facing, seed: (u.id * 0.61803) % 1 };
   }
 
   private addEliteMark(rig: Rig): void {
@@ -584,6 +622,7 @@ export class BattleScene3D {
     if (attackK >= 0 && rig.attack === 'melee') lunge = Math.sin(attackK * Math.PI) * 0.6 * dir;
     if (attackK >= 0 && rig.attack !== 'melee') lunge = -Math.sin(attackK * Math.PI) * 0.25 * dir;
     rig.root.position.set(pos.x + lunge - hit * 0.25 * dir * motion, pos.y + spawnY, pos.z);
+    v.blob.position.set(rig.root.position.x, 0.06, pos.z);
 
     // Bob, breathing and squash
     const walk = moving ? t * (u.kind === 'enemy' && u.role === 'fast' ? 16 : 10) : 0;
@@ -681,6 +720,7 @@ export class BattleScene3D {
     for (const [id, v] of this.views) {
       if (seen.has(id)) continue;
       this.views.delete(id);
+      this.world.remove(v.blob);
       const bubble = this.shields.get(id);
       if (bubble) {
         this.world.remove(bubble);
@@ -836,7 +876,7 @@ export class BattleScene3D {
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.08;
       this.shake *= 0.86;
     }
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
     this.drawOverlay(overlay, battle, dt);
   }
 

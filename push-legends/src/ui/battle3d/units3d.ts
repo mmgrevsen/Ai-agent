@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Kit } from '../base3d/kit';
+import { glowMaterial, toonMaterial } from '../base3d/style';
 
 /**
- * Detailed, rounded cartoon battle models built in code (no external assets). Proportions are
- * "chibi": big expressive heads, short sturdy bodies. Every model is a rig of pivots (legs, arms,
- * wings, cape) so the battle scene can animate walking, attacks, hits and deaths.
- * Models face +z with their feet at y = 0; a soldier is about 2.2 units tall.
+ * Detailed stylised battle models built in code (no external assets). Chibi proportions, a wide
+ * shape vocabulary (lathed helmets and flasks, bevelled blades and shields, curved tapered horns,
+ * hair locks and bows, folded cloth) and cel shading with outlines added by the scene.
+ * Every model is a rig of pivots (legs, arms, wings, cape) for the battle animations.
+ * Models face +z with their feet at y = 0; a soldier is about 2.3 units tall.
  */
 export interface Rig {
   root: THREE.Group;
@@ -21,18 +23,83 @@ export interface Rig {
   spinners: THREE.Object3D[];
   /** Top of the model in local units (before root scale). */
   height: number;
-  material: THREE.MeshStandardMaterial;
+  material: THREE.MeshToonMaterial;
   kind: 'biped' | 'quad' | 'flyer' | 'float';
   /** Ranged style used for the attack animation. */
   attack: 'melee' | 'bow' | 'cast' | 'throw';
 }
 
-/** Kit with smooth rounded primitives (all positions are centres unless noted). */
-class K extends Kit {
-  ball(r: number, x: number, y: number, z: number, hex: string, sx = 1, sy = 1, sz = 1, seg = r < 0.1 ? 7 : r < 0.25 ? 10 : 14): this {
-    return this.add(new THREE.SphereGeometry(r, seg, Math.max(5, Math.round(seg * 0.7))), hex, x, y, z, 0, 0, 0, sx, sy, sz);
+type V = [number, number, number];
+
+/** A tube along a smooth curve whose radius tapers from r0 to r1 (horns, hair, bows, roots). */
+function taperTube(points: V[], r0: number, r1: number, radial = 8, steps = 14): THREE.BufferGeometry {
+  const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
+  const frames = curve.computeFrenetFrames(steps, false);
+  const pos: number[] = [];
+  const idx: number[] = [];
+  const ring = radial + 1;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const p = curve.getPointAt(t);
+    const n = frames.normals[i]!;
+    const b = frames.binormals[i]!;
+    const r = Math.max(0.002, r0 + (r1 - r0) * t);
+    for (let j = 0; j <= radial; j++) {
+      const a = (j / radial) * Math.PI * 2;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      pos.push(p.x + r * (c * n.x + s * b.x), p.y + r * (c * n.y + s * b.y), p.z + r * (c * n.z + s * b.z));
+    }
   }
-  /** Capsule centred at (x,y,z), long axis along y before rotation. */
+  for (let i = 0; i < steps; i++) {
+    for (let j = 0; j < radial; j++) {
+      const a = i * ring + j;
+      const bb = a + ring;
+      idx.push(a, a + 1, bb, bb, a + 1, bb + 1);
+    }
+  }
+  // Caps with their own vertices so their normals stay flat
+  const cap = (i: number, flip: boolean) => {
+    const p = curve.getPointAt(i / steps);
+    const c = pos.length / 3;
+    pos.push(p.x, p.y, p.z);
+    for (let j = 0; j <= radial; j++) pos.push(pos[(i * ring + j) * 3]!, pos[(i * ring + j) * 3 + 1]!, pos[(i * ring + j) * 3 + 2]!);
+    for (let j = 0; j < radial; j++) {
+      if (flip) idx.push(c, c + 2 + j, c + 1 + j);
+      else idx.push(c, c + 1 + j, c + 2 + j);
+    }
+  };
+  cap(0, true);
+  if (r1 > 0.01) cap(steps, false);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function shapeFrom(pts: [number, number][]): THREE.Shape {
+  const s = new THREE.Shape();
+  pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+  s.closePath();
+  return s;
+}
+
+function star(r: number, inner: number, n = 5): THREE.Shape {
+  const pts: [number, number][] = [];
+  for (let i = 0; i < n * 2; i++) {
+    const a = (i / (n * 2)) * Math.PI * 2 + Math.PI / 2;
+    const rr = i % 2 ? inner : r;
+    pts.push([Math.cos(a) * rr, Math.sin(a) * rr]);
+  }
+  return shapeFrom(pts);
+}
+
+/** Kit with smooth and sculpted primitives (positions are centres unless noted). */
+class K extends Kit {
+  ball(r: number, x: number, y: number, z: number, hex: string, sx = 1, sy = 1, sz = 1, seg = r < 0.1 ? 8 : r < 0.25 ? 11 : 15): this {
+    return this.add(new THREE.SphereGeometry(r, seg, Math.max(6, Math.round(seg * 0.7))), hex, x, y, z, 0, 0, 0, sx, sy, sz);
+  }
   pill(r: number, len: number, x: number, y: number, z: number, hex: string, rx = 0, ry = 0, rz = 0): this {
     return this.add(new THREE.CapsuleGeometry(r, len, 3, r < 0.08 ? 6 : 10), hex, x, y, z, rx, ry, rz);
   }
@@ -42,20 +109,66 @@ class K extends Kit {
   tube(rTop: number, rBot: number, h: number, x: number, y: number, z: number, hex: string, rx = 0, ry = 0, rz = 0, seg = 12): this {
     return this.add(new THREE.CylinderGeometry(rTop, rBot, h, seg), hex, x, y, z, rx, ry, rz);
   }
-  /** Upper half sphere (dome) centred at its base. */
   dome(r: number, x: number, y: number, z: number, hex: string, sy = 1, sx = 1, sz = 1): this {
-    return this.add(new THREE.SphereGeometry(r, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), hex, x, y, z, 0, 0, 0, sx, sy, sz);
+    return this.add(new THREE.SphereGeometry(r, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), hex, x, y, z, 0, 0, 0, sx, sy, sz);
   }
   ring(r: number, tube: number, x: number, y: number, z: number, hex: string, rx = Math.PI / 2, ry = 0, rz = 0, arc = Math.PI * 2): this {
-    return this.add(new THREE.TorusGeometry(r, tube, 5, 18, arc), hex, x, y, z, rx, ry, rz);
+    return this.add(new THREE.TorusGeometry(r, tube, 6, 20, arc), hex, x, y, z, rx, ry, rz);
   }
-  spike(r: number, h: number, x: number, y: number, z: number, hex: string, rx = 0, ry = 0, rz = 0, seg = 10): this {
+  spike(r: number, h: number, x: number, y: number, z: number, hex: string, rx = 0, ry = 0, rz = 0, seg = 8): this {
     return this.add(new THREE.ConeGeometry(r, h, seg), hex, x, y, z, rx, ry, rz);
+  }
+  /** Revolved profile [[radius, y], ...] from bottom to top. */
+  lathe(profile: [number, number][], x: number, y: number, z: number, hex: string, seg = 16, sx = 1, sz = 1, rx = 0, ry = 0, rz = 0): this {
+    return this.add(new THREE.LatheGeometry(profile.map(([r, h]) => new THREE.Vector2(r, h)), seg), hex, x, y, z, rx, ry, rz, sx, 1, sz);
+  }
+  curve(points: V[], r0: number, r1: number, hex: string, radial = 7): this {
+    return this.add(taperTube(points, r0, r1, radial), hex, 0, 0, 0);
+  }
+  /** Bevelled flat shape (blades, shields, emblems), centred on its thickness. */
+  plate(shape: THREE.Shape, depth: number, bevel: number, x: number, y: number, z: number, hex: string, rx = 0, ry = 0, rz = 0, s = 1): this {
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 10 });
+    geo.translate(0, 0, -depth / 2);
+    return this.add(geo, hex, x, y, z, rx, ry, rz, s, s, s);
+  }
+  gem(r: number, x: number, y: number, z: number, hex: string, sy = 1.3): this {
+    return this.add(new THREE.OctahedronGeometry(r, 0), hex, x, y, z, 0, 0, 0, 1, sy, 1);
+  }
+  /** Hanging cloth with folds (front and back faces), top edge at y. */
+  cloth(w: number, h: number, x: number, y: number, z: number, hex: string, folds = 3, depth = 0.05, flare = 0.15): this {
+    const geo = new THREE.PlaneGeometry(w, h, 12, 6);
+    const p = geo.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const px = p.getX(i);
+      const py = p.getY(i);
+      const down = (h / 2 - py) / h;
+      p.setX(i, px * (1 + flare * down));
+      p.setZ(i, Math.sin((px / w) * Math.PI * 2 * folds) * depth * (0.3 + down) - down * 0.08);
+    }
+    geo.computeVertexNormals();
+    geo.translate(0, -h / 2, 0);
+    const back = geo.clone();
+    const idx = back.getIndex()!;
+    const arr = idx.array as Uint16Array | Uint32Array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const t = arr[i]!;
+      arr[i] = arr[i + 2]!;
+      arr[i + 2] = t;
+    }
+    const n = back.getAttribute('normal') as THREE.BufferAttribute;
+    for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+    back.translate(0, 0, -0.015);
+    this.add(geo, hex, x, y, z);
+    return this.add(back, shade(hex, -0.12), x, y, z);
   }
 }
 
-const mat = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.04 });
-const glowMat = (hex: string) => new THREE.MeshBasicMaterial({ color: hex });
+function shade(hex: string, amt: number): string {
+  const c = new THREE.Color(hex);
+  if (amt < 0) c.multiplyScalar(1 + amt);
+  else c.lerp(new THREE.Color('#ffffff'), amt);
+  return '#' + c.getHexString();
+}
 
 function pivot(parent: THREE.Object3D, x: number, y: number, z: number): THREE.Group {
   const g = new THREE.Group();
@@ -64,11 +177,18 @@ function pivot(parent: THREE.Object3D, x: number, y: number, z: number): THREE.G
   return g;
 }
 
+function rigMaterial(): THREE.MeshToonMaterial {
+  const m = toonMaterial(0.6);
+  // Lathed brims, cloth and wing membranes are open surfaces
+  m.side = THREE.DoubleSide;
+  return m;
+}
+
 function newRig(kind: Rig['kind'], attack: Rig['attack']): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
-  return { root, body, legs: [], armR: null, armL: null, wings: [], cape: null, spinners: [], height: 2.2, material: mat(), kind, attack };
+  return { root, body, legs: [], armR: null, armL: null, wings: [], cape: null, spinners: [], height: 2.3, material: rigMaterial(), kind, attack };
 }
 
 function addMesh(rig: Rig, parent: THREE.Object3D, k: Kit): THREE.Mesh {
@@ -78,18 +198,19 @@ function addMesh(rig: Rig, parent: THREE.Object3D, k: Kit): THREE.Mesh {
 }
 
 function addGlow(parent: THREE.Object3D, geo: THREE.BufferGeometry, hex: string, x: number, y: number, z: number): THREE.Mesh {
-  const m = new THREE.Mesh(geo, glowMat(hex));
+  const m = new THREE.Mesh(geo, glowMaterial(hex));
   m.position.set(x, y, z);
   parent.add(m);
   return m;
 }
 
-const STEEL = '#cfd6df';
-const STEEL_DARK = '#8c96a3';
+const STEEL = '#d3dae3';
+const STEEL_DARK = '#8a95a3';
 const GOLD = '#f5c542';
+const GOLD_DARK = '#c99a1e';
 const LEATHER = '#6b4626';
 const LEATHER_DARK = '#4a2f18';
-const BOOT = '#4a3020';
+const BOOT = '#4f3422';
 const DARK = '#1c1428';
 
 // --- Faces ---------------------------------------------------------------------------------------
@@ -104,51 +225,56 @@ interface FaceSpec {
   mustache?: string;
   beard?: string;
   eyeGlow?: string;
-  teeth?: boolean;
-  /** No visible face (full helm, skull, hood shadow). */
   hidden?: boolean;
+  scar?: boolean;
 }
 
-/** Big cartoon face on a head of radius r centred at (0, hy, 0). */
+/** Big expressive cartoon face on a head of radius r centred at (0, hy, 0). */
 function face(k: K, rig: Rig, f: FaceSpec, hy: number, r: number): void {
   if (f.hidden) return;
-  const z = r * 0.86;
-  const ex = r * 0.36;
-  const ey = hy + r * 0.1;
+  const z = r * 0.84;
+  const ex = r * 0.37;
+  const ey = hy + r * 0.08;
+  const mood = f.mood ?? 'brave';
   if (f.eyeGlow) {
-    for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(r * 0.16, 10, 8), f.eyeGlow, s * ex, ey, z + r * 0.06).scale.set(1, 0.7, 0.6);
+    for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(r * 0.15, 10, 8), f.eyeGlow, s * ex, ey, z + r * 0.06).scale.set(1.1, 0.65, 0.6);
   } else {
     for (const s of [-1, 1]) {
-      k.ball(r * 0.22, s * ex, ey, z - r * 0.02, '#ffffff', 0.85, 1, 0.55);
-      k.ball(r * 0.13, s * ex + s * -0.01, ey - r * 0.01, z + r * 0.09, f.eye ?? '#3b6fb6', 1, 1, 0.5);
-      k.ball(r * 0.075, s * ex, ey - r * 0.01, z + r * 0.13, '#120a1c', 1, 1, 0.5);
-      k.ball(r * 0.04, s * ex - r * 0.05, ey + r * 0.06, z + r * 0.16, '#ffffff', 1, 1, 0.5);
+      k.ball(r * 0.24, s * ex, ey, z - r * 0.03, '#ffffff', 0.82, 1.05, 0.55);
+      k.ball(r * 0.15, s * ex - s * 0.008, ey - r * 0.02, z + r * 0.08, f.eye ?? '#3b6fb6', 1, 1, 0.5);
+      k.ball(r * 0.085, s * ex - s * 0.008, ey - r * 0.02, z + r * 0.13, '#120a1c', 1, 1, 0.5);
+      k.ball(r * 0.05, s * ex - r * 0.06, ey + r * 0.07, z + r * 0.17, '#ffffff', 1, 1, 0.5);
+      // Eyelids give attitude
+      if (mood === 'angry' || mood === 'sly' || mood === 'calm') {
+        const lid = mood === 'calm' ? 0.35 : 0.5;
+        k.add(new THREE.SphereGeometry(r * 0.26, 12, 6, 0, Math.PI * 2, 0, Math.PI * lid), f.skin, s * ex, ey + r * 0.02, z - r * 0.04, mood === 'angry' ? 0.25 : 0, 0, mood === 'angry' ? -s * 0.35 : mood === 'sly' ? s * 0.15 : 0, 0.86, 1.05, 0.6);
+      }
     }
   }
-  // Brows show the mood
-  const tilt = f.mood === 'angry' ? 0.45 : f.mood === 'brave' ? 0.22 : f.mood === 'sly' ? 0.1 : f.mood === 'happy' ? -0.2 : 0;
-  for (const s of [-1, 1]) k.pill(r * 0.055, r * 0.26, s * ex, ey + r * 0.3, z - r * 0.02, f.brow ?? '#3a2414', 0, 0, Math.PI / 2 + s * tilt);
-  // Nose and mouth
-  k.ball(r * 0.13, 0, hy - r * 0.12, r * 0.95, shadeHex(f.skin, -0.12), 1.1, 0.9, 0.8);
-  const my = hy - r * 0.42;
-  if (f.mood === 'happy' || f.mood === 'brave' || f.teeth) {
-    k.ball(r * 0.22, 0, my, z - r * 0.06, '#6b1a2a', 1.4, 0.6, 0.45);
-    if (f.teeth !== false) k.rbox(r * 0.42, r * 0.1, r * 0.06, 0.02, 0, my + r * 0.06, z + r * 0.02, '#ffffff');
-  } else if (f.mood === 'angry') {
+  const tilt = mood === 'angry' ? 0.5 : mood === 'brave' ? 0.25 : mood === 'sly' ? 0.12 : mood === 'happy' ? -0.22 : -0.05;
+  for (const s of [-1, 1]) k.curve([[s * (ex + r * 0.17), ey + r * 0.3 + tilt * r * 0.2, z - r * 0.02], [s * ex, ey + r * 0.36, z + r * 0.04], [s * (ex - r * 0.17), ey + r * 0.3 - tilt * r * 0.25, z]], r * 0.06, r * 0.035, f.brow ?? '#3a2414', 6);
+  // Nose
+  k.ball(r * 0.13, 0, hy - r * 0.12, r * 0.95, shade(f.skin, -0.1), 1.05, 0.95, 0.85);
+  k.ball(r * 0.05, -r * 0.05, hy - r * 0.08, r * 1.05, shade(f.skin, 0.25), 1, 1, 0.6);
+  // Mouth
+  const my = hy - r * 0.43;
+  if (mood === 'happy' || mood === 'brave') {
+    k.add(new THREE.SphereGeometry(r * 0.24, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), '#6b1a2a', 0, my + r * 0.07, z - r * 0.08, 0, 0, 0, 1.35, 0.85, 0.55);
+    k.rbox(r * 0.46, r * 0.09, r * 0.06, 0.02, 0, my + r * 0.04, z + r * 0.03, '#ffffff');
+    k.ball(r * 0.1, 0, my - r * 0.1, z - r * 0.02, '#ff7a8a', 1.4, 0.6, 0.4);
+  } else if (mood === 'angry') {
     k.ball(r * 0.2, 0, my, z - r * 0.06, '#6b1a2a', 1.5, 0.45, 0.45);
-    k.rbox(r * 0.4, r * 0.08, r * 0.06, 0.02, 0, my + r * 0.03, z + r * 0.01, '#ffffff');
-  } else k.pill(r * 0.04, r * 0.18, r * 0.04, my + r * 0.04, z, '#6b1a2a', 0, 0, Math.PI / 2 + (f.mood === 'sly' ? 0.25 : 0));
-  // Cheeks
-  for (const s of [-1, 1]) k.ball(r * 0.12, s * r * 0.52, hy - r * 0.2, r * 0.74, shadeHex(f.skin, -0.04), 1, 0.7, 0.5);
-  if (f.mustache) for (const s of [-1, 1]) k.pill(r * 0.09, r * 0.26, s * r * 0.2, hy - r * 0.28, r * 0.92, f.mustache, 0, 0, Math.PI / 2 - s * 0.35);
-  if (f.beard) k.ball(r * 0.55, 0, hy - r * 0.62, r * 0.42, f.beard, 1, 0.75, 0.75);
-}
-
-function shadeHex(hex: string, amt: number): string {
-  const c = new THREE.Color(hex);
-  if (amt < 0) c.multiplyScalar(1 + amt);
-  else c.lerp(new THREE.Color('#ffffff'), amt);
-  return '#' + c.getHexString();
+    k.rbox(r * 0.42, r * 0.07, r * 0.06, 0.02, 0, my + r * 0.03, z + r * 0.02, '#ffffff');
+    k.rbox(r * 0.42, r * 0.06, r * 0.06, 0.02, 0, my - r * 0.04, z + r * 0.02, '#ffffff');
+  } else k.curve([[-r * 0.16, my + r * 0.04, z], [0, my - (mood === 'sly' ? 0 : r * 0.03), z + r * 0.04], [r * 0.18, my + (mood === 'sly' ? r * 0.08 : r * 0.04), z]], r * 0.035, r * 0.03, '#6b1a2a', 5);
+  // Cheeks, ears are added by the body
+  for (const s of [-1, 1]) k.ball(r * 0.13, s * r * 0.55, hy - r * 0.2, r * 0.72, '#ff9c8a', 1, 0.65, 0.4);
+  if (f.mustache) for (const s of [-1, 1]) k.curve([[s * r * 0.04, hy - r * 0.27, r * 1.0], [s * r * 0.25, hy - r * 0.33, r * 0.94], [s * r * 0.42, hy - r * 0.2, r * 0.8]], r * 0.11, r * 0.03, f.mustache, 7);
+  if (f.beard) {
+    k.ball(r * 0.6, 0, hy - r * 0.62, r * 0.36, f.beard, 1, 0.78, 0.8);
+    k.spike(r * 0.3, r * 0.5, 0, hy - r * 1.05, r * 0.5, f.beard, 0.3, 0, 0);
+  }
+  if (f.scar) k.rbox(r * 0.04, r * 0.32, r * 0.03, 0.01, -ex, ey, z + r * 0.15, '#c96b5a', 0, 0, 0.3);
 }
 
 // --- Humanoids -----------------------------------------------------------------------------------
@@ -176,125 +302,160 @@ export interface HumanSpec {
   mood?: Mood;
   mustache?: string;
   beard?: string;
-  /** Metal shoulder pads and chest plate. */
   armor?: string;
   trim?: string;
   ears?: 'round' | 'pointy' | null;
+  /** Cloth panel hanging from the belt. */
+  tabard?: string;
+  emblem?: string;
+  scar?: boolean;
 }
 
-const HEAD_R = 0.46;
+const HEAD_R = 0.47;
 
-function headGear(k: K, spec: HumanSpec, hy: number): number {
+function hairLocks(k: K, color: string, hy: number, r: number, count: number, spread = 1): void {
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+    const x = t * r * 1.5 * spread;
+    k.curve(
+      [
+        [x * 0.6, hy + r * 0.95, r * 0.05],
+        [x * 0.9, hy + r * 0.8, r * 0.7],
+        [x * 1.15 + t * 0.1, hy + r * 0.48, r * 0.92],
+      ],
+      r * 0.2,
+      r * 0.03,
+      color,
+      7,
+    );
+  }
+}
+
+function headGear(k: K, rig: Rig, spec: HumanSpec, hy: number): number {
   const r = HEAD_R;
   const c = spec.headColor;
   let top = hy + r;
   switch (spec.head) {
     case 'helm':
-      k.dome(r * 1.08, 0, hy + r * 0.12, 0, c, 0.95);
-      k.ring(r * 1.06, 0.05, 0, hy + r * 0.12, 0, shadeHex(c, -0.2));
-      k.rbox(0.1, r * 0.75, 0.08, 0.03, 0, hy + r * 0.1, r * 1.0, shadeHex(c, -0.1));
-      k.ball(0.07, 0, hy + r * 1.1, 0, GOLD);
-      top = hy + r * 1.2;
+      k.lathe([[r * 1.12, 0], [r * 1.14, r * 0.12], [r * 1.06, r * 0.42], [r * 0.82, r * 0.82], [r * 0.4, r * 1.06], [0.001, r * 1.12]], 0, hy + r * 0.02, 0, c, 18);
+      k.ring(r * 1.13, 0.045, 0, hy + r * 0.05, 0, shade(c, -0.22));
+      k.plate(shapeFrom([[-0.06, 0], [0.06, 0], [0.04, -r * 0.55], [0, -r * 0.65], [-0.04, -r * 0.55]]), 0.03, 0.015, 0, hy + r * 0.12, r * 1.07, shade(c, -0.08));
+      for (const s of [-1, 1]) k.rbox(0.18, r * 0.7, 0.08, 0.04, s * r * 0.98, hy - r * 0.25, r * 0.25, c, 0, s * 0.4, s * 0.12);
+      k.curve([[0, hy + r * 1.12, -0.04], [0, hy + r * 1.38, -0.2], [0, hy + r * 1.3, -0.5]], 0.09, 0.03, spec.hair ?? '#e74c3c', 7);
+      for (let i = 0; i < 6; i++) k.ball(0.03, Math.cos((i / 6) * 6.28) * r * 1.12, hy + r * 0.2, Math.sin((i / 6) * 6.28) * r * 1.12, GOLD);
+      top = hy + r * 1.45;
       break;
     case 'fullhelm':
-      k.ball(r * 1.1, 0, hy, 0, c, 1, 1.05, 1);
-      k.rbox(r * 1.3, 0.09, 0.2, 0.04, 0, hy + r * 0.1, r * 0.98, DARK);
-      k.rbox(0.09, r * 0.6, 0.12, 0.03, 0, hy - r * 0.25, r * 1.05, shadeHex(c, -0.15));
-      for (let i = 0; i < 3; i++) k.rbox(r * 0.45, 0.04, 0.05, 0.02, 0, hy - r * 0.45 - i * 0.07, r * 0.98, DARK);
-      k.ring(r * 1.1, 0.05, 0, hy - r * 0.6, 0, shadeHex(c, -0.2));
-      // Plume
-      for (let i = 0; i < 5; i++) k.ball(0.14 - i * 0.012, 0, hy + r * 1.1 + Math.sin(i * 0.6) * 0.1, -0.05 - i * 0.12, spec.hair ?? '#e74c3c', 1, 1, 1.3);
-      top = hy + r * 1.35;
+      k.lathe([[r * 0.95, -r * 0.85], [r * 1.12, -r * 0.5], [r * 1.14, 0], [r * 1.05, r * 0.5], [r * 0.7, r * 0.95], [0.001, r * 1.12]], 0, hy, 0, c, 18);
+      k.rbox(r * 1.35, 0.09, 0.22, 0.04, 0, hy + r * 0.12, r * 0.98, DARK);
+      for (let i = 0; i < 5; i++) k.rbox(0.035, r * 0.42, 0.06, 0.015, -0.16 + i * 0.08, hy - r * 0.32, r * 1.09, DARK);
+      k.plate(shapeFrom([[0, 0], [r * 0.6, r * 0.45], [r * 0.9, r * 0.1], [r * 1.1, -r * 0.9], [0, -r * 0.3]]), 0.06, 0.02, 0, hy + r * 1.05, -r * 0.1, spec.hair ?? '#e74c3c', 0, Math.PI / 2, 0);
+      k.ring(r * 1.12, 0.05, 0, hy - r * 0.62, 0, shade(c, -0.25));
+      for (const s of [-1, 1]) k.ball(0.06, s * r * 1.1, hy + r * 0.1, 0, GOLD);
+      top = hy + r * 1.6;
       break;
     case 'hood':
-      k.ball(r * 1.14, 0, hy + 0.03, -0.05, c, 1, 1.02, 1);
-      k.spike(0.16, 0.42, 0, hy + r * 1.05, -0.32, c, -0.9);
-      k.ring(r * 0.98, 0.06, 0, hy, r * 0.5, shadeHex(c, -0.25), 0, 0, 0);
-      top = hy + r * 1.2;
+      k.lathe([[r * 1.15, -r * 0.9], [r * 1.25, -r * 0.3], [r * 1.18, r * 0.35], [r * 0.85, r * 0.95], [0.001, r * 1.2]], 0, hy, -0.06, c, 16);
+      k.curve([[0, hy + r * 0.9, -r * 0.4], [0, hy + r * 1.05, -r * 0.9], [0, hy + r * 0.6, -r * 1.35]], r * 0.3, 0.01, c, 8);
+      k.ring(r * 1.0, 0.07, 0, hy - r * 0.05, r * 0.55, shade(c, -0.28), 0, 0, 0);
+      top = hy + r * 1.25;
       break;
     case 'hat':
-      k.tube(r * 1.55, r * 1.55, 0.06, 0, hy + r * 0.62, 0, c, 0, 0, 0, 24);
-      k.tube(r * 0.78, r * 0.88, r * 0.62, 0, hy + r * 0.95, 0, c);
-      k.tube(r * 0.9, r * 0.9, 0.08, 0, hy + r * 0.72, 0, '#c0392b');
-      k.pill(0.05, 0.55, r * 0.7, hy + r * 1.25, -0.1, '#e74c3c', 0.3, 0, -0.5);
-      top = hy + r * 1.3;
+      k.lathe([[r * 1.75, -0.02], [r * 1.7, 0.06], [r * 1.0, 0.05], [r * 0.85, 0.1]], 0, hy + r * 0.58, 0, c, 22);
+      k.lathe([[r * 0.88, 0], [r * 0.86, r * 0.5], [r * 0.65, r * 0.8], [0.001, r * 0.85]], 0, hy + r * 0.62, 0, shade(c, 0.05), 18);
+      k.tube(r * 0.9, r * 0.9, 0.09, 0, hy + r * 0.72, 0, '#c0392b', 0, 0, 0, 16);
+      k.curve([[r * 0.7, hy + r * 0.8, 0], [r * 1.1, hy + r * 1.4, -0.1], [r * 1.3, hy + r * 1.75, -0.35]], 0.07, 0.01, '#e74c3c', 6);
+      top = hy + r * 1.5;
       break;
     case 'wizard': {
-      k.tube(r * 1.5, r * 1.5, 0.06, 0, hy + r * 0.6, 0, c, 0, 0, 0, 24);
-      k.spike(r * 0.92, 0.75, 0, hy + r * 0.6 + 0.37, 0, c);
-      k.spike(r * 0.4, 0.5, 0.05, hy + r * 0.6 + 0.9, -0.12, c, -0.5);
-      k.tube(r * 0.95, r * 0.95, 0.09, 0, hy + r * 0.68, 0, spec.trim ?? '#5dade2');
-      top = hy + r * 0.6 + 1.1;
+      k.lathe([[r * 1.6, -0.02], [r * 1.55, 0.07], [r * 1.0, 0.06]], 0, hy + r * 0.55, 0, c, 22);
+      k.curve([[0, hy + r * 0.6, 0], [0, hy + r * 1.4, -0.05], [0.12, hy + r * 2.1, -0.25], [0.35, hy + r * 2.35, -0.5]], r * 0.9, 0.02, c, 12);
+      k.tube(r * 0.93, r * 0.96, 0.1, 0, hy + r * 0.66, 0, spec.trim ?? '#5dade2', 0, 0, 0, 16);
+      k.plate(star(0.12, 0.05), 0.03, 0.01, 0, hy + r * 1.0, r * 0.75, GOLD, -0.35);
+      top = hy + r * 2.3;
       break;
     }
     case 'hair':
-      k.ball(r * 1.05, 0, hy + r * 0.2, -0.04, spec.hair ?? c, 1, 0.82, 1);
-      k.ball(r * 0.45, -r * 0.4, hy + r * 0.62, r * 0.55, spec.hair ?? c, 1.1, 0.6, 0.7);
-      k.ball(r * 0.4, r * 0.25, hy + r * 0.68, r * 0.55, spec.hair ?? c, 1.1, 0.55, 0.7);
-      top = hy + r * 1.1;
+      k.ball(r * 1.06, 0, hy + r * 0.2, -0.05, spec.hair ?? c, 1, 0.84, 1);
+      hairLocks(k, spec.hair ?? c, hy, r, 5);
+      for (const s of [-1, 1]) k.curve([[s * r * 0.85, hy + r * 0.3, 0], [s * r * 1.02, hy - r * 0.1, r * 0.15], [s * r * 0.9, hy - r * 0.4, r * 0.3]], r * 0.18, r * 0.04, spec.hair ?? c, 6);
+      top = hy + r * 1.15;
       break;
     case 'long':
-      k.ball(r * 1.06, 0, hy + r * 0.18, -0.06, spec.hair ?? c, 1, 0.85, 1);
-      k.rbox(r * 1.9, r * 1.6, r * 0.6, 0.15, 0, hy - r * 0.5, -r * 0.55, spec.hair ?? c);
-      k.ball(r * 0.4, 0, hy + r * 0.68, r * 0.5, spec.hair ?? c, 1.8, 0.55, 0.7);
+      k.ball(r * 1.07, 0, hy + r * 0.18, -0.06, spec.hair ?? c, 1, 0.86, 1);
+      hairLocks(k, spec.hair ?? c, hy, r, 4, 0.8);
+      for (let i = 0; i < 7; i++) {
+        const a = -1.3 + (i / 6) * 2.6;
+        k.curve([[Math.sin(a) * r * 0.9, hy + r * 0.3, -Math.cos(a) * r * 0.75], [Math.sin(a) * r * 1.05, hy - r * 0.6, -Math.cos(a) * r * 0.85], [Math.sin(a) * r * 1.0, hy - r * 1.5, -Math.cos(a) * r * 0.8 - 0.1]], r * 0.22, r * 0.05, spec.hair ?? c, 6);
+      }
       top = hy + r * 1.1;
       break;
     case 'spiky':
-      k.ball(r * 0.98, 0, hy + r * 0.25, -0.03, spec.hair ?? c, 1, 0.8, 1);
-      for (let i = 0; i < 7; i++) {
-        const a = -1.1 + i * 0.37;
-        k.spike(0.13, 0.5, Math.sin(a) * r * 0.75, hy + r * 0.85 + Math.cos(a) * 0.1, -0.05 + (i % 2) * 0.12, spec.hair ?? c, -0.2, 0, -a * 0.8);
+      k.ball(r * 0.99, 0, hy + r * 0.25, -0.04, spec.hair ?? c, 1, 0.82, 1);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        const lx = Math.cos(a) * r * 0.55;
+        const lz = Math.sin(a) * r * 0.55 - 0.05;
+        k.curve([[lx * 0.5, hy + r * 0.75, lz * 0.5], [lx, hy + r * 1.15, lz], [lx * 1.5, hy + r * 1.55, lz * 1.5 - 0.05]], r * 0.22, 0.01, spec.hair ?? c, 6);
       }
-      top = hy + r * 1.5;
+      hairLocks(k, spec.hair ?? c, hy, r, 3, 0.7);
+      top = hy + r * 1.6;
       break;
     case 'horns':
-      for (const s of [-1, 1]) k.spike(0.1, 0.45, s * r * 0.75, hy + r * 0.85, 0, c, 0, 0, -s * 0.55);
-      top = hy + r * 1.3;
+      for (const s of [-1, 1]) k.curve([[s * r * 0.6, hy + r * 0.65, 0], [s * r * 1.15, hy + r * 1.0, -0.05], [s * r * 1.25, hy + r * 1.5, 0.15], [s * r * 1.0, hy + r * 1.85, 0.3]], 0.12, 0.01, c, 8);
+      top = hy + r * 1.7;
       break;
     case 'skull':
-      for (const s of [-1, 1]) k.ball(r * 0.22, s * r * 0.36, hy + r * 0.1, r * 0.8, DARK, 1, 1, 0.5);
-      k.ball(r * 0.08, 0, hy - r * 0.15, r * 0.97, DARK, 1, 1.3, 0.5);
-      for (let i = -2; i <= 2; i++) k.rbox(0.07, 0.1, 0.06, 0.02, i * 0.08, hy - r * 0.48, r * 0.88, '#f4efe2');
+      for (const s of [-1, 1]) k.ball(r * 0.24, s * r * 0.36, hy + r * 0.08, r * 0.78, DARK, 1, 1.05, 0.5);
+      k.plate(shapeFrom([[0, 0.05], [0.05, -0.04], [-0.05, -0.04]]), 0.04, 0.01, 0, hy - r * 0.15, r * 0.97, DARK);
+      for (let i = -2; i <= 2; i++) k.rbox(0.07, 0.11, 0.06, 0.02, i * 0.08, hy - r * 0.5, r * 0.86, '#f4efe2');
+      k.rbox(0.04, 0.16, 0.03, 0.01, r * 0.3, hy + r * 0.6, r * 0.8, '#bdb5a1', 0, 0, 0.5);
       break;
     case 'cap':
-      k.dome(r * 1.04, 0, hy + r * 0.15, 0, '#ffffff', 0.7);
-      k.rbox(0.08, 0.24, 0.05, 0.02, 0, hy + r * 0.55, r * 0.92, '#e74c3c');
-      k.rbox(0.24, 0.08, 0.05, 0.02, 0, hy + r * 0.55, r * 0.92, '#e74c3c');
-      k.ball(r * 0.9, 0, hy + r * 0.05, -0.12, spec.hair ?? '#8a4b2a', 1.05, 0.9, 0.9);
-      top = hy + r * 1.05;
+      k.ball(r * 1.02, 0, hy + r * 0.12, -0.1, spec.hair ?? '#8a4b2a', 1.05, 0.95, 0.95);
+      hairLocks(k, spec.hair ?? '#8a4b2a', hy - r * 0.15, r, 3, 0.9);
+      k.lathe([[r * 1.05, 0], [r * 1.02, r * 0.35], [r * 0.6, r * 0.62], [0.001, r * 0.66]], 0, hy + r * 0.45, -0.02, '#ffffff', 16);
+      k.plate(shapeFrom([[-0.03, 0.1], [0.03, 0.1], [0.03, 0.03], [0.1, 0.03], [0.1, -0.03], [0.03, -0.03], [0.03, -0.1], [-0.03, -0.1], [-0.03, -0.03], [-0.1, -0.03], [-0.1, 0.03], [-0.03, 0.03]]), 0.02, 0.005, 0, hy + r * 0.72, r * 0.92, '#e74c3c', -0.4);
+      top = hy + r * 1.15;
       break;
     case 'goggles':
-      k.ball(r * 1.0, 0, hy + r * 0.25, -0.05, spec.hair ?? '#3a2a1e', 1, 0.78, 1);
-      k.ring(r * 1.02, 0.05, 0, hy + r * 0.42, 0, LEATHER_DARK);
+      k.ball(r * 1.0, 0, hy + r * 0.25, -0.05, spec.hair ?? '#3a2a1e', 1, 0.8, 1);
+      hairLocks(k, spec.hair ?? '#3a2a1e', hy + r * 0.1, r, 4);
+      k.ring(r * 1.03, 0.05, 0, hy + r * 0.42, 0, LEATHER_DARK);
       for (const s of [-1, 1]) {
-        k.ring(0.15, 0.04, s * 0.19, hy + r * 0.48, r * 0.9, '#6d7480', 0, 0, 0);
-        k.ball(0.13, s * 0.19, hy + r * 0.48, r * 0.88, '#ff9f43', 1, 1, 0.4);
+        k.lathe([[0.16, 0], [0.17, 0.05], [0.14, 0.09]], s * 0.2, hy + r * 0.48, r * 0.84, '#6d7480', 14, 1, 1, Math.PI / 2);
+        k.ball(0.13, s * 0.2, hy + r * 0.48, r * 0.92, '#ff9f43', 1, 1, 0.35);
+        k.ball(0.04, s * 0.2 - 0.05, hy + r * 0.53, r * 0.98, '#fff3d6', 1, 1, 0.4);
       }
-      top = hy + r * 1.05;
+      top = hy + r * 1.1;
       break;
     case 'wolfhood':
-      k.ball(r * 1.12, 0, hy + r * 0.2, -0.04, c, 1, 0.92, 1.05);
-      k.pill(r * 0.36, r * 0.4, 0, hy + r * 0.62, r * 0.82, shadeHex(c, 0.1), Math.PI / 2);
-      k.ball(0.07, 0, hy + r * 0.65, r * 1.45, DARK);
-      for (let i = -2; i <= 2; i++) k.spike(0.03, 0.1, i * 0.07, hy + r * 0.38, r * 1.15, '#ffffff', Math.PI);
-      for (const s of [-1, 1]) k.spike(0.12, 0.32, s * r * 0.6, hy + r * 1.05, -0.05, c, 0, 0, -s * 0.25);
-      for (const s of [-1, 1]) k.ball(0.04, s * 0.14, hy + r * 0.78, r * 1.08, '#ffd34d');
+      k.lathe([[r * 1.15, -r * 0.5], [r * 1.18, r * 0.2], [r * 0.95, r * 0.75], [0.001, r * 1.05]], 0, hy + r * 0.1, -0.04, c, 16);
+      k.lathe([[r * 0.42, 0], [r * 0.35, r * 0.35], [r * 0.18, r * 0.75], [0.001, r * 0.8]], 0, hy + r * 0.62, r * 0.55, shade(c, 0.1), 12, 1, 1, Math.PI / 2);
+      k.ball(0.07, 0, hy + r * 0.62, r * 1.38, DARK);
+      for (let i = -2; i <= 2; i++) k.spike(0.03, 0.11, i * 0.07, hy + r * 0.4, r * 1.12, '#ffffff', Math.PI);
+      for (const s of [-1, 1]) {
+        k.plate(shapeFrom([[-0.12, 0], [0.12, 0], [0, 0.34]]), 0.06, 0.02, s * r * 0.6, hy + r * 0.95, -0.05, c, -0.2, 0, -s * 0.3);
+        addGlow(rig.body, new THREE.SphereGeometry(0.04, 8, 6), '#ffd34d', s * 0.14, hy + r * 0.8, r * 1.06);
+      }
+      k.cloth(r * 1.6, 0.9, 0, hy - r * 0.2, -r * 0.95, c, 2, 0.06, 0.4);
       top = hy + r * 1.35;
       break;
     case 'bald':
-      k.ball(r * 0.3, 0, hy + r * 0.88, 0, shadeHex(spec.skin, 0.15), 1.4, 0.4, 1);
+      k.ball(r * 0.3, -r * 0.2, hy + r * 0.85, r * 0.2, shade(spec.skin, 0.2), 1.3, 0.35, 1);
       break;
     default:
       break;
   }
   if (spec.crown) {
-    k.tube(r * 0.75, r * 0.82, 0.16, 0, top - 0.02, 0, GOLD);
+    k.lathe([[r * 0.8, 0], [r * 0.82, 0.14], [r * 0.86, 0.17]], 0, top - 0.06, 0, GOLD, 18);
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
-      k.spike(0.06, 0.18, Math.cos(a) * r * 0.72, top + 0.14, Math.sin(a) * r * 0.72, GOLD, 0, 0, 0, 6);
+      k.spike(0.07, 0.24, Math.cos(a) * r * 0.78, top + 0.2, Math.sin(a) * r * 0.78, GOLD, 0, 0, 0, 5);
+      k.ball(0.035, Math.cos(a) * r * 0.78, top + 0.33, Math.sin(a) * r * 0.78, GOLD_DARK);
     }
-    k.ball(0.06, 0, top + 0.02, r * 0.8, '#e74c3c');
-    top += 0.3;
+    k.gem(0.08, 0, top + 0.03, r * 0.85, '#e74c3c');
+    top += 0.38;
   }
   return top;
 }
@@ -306,61 +467,68 @@ function weaponMesh(rig: Rig, hand: THREE.Object3D, spec: HumanSpec): void {
   switch (spec.weapon) {
     case 'sword':
     case 'goldsword': {
-      const blade = spec.weapon === 'goldsword' ? '#ffd34d' : '#e6ecf3';
-      k.pill(0.045, 0.2, 0, -0.02, 0, LEATHER_DARK);
-      k.ball(0.07, 0, -0.17, 0, GOLD);
-      k.rbox(0.42, 0.07, 0.1, 0.03, 0, 0.13, 0, GOLD);
-      k.rbox(0.13, 0.95, 0.04, 0.02, 0, 0.64, 0, blade);
-      k.rbox(0.03, 0.8, 0.045, 0.01, 0, 0.6, 0, shadeHex(blade, -0.15));
-      k.spike(0.065, 0.16, 0, 1.19, 0, blade, 0, 0, 0, 4);
-      if (spec.weapon === 'goldsword') addGlow(w, new THREE.SphereGeometry(0.06, 8, 6), '#fff3b0', 0, 0.13, 0.06);
+      const blade = spec.weapon === 'goldsword' ? '#ffd34d' : '#e8eef5';
+      k.tube(0.045, 0.05, 0.24, 0, -0.02, 0, LEATHER_DARK, 0, 0, 0, 8);
+      for (let i = 0; i < 3; i++) k.ring(0.052, 0.012, 0, -0.1 + i * 0.08, 0, LEATHER, Math.PI / 2);
+      k.gem(0.07, 0, -0.2, 0, spec.weapon === 'goldsword' ? '#e74c3c' : GOLD);
+      k.curve([[-0.26, 0.2, 0], [-0.12, 0.12, 0], [0, 0.12, 0], [0.12, 0.12, 0], [0.26, 0.2, 0]], 0.045, 0.035, GOLD, 6);
+      k.ball(0.07, 0, 0.13, 0, GOLD_DARK);
+      k.plate(shapeFrom([[-0.065, 0], [0.065, 0], [0.06, 0.86], [0, 1.08], [-0.06, 0.86]]), 0.012, 0.022, 0, 0.16, 0, blade);
+      k.rbox(0.025, 0.7, 0.05, 0.01, 0, 0.55, 0, shade(blade, -0.18));
+      if (spec.weapon === 'goldsword') addGlow(w, new THREE.OctahedronGeometry(0.05), '#fff3b0', 0, 0.13, 0.07);
       break;
     }
     case 'dagger':
-      k.pill(0.04, 0.12, 0, -0.02, 0, LEATHER_DARK);
-      k.rbox(0.22, 0.05, 0.07, 0.02, 0, 0.08, 0, GOLD);
-      k.rbox(0.09, 0.42, 0.03, 0.015, 0, 0.32, 0, '#e6ecf3');
-      k.spike(0.045, 0.1, 0, 0.58, 0, '#e6ecf3', 0, 0, 0, 4);
+      k.tube(0.04, 0.045, 0.14, 0, -0.02, 0, LEATHER_DARK, 0, 0, 0, 8);
+      k.curve([[-0.13, 0.1, 0], [0, 0.07, 0], [0.13, 0.1, 0]], 0.03, 0.025, GOLD, 5);
+      k.plate(shapeFrom([[-0.045, 0], [0.045, 0], [0.05, 0.3], [0.0, 0.5], [-0.02, 0.32]]), 0.01, 0.015, 0, 0.09, 0, '#e8eef5');
       break;
     case 'axe':
-      k.pill(0.05, 0.95, 0, 0.25, 0, '#8a5a2b');
-      k.add(new THREE.CylinderGeometry(0.34, 0.34, 0.06, 16, 1, false, 0, Math.PI), STEEL, 0.0, 0.7, 0.0, 0, Math.PI / 2, Math.PI / 2);
-      k.rbox(0.14, 0.2, 0.12, 0.03, 0, 0.7, 0, STEEL_DARK);
+      k.curve([[0, -0.25, 0], [0.02, 0.3, 0], [0, 0.85, 0]], 0.05, 0.045, '#8a5a2b', 7);
+      for (let i = 0; i < 3; i++) k.ring(0.055, 0.012, 0, -0.15 + i * 0.07, 0, LEATHER_DARK, Math.PI / 2);
+      k.plate(shapeFrom([[0, -0.14], [0.2, -0.2], [0.42, -0.36], [0.46, 0], [0.42, 0.36], [0.2, 0.2], [0, 0.14]]), 0.05, 0.025, 0.04, 0.68, 0, STEEL, 0, Math.PI / 2, 0);
+      k.plate(shapeFrom([[0, -0.08], [-0.2, -0.04], [-0.24, 0], [-0.2, 0.04], [0, 0.08]]), 0.05, 0.02, -0.02, 0.68, 0, STEEL_DARK, 0, Math.PI / 2, 0);
       break;
     case 'hammer':
-      k.pill(0.055, 0.95, 0, 0.25, 0, '#6b4626');
-      k.rbox(0.36, 0.34, 0.6, 0.08, 0, 0.82, 0, STEEL_DARK);
-      for (const z of [-0.2, 0.2]) k.rbox(0.38, 0.36, 0.06, 0.02, 0, 0.82, z, GOLD);
+      k.curve([[0, -0.25, 0], [0, 0.3, 0], [0, 0.78, 0]], 0.055, 0.05, '#6b4626', 7);
+      k.rbox(0.34, 0.32, 0.56, 0.08, 0, 0.85, 0, STEEL_DARK);
+      for (const z of [-0.3, 0.3]) k.lathe([[0.17, 0], [0.19, 0.05], [0.15, 0.1]], 0, 0.85, z, STEEL, 14, 1, 1, Math.PI / 2 * (z > 0 ? 1 : -1));
+      for (const z of [-0.18, 0.18]) k.rbox(0.36, 0.34, 0.05, 0.02, 0, 0.85, z, GOLD);
+      k.spike(0.07, 0.25, 0, 1.12, 0, STEEL, 0, 0, 0, 6);
       break;
     case 'club':
-      k.tube(0.16, 0.06, 1.0, 0, 0.4, 0, '#8a5a2b');
-      for (let i = 0; i < 4; i++) k.spike(0.04, 0.12, Math.cos(i * 1.6) * 0.14, 0.7 + i * 0.05, Math.sin(i * 1.6) * 0.14, '#e8dcc0', Math.sin(i * 1.6), 0, -Math.cos(i * 1.6));
+      k.lathe([[0.05, 0], [0.06, 0.3], [0.13, 0.65], [0.17, 0.85], [0.12, 1.0], [0.001, 1.04]], 0, -0.2, 0, '#8a5a2b', 10);
+      for (let i = 0; i < 6; i++) k.spike(0.04, 0.16, Math.cos(i * 1.05) * 0.16, 0.5 + (i % 3) * 0.1, Math.sin(i * 1.05) * 0.16, '#e8dcc0', Math.sin(i * 1.05) * 1.3, 0, -Math.cos(i * 1.05) * 1.3, 5);
       break;
     case 'staff': {
-      k.tube(0.045, 0.055, 1.6, 0, 0.45, 0, '#7a4a1f');
-      k.ring(0.16, 0.035, 0, 1.3, 0, GOLD, 0, 0, 0);
-      for (const s of [-1, 1]) k.spike(0.04, 0.22, s * 0.13, 1.42, 0, GOLD, 0, 0, -s * 0.4, 6);
-      const orb = addGlow(w, new THREE.SphereGeometry(0.15, 14, 10), spec.magic ?? '#5dade2', 0, 1.3, 0);
-      const halo = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), new THREE.MeshBasicMaterial({ color: spec.magic ?? '#5dade2', transparent: true, opacity: 0.35, depthWrite: false }));
+      k.curve([[0, -0.4, 0], [0.03, 0.2, 0.02], [-0.03, 0.8, -0.02], [0, 1.15, 0]], 0.05, 0.04, '#7a4a1f', 7);
+      for (let i = 0; i < 2; i++) k.ring(0.055, 0.015, 0, 0.0 + i * 0.1, 0, GOLD, Math.PI / 2);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        k.curve([[Math.cos(a) * 0.05, 1.12, Math.sin(a) * 0.05], [Math.cos(a) * 0.2, 1.3, Math.sin(a) * 0.2], [Math.cos(a) * 0.08, 1.52, Math.sin(a) * 0.08]], 0.035, 0.01, GOLD, 5);
+      }
+      const orb = addGlow(w, new THREE.IcosahedronGeometry(0.13, 1), spec.magic ?? '#5dade2', 0, 1.32, 0);
+      rig.spinners.push(orb);
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), new THREE.MeshBasicMaterial({ color: spec.magic ?? '#5dade2', transparent: true, opacity: 0.3, depthWrite: false }));
       halo.position.copy(orb.position);
       w.add(halo);
-      rig.spinners.push(halo);
       break;
     }
     case 'bomb':
-      k.ball(0.22, 0, 0.12, 0, '#2b2b33');
-      k.ball(0.07, -0.08, 0.2, 0.15, '#6b6b78', 1, 1, 0.6);
-      k.tube(0.06, 0.06, 0.08, 0, 0.35, 0, STEEL_DARK);
-      k.pill(0.015, 0.12, 0.03, 0.44, 0, '#d9b77a', 0, 0, -0.4);
-      addGlow(w, new THREE.OctahedronGeometry(0.07), '#ffd34d', 0.06, 0.53, 0);
+      k.ball(0.23, 0, 0.12, 0, '#2b2b33');
+      k.ring(0.232, 0.02, 0, 0.12, 0, STEEL_DARK, 0.4);
+      k.ball(0.07, -0.09, 0.22, 0.15, '#7b7b88', 1, 1, 0.6);
+      k.tube(0.07, 0.08, 0.08, 0, 0.36, 0, STEEL_DARK, 0, 0, 0, 10);
+      k.curve([[0, 0.4, 0], [0.05, 0.5, 0.02], [0.12, 0.54, 0.05]], 0.018, 0.015, '#d9b77a', 5);
+      addGlow(w, new THREE.OctahedronGeometry(0.07), '#ffd34d', 0.13, 0.56, 0.05);
       break;
     case 'potion':
-      k.ball(0.15, 0, 0.08, 0, '#7bd389', 1, 1.05, 1);
-      k.tube(0.05, 0.06, 0.12, 0, 0.26, 0, '#bde8c9');
-      k.tube(0.055, 0.05, 0.07, 0, 0.35, 0, '#a0662e');
+      k.lathe([[0.001, 0], [0.12, 0.02], [0.17, 0.12], [0.15, 0.24], [0.06, 0.3], [0.05, 0.4]], 0, -0.05, 0, '#bde8c9', 14);
+      addGlow(w, new THREE.SphereGeometry(0.12, 12, 8), '#7bd389', 0, 0.07, 0).scale.set(1.1, 0.8, 1.1);
+      k.tube(0.06, 0.05, 0.08, 0, 0.38, 0, '#a0662e', 0, 0, 0, 8);
       break;
     case 'claws':
-      for (const s of [-1, 0, 1]) k.spike(0.03, 0.3, s * 0.07, 0.15, 0.06, '#f2ead0', 0.3, 0, 0, 6);
+      for (const s of [-1, 0, 1]) k.curve([[s * 0.07, 0.0, 0.04], [s * 0.08, 0.2, 0.1], [s * 0.06, 0.35, 0.02]], 0.03, 0.005, '#f2ead0', 5);
       break;
     default:
       break;
@@ -368,69 +536,99 @@ function weaponMesh(rig: Rig, hand: THREE.Object3D, spec: HumanSpec): void {
   if (!k.empty) addMesh(rig, w, k);
 }
 
-/** A detailed chibi humanoid rig, ≈ 2.2 units tall. */
+/** A detailed chibi humanoid rig, ≈ 2.3 units tall. */
 export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig {
   const rig = newRig('biped', attack);
   const b = spec.bulk ?? 1;
   const k = new K();
-  const hipY = 0.5;
-  const chestY = 0.9;
-  const hy = 1.56;
+  const hipY = 0.52;
+  const hy = 1.6;
   const skull = spec.head === 'skull';
   const skin = skull ? '#efe8d8' : spec.skin;
-  // Robe / skirt or hips
+  // Robe or hips
   if (spec.robe) {
-    k.tube(0.32 * b, 0.56 * b, 0.95, 0, 0.47, 0, spec.legs, 0, 0, 0, 18);
-    k.tube(0.57 * b, 0.6 * b, 0.08, 0, 0.04, 0, spec.trim ?? shadeHex(spec.legs, -0.2), 0, 0, 0, 18);
-  } else k.rbox(0.6 * b, 0.26, 0.42 * b, 0.1, 0, hipY + 0.05, 0, spec.legs);
-  // Torso, chest plate, belt
-  k.rbox(0.72 * b, 0.6, 0.5 * b, 0.18, 0, chestY, 0, spec.body);
+    k.lathe([[0.6 * b, 0], [0.58 * b, 0.12], [0.45 * b, 0.55], [0.34 * b, 0.95]], 0, 0, 0, spec.legs, 18);
+    k.lathe([[0.62 * b, 0], [0.62 * b, 0.1], [0.6 * b, 0.12]], 0, 0, 0, spec.trim ?? shade(spec.legs, -0.2), 18);
+    for (let i = 0; i < 6; i++) k.rbox(0.04, 0.7, 0.04, 0.02, Math.cos((i / 6) * 6.28 + 0.5) * 0.5 * b, 0.4, Math.sin((i / 6) * 6.28 + 0.5) * 0.5 * b, shade(spec.legs, -0.15), Math.sin((i / 6) * 6.28 + 0.5) * 0.2, 0, -Math.cos((i / 6) * 6.28 + 0.5) * 0.2);
+  } else k.rbox(0.6 * b, 0.28, 0.42 * b, 0.11, 0, hipY + 0.06, 0, spec.legs);
+  // V-shaped torso
+  k.lathe([[0.27, 0], [0.3, 0.12], [0.37, 0.36], [0.38, 0.5], [0.3, 0.62], [0.13, 0.68]], 0, 0.62, 0, spec.body, 16, b, 0.74 * b);
   if (spec.armor) {
-    k.rbox(0.62 * b, 0.42, 0.12, 0.08, 0, chestY + 0.04, 0.22 * b, spec.armor);
-    k.ball(0.06, 0, chestY + 0.06, 0.29 * b, spec.trim ?? GOLD);
-  } else if (spec.trim) k.rbox(0.12, 0.5, 0.06, 0.03, 0, chestY + 0.02, 0.25 * b, spec.trim);
-  k.rbox(0.76 * b, 0.1, 0.54 * b, 0.04, 0, chestY - 0.26, 0, LEATHER);
-  k.rbox(0.13, 0.12, 0.06, 0.03, 0, chestY - 0.26, 0.28 * b, GOLD);
-  // Neck and head
-  k.tube(0.13, 0.15, 0.16, 0, chestY + 0.34, 0, skin);
-  k.ball(HEAD_R, 0, hy, 0, skin, 1.04, 1, 1);
+    k.lathe([[0.3, 0], [0.37, 0.18], [0.39, 0.33], [0.33, 0.44], [0.001, 0.47]], 0, 0.8, 0.07 * b, spec.armor, 14, b * 0.95, 0.42 * b, 0.12);
+    k.ring(0.27 * b, 0.025, 0, 1.12, 0.12 * b, spec.trim ?? GOLD, Math.PI / 2 - 0.2, 0, 0);
+    if (spec.emblem) k.plate(star(0.11, 0.05), 0.03, 0.01, 0, 0.98, 0.26 * b, spec.emblem);
+    else k.gem(0.06, 0, 0.98, 0.27 * b, spec.trim ?? GOLD);
+  } else if (spec.trim) {
+    k.rbox(0.1, 0.48, 0.05, 0.02, 0, 0.92, 0.27 * b, spec.trim);
+    for (let i = 0; i < 3; i++) k.ball(0.03, 0, 0.78 + i * 0.13, 0.3 * b, GOLD);
+  }
+  // Belt with buckle and pouch
+  k.ring(0.33 * b, 0.05, 0, 0.66, 0, LEATHER, Math.PI / 2, 0, 0);
+  k.rbox(0.15, 0.13, 0.05, 0.03, 0, 0.66, 0.31 * b, GOLD);
+  k.rbox(0.08, 0.06, 0.06, 0.02, 0, 0.66, 0.32 * b, GOLD_DARK);
+  k.rbox(0.16, 0.18, 0.1, 0.04, 0.3 * b, 0.6, 0.15 * b, LEATHER_DARK, 0, 0.8, 0);
+  if (spec.tabard) {
+    k.plate(shapeFrom([[-0.18, 0], [0.18, 0], [0.15, -0.42], [0, -0.5], [-0.15, -0.42]]), 0.02, 0.01, 0, 0.62, 0.3 * b, spec.tabard);
+    k.plate(star(0.07, 0.03), 0.02, 0.008, 0, 0.4, 0.32 * b, spec.trim ?? GOLD);
+  }
+  // Collar, neck, head, ears
+  k.ring(0.17, 0.05, 0, 1.28, 0, spec.trim ?? shade(spec.body, -0.2), Math.PI / 2);
+  k.tube(0.13, 0.15, 0.16, 0, 1.33, 0, skin, 0, 0, 0, 10);
+  k.ball(HEAD_R, 0, hy, 0, skin, 1.04, 0.98, 1);
+  k.ball(HEAD_R * 0.62, 0, hy - HEAD_R * 0.45, HEAD_R * 0.15, skin, 1.15, 0.75, 1);
   if (spec.ears && !skull) {
     for (const s of [-1, 1]) {
-      if (spec.ears === 'pointy') k.spike(0.09, 0.34, s * HEAD_R * 1.05, hy + 0.05, 0, skin, 0, 0, -s * 1.15, 8);
-      else k.ball(0.1, s * HEAD_R * 1.0, hy, 0, skin, 0.6, 1, 0.8);
+      if (spec.ears === 'pointy') k.curve([[s * HEAD_R * 0.9, hy, 0], [s * HEAD_R * 1.3, hy + 0.1, -0.05], [s * HEAD_R * 1.6, hy + 0.3, -0.1]], 0.1, 0.01, skin, 6);
+      else {
+        k.ball(0.11, s * HEAD_R * 0.98, hy - 0.02, 0, skin, 0.55, 1, 0.85);
+        k.ball(0.05, s * HEAD_R * 1.03, hy - 0.02, 0.02, shade(skin, -0.15), 0.5, 1, 0.8);
+      }
     }
   }
-  face(k, rig, { skin, eye: spec.eye, mood: spec.mood ?? 'brave', mustache: spec.mustache, beard: spec.beard, eyeGlow: spec.eyeGlow ?? undefined, hidden: spec.head === 'fullhelm' || skull }, hy, HEAD_R);
-  if (skull && spec.eyeGlow) for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.06, 8, 6), spec.eyeGlow, s * HEAD_R * 0.36, hy + HEAD_R * 0.1, HEAD_R * 0.92);
-  if (spec.head === 'fullhelm' && spec.eyeGlow) addGlow(rig.body, new THREE.BoxGeometry(HEAD_R * 1.1, 0.05, 0.04), spec.eyeGlow, 0, hy + HEAD_R * 0.1, HEAD_R * 1.12);
-  rig.height = headGear(k, spec, hy) + 0.05;
+  face(k, rig, { skin, eye: spec.eye, mood: spec.mood, mustache: spec.mustache, beard: spec.beard, eyeGlow: skull || spec.head === 'fullhelm' ? undefined : spec.eyeGlow, hidden: spec.head === 'fullhelm' || skull, scar: spec.scar }, hy, HEAD_R);
+  if (skull && spec.eyeGlow) for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.06, 8, 6), spec.eyeGlow, s * HEAD_R * 0.36, hy + HEAD_R * 0.08, HEAD_R * 0.9);
+  if (spec.head === 'fullhelm' && spec.eyeGlow) for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.05, 8, 6), spec.eyeGlow, s * HEAD_R * 0.32, hy + HEAD_R * 0.12, HEAD_R * 1.08).scale.set(1.6, 0.6, 0.6);
+  rig.height = headGear(k, rig, spec, hy) + 0.05;
   addMesh(rig, rig.body, k);
 
-  // Legs with boots
+  // Legs: tapered thigh, knee, shin, boot with cuff, toe cap and sole
   if (!spec.robe) {
     for (const s of [-1, 1]) {
       const leg = pivot(rig.body, s * 0.17 * b, hipY, 0);
       const lk = new K();
-      lk.pill(0.12 * Math.sqrt(b), 0.16, 0, -0.17, 0, spec.legs);
-      lk.rbox(0.27 * Math.sqrt(b), 0.2, 0.36, 0.08, 0, -0.4, 0.04, BOOT);
-      lk.rbox(0.29 * Math.sqrt(b), 0.05, 0.38, 0.02, 0, -0.48, 0.04, LEATHER_DARK);
+      const lb = Math.sqrt(b);
+      lk.tube(0.13 * lb, 0.11 * lb, 0.22, 0, -0.1, 0, spec.legs, 0, 0, 0, 10);
+      if (spec.armor) lk.dome(0.11 * lb, 0, -0.22, 0.07, spec.armor, 0.8, 1, 0.7);
+      else lk.ball(0.1 * lb, 0, -0.22, 0.03, shade(spec.legs, -0.1));
+      lk.lathe([[0.15 * lb, 0], [0.14 * lb, 0.16], [0.12 * lb, 0.22]], 0, -0.48, 0, BOOT, 12);
+      lk.ring(0.13 * lb, 0.035, 0, -0.27, 0, LEATHER, Math.PI / 2);
+      lk.rbox(0.25 * lb, 0.14, 0.32, 0.06, 0, -0.43, 0.08, BOOT);
+      lk.ball(0.12 * lb, 0, -0.42, 0.22, shade(BOOT, 0.08), 1, 0.7, 0.9);
+      lk.rbox(0.27 * lb, 0.04, 0.36, 0.02, 0, -0.49, 0.08, LEATHER_DARK);
       addMesh(rig, leg, lk);
       rig.legs.push(leg);
     }
   }
 
-  // Arms with sleeves, gloves and shoulder pads
+  // Arms: tapered sleeve, elbow, forearm, cuff, hand with thumb, shoulder pads
   for (const s of [-1, 1]) {
-    const arm = pivot(rig.body, s * 0.43 * b, chestY + 0.2, 0);
+    const arm = pivot(rig.body, s * 0.43 * b, 1.18, 0);
     const ak = new K();
-    ak.pill(0.105, 0.24, 0, -0.18, 0, spec.body);
-    ak.ball(0.135, 0, -0.42, 0.02, spec.armor ? STEEL_DARK : skull ? '#efe8d8' : spec.skin);
+    ak.tube(0.11, 0.095, 0.22, 0, -0.12, 0, spec.body, 0, 0, 0, 10);
+    ak.ball(0.095, 0, -0.24, 0, shade(spec.body, -0.08));
+    ak.tube(0.09, 0.08, 0.16, 0, -0.33, 0, spec.armor ? STEEL_DARK : spec.body, 0, 0, 0, 10);
+    ak.lathe([[0.085, 0], [0.11, 0.06], [0.1, 0.09]], 0, -0.4, 0, spec.armor ? spec.armor : LEATHER, 10);
+    const handHex = spec.armor ? STEEL_DARK : skin;
+    ak.ball(0.12, 0, -0.48, 0.02, handHex, 1, 0.95, 1.05);
+    ak.pill(0.045, 0.06, s * -0.08, -0.45, 0.08, handHex, 0.5, 0, s * 0.6);
     if (spec.armor) {
-      ak.dome(0.2, 0, -0.02, 0, spec.armor, 0.8, 1.1, 1);
-      ak.ring(0.19, 0.03, 0, -0.02, 0, spec.trim ?? GOLD);
+      ak.dome(0.21, 0, -0.03, 0, spec.armor, 0.75, 1.15, 1.05);
+      ak.dome(0.17, s * 0.04, -0.1, 0, shade(spec.armor, -0.1), 0.6, 1.2, 1.05);
+      ak.ring(0.2, 0.025, 0, -0.03, 0, spec.trim ?? GOLD, Math.PI / 2);
+      for (const z of [-0.12, 0.12]) ak.ball(0.03, s * 0.1, 0.06, z, GOLD);
     }
     addMesh(rig, arm, ak);
-    const hand = pivot(arm, 0, -0.42, 0.02);
+    const hand = pivot(arm, 0, -0.48, 0.02);
     if (s === 1) {
       rig.armR = arm;
       weaponMesh(rig, hand, spec);
@@ -438,23 +636,25 @@ export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig 
       rig.armL = arm;
       const sk = new K();
       if (spec.shield === 'round') {
-        sk.tube(0.46, 0.46, 0.08, 0.06, 0, 0.18, spec.shieldColor ?? '#9a6430', Math.PI / 2, 0, 0, 22);
-        sk.ring(0.46, 0.05, 0.06, 0, 0.18, STEEL_DARK, 0, 0, 0);
-        sk.ball(0.12, 0.06, 0, 0.24, GOLD, 1, 1, 0.6);
-        for (let i = 0; i < 4; i++) sk.rbox(0.05, 0.3, 0.02, 0.01, 0.06 + Math.cos(i * 1.57) * 0.24, Math.sin(i * 1.57) * 0.24, 0.23, shadeHex(spec.shieldColor ?? '#9a6430', -0.2), 0, 0, i * 1.57);
+        const sc = spec.shieldColor ?? '#9a6430';
+        sk.lathe([[0.001, 0.07], [0.3, 0.05], [0.46, 0.0], [0.48, -0.02]], 0.06, 0, 0.2, sc, 20, 1, 1, Math.PI / 2);
+        sk.ring(0.47, 0.045, 0.06, 0, 0.19, STEEL_DARK, 0, 0, 0);
+        sk.dome(0.12, 0.06, 0, 0.26, GOLD, 0.7);
+        for (let i = 0; i < 8; i++) sk.ball(0.025, 0.06 + Math.cos(i * 0.785) * 0.4, Math.sin(i * 0.785) * 0.4, 0.22, STEEL);
+        for (let i = 0; i < 4; i++) sk.rbox(0.04, 0.3, 0.03, 0.01, 0.06 + Math.cos(i * 1.57) * 0.25, Math.sin(i * 1.57) * 0.25, 0.25, shade(sc, -0.22), 0, 0, i * 1.57);
       } else if (spec.shield === 'tower' || spec.shield === 'kite') {
         const h = spec.shield === 'tower' ? 1.25 : 0.95;
-        sk.rbox(0.82, h, 0.1, 0.08, 0.05, -0.15, 0.2, spec.shieldColor ?? '#1f618d');
-        sk.rbox(0.9, 0.08, 0.12, 0.03, 0.05, -0.15 + h / 2, 0.2, GOLD);
-        sk.rbox(0.9, 0.08, 0.12, 0.03, 0.05, -0.15 - h / 2, 0.2, GOLD);
-        sk.ball(0.15, 0.05, -0.1, 0.27, GOLD, 1, 1, 0.5);
-        for (let i = 0; i < 8; i++) sk.spike(0.03, 0.14, 0.05 + Math.cos((i / 8) * 6.28) * 0.24, -0.1 + Math.sin((i / 8) * 6.28) * 0.24, 0.27, GOLD, Math.PI / 2, 0, 0, 4);
+        const shape = shapeFrom([[-0.42, h * 0.5], [0.42, h * 0.5], [0.42, -h * 0.15], [0, -h * 0.55], [-0.42, -h * 0.15]]);
+        sk.plate(shape, 0.06, 0.03, 0.05, -0.12, 0.2, GOLD, 0, 0, 0, 1.08);
+        sk.plate(shape, 0.08, 0.03, 0.05, -0.12, 0.23, spec.shieldColor ?? '#1f618d');
+        sk.plate(star(0.2, 0.09), 0.04, 0.015, 0.05, -0.05, 0.29, spec.emblem ?? GOLD);
       } else if (spec.weapon === 'bow') {
-        sk.ring(0.55, 0.04, 0.0, 0.0, 0.24, '#8a5a2b', 0, Math.PI / 2, Math.PI / 2, Math.PI * 0.9);
-        sk.pill(0.012, 1.0, 0.0, 0.0, 0.07, '#f2ead0');
-        sk.rbox(0.07, 0.16, 0.08, 0.02, 0, 0, 0.24, LEATHER_DARK);
+        sk.curve([[0, 0.62, 0.12], [0, 0.42, 0.3], [0, 0.0, 0.3], [0, -0.42, 0.3], [0, -0.62, 0.12]], 0.045, 0.045, '#8a5a2b', 7);
+        for (const yy of [0.62, -0.62]) sk.ball(0.04, 0, yy, 0.12, GOLD);
+        sk.pill(0.01, 1.2, 0, 0, 0.12, '#f2ead0');
+        sk.rbox(0.07, 0.16, 0.08, 0.02, 0, 0, 0.3, LEATHER_DARK);
       } else if (spec.weapon === 'dagger') {
-        sk.rbox(0.09, 0.42, 0.03, 0.015, 0, 0.12, 0.3, '#e6ecf3', 1.0, 0, 0);
+        sk.plate(shapeFrom([[-0.045, 0], [0.045, 0], [0.05, 0.3], [0, 0.48], [-0.02, 0.3]]), 0.01, 0.015, 0, 0.05, 0.3, '#e8eef5', 1.0, 0, 0);
       }
       if (!sk.empty) addMesh(rig, hand, sk);
     }
@@ -462,16 +662,20 @@ export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig 
   // Quiver for archers
   if (spec.weapon === 'bow') {
     const qk = new K();
-    qk.tube(0.12, 0.1, 0.6, 0.15, chestY + 0.1, -0.3, LEATHER, 0.3, 0, -0.3);
-    for (let i = 0; i < 3; i++) qk.spike(0.05, 0.14, 0.2 + i * 0.05, chestY + 0.48 + i * 0.02, -0.4, '#f2ead0', 0.3, 0, -0.3, 4);
+    qk.lathe([[0.1, 0], [0.12, 0.05], [0.13, 0.6]], 0.15, 0.7, -0.32, LEATHER, 12, 1, 1, 0.3, 0, -0.3);
+    for (let i = 0; i < 4; i++) {
+      qk.pill(0.012, 0.25, 0.2 + i * 0.04, 1.32 + i * 0.02, -0.5 + i * 0.03, '#d9c39a', 0.3, 0, -0.3);
+      qk.plate(shapeFrom([[0, 0], [0.05, 0.08], [0, 0.16], [-0.05, 0.08]]), 0.01, 0.005, 0.22 + i * 0.04, 1.45 + i * 0.02, -0.53 + i * 0.03, i % 2 ? '#e74c3c' : '#ffffff', 0, 0.6, -0.3);
+    }
     addMesh(rig, rig.body, qk);
   }
-  // Cape
+  // Cape with folds
   if (spec.cape) {
-    const cape = pivot(rig.body, 0, chestY + 0.3, -0.24 * b);
+    const cape = pivot(rig.body, 0, 1.25, -0.25 * b);
     const ck = new K();
-    ck.rbox(0.82 * b, 1.0, 0.06, 0.05, 0, -0.5, -0.03, spec.cape);
-    ck.rbox(0.86 * b, 0.1, 0.12, 0.04, 0, -0.02, 0.02, spec.trim ?? GOLD);
+    ck.cloth(0.78 * b, 1.05, 0, 0, -0.02, spec.cape, 3, 0.05, 0.35);
+    ck.rbox(0.8 * b, 0.1, 0.12, 0.04, 0, 0, 0.02, spec.trim ?? GOLD);
+    for (const s of [-1, 1]) ck.ball(0.06, s * 0.3 * b, 0, 0.1, GOLD);
     addMesh(rig, cape, ck);
     rig.cape = cape;
   }
@@ -488,51 +692,61 @@ export interface QuadSpec {
   crystal?: string;
   mane?: string;
   rider?: HumanSpec;
+  saddle?: string;
 }
 
 export function quadruped(spec: QuadSpec): Rig {
   const rig = newRig('quad', 'melee');
   const k = new K();
-  k.pill(0.36, 0.85, 0, 0.72, 0, spec.body, Math.PI / 2);
-  if (spec.belly) k.pill(0.28, 0.6, 0, 0.62, 0.02, spec.belly, Math.PI / 2);
-  // Head
-  k.ball(0.36, 0, 1.02, 0.78, spec.body);
-  k.pill(0.17, 0.22, 0, 0.92, 1.1, spec.belly ?? spec.body, Math.PI / 2);
-  k.ball(0.07, 0, 0.97, 1.32, DARK);
-  for (let i = -1; i <= 1; i += 2) k.spike(0.035, 0.1, i * 0.08, 0.8, 1.22, '#ffffff', Math.PI);
+  k.pill(0.37, 0.8, 0, 0.74, 0, spec.body, Math.PI / 2);
+  k.ball(0.42, 0, 0.82, 0.38, spec.body, 1, 1, 1);
+  if (spec.belly) k.pill(0.27, 0.55, 0, 0.62, 0.05, spec.belly, Math.PI / 2);
+  // Head: skull, muzzle, nose, jaw with teeth, cheek fur, ears, brows
+  k.ball(0.35, 0, 1.08, 0.8, spec.body);
+  k.lathe([[0.2, 0], [0.19, 0.15], [0.14, 0.3], [0.001, 0.34]], 0, 0.98, 0.95, spec.belly ?? shade(spec.body, 0.1), 12, 1, 1, Math.PI / 2);
+  k.ball(0.07, 0, 1.03, 1.3, DARK, 1.3, 1, 1);
+  k.rbox(0.26, 0.08, 0.26, 0.04, 0, 0.86, 1.1, shade(spec.body, -0.1));
+  for (const x of [-0.08, 0.08]) k.spike(0.035, 0.12, x, 0.92, 1.2, '#ffffff', Math.PI);
   for (const s of [-1, 1]) {
-    k.spike(0.11, 0.3, s * 0.2, 1.38, 0.7, spec.body, -0.2, 0, -s * 0.2);
-    k.ball(0.09, s * 0.15, 1.1, 1.03, '#ffffff', 1, 1, 0.6);
-    k.ball(0.05, s * 0.15, 1.1, 1.08, '#120a1c', 1, 1, 0.6);
-    k.pill(0.025, 0.12, s * 0.15, 1.22, 1.04, DARK, 0, 0, Math.PI / 2 + s * 0.45);
+    k.plate(shapeFrom([[-0.11, 0], [0.11, 0], [0.02, 0.34]]), 0.06, 0.02, s * 0.2, 1.36, 0.72, spec.body, -0.25, 0, -s * 0.25);
+    k.plate(shapeFrom([[-0.06, 0.02], [0.06, 0.02], [0.01, 0.2]]), 0.03, 0.01, s * 0.2, 1.38, 0.76, '#e8b4a0', -0.25, 0, -s * 0.25);
+    k.ball(0.09, s * 0.15, 1.14, 1.04, '#ffffff', 1, 1, 0.6);
+    k.ball(0.05, s * 0.15, 1.14, 1.09, '#120a1c', 1, 1, 0.6);
+    k.curve([[s * 0.24, 1.25, 1.0], [s * 0.15, 1.24, 1.06], [s * 0.06, 1.2, 1.06]], 0.03, 0.02, DARK, 5);
+    k.spike(0.12, 0.25, s * 0.3, 0.98, 0.85, spec.mane ?? spec.body, 0, 0, s * 1.8);
   }
-  if (spec.mane) k.ball(0.38, 0, 1.05, 0.5, spec.mane, 1.15, 1, 0.8);
-  k.pill(0.08, 0.5, 0, 1.0, -0.82, spec.body, -0.9);
+  if (spec.mane) for (let i = 0; i < 7; i++) k.spike(0.12, 0.34, 0, 1.18 - i * 0.03, 0.55 - i * 0.16, spec.mane, -0.8);
+  k.curve([[0, 0.95, -0.75], [0, 1.25, -1.05], [0, 1.15, -1.45]], 0.13, 0.03, spec.mane ?? spec.body, 8);
   if (spec.shell) {
-    k.dome(0.72, 0, 0.75, -0.05, spec.shell, 0.75, 1, 1.25);
-    for (let i = 0; i < 5; i++) k.ball(0.14, Math.cos(i * 1.26) * 0.4, 1.15, -0.05 + Math.sin(i * 1.26) * 0.5, shadeHex(spec.shell, 0.15), 1, 0.5, 1);
+    k.lathe([[0.85, 0], [0.8, 0.25], [0.55, 0.55], [0.001, 0.68]], 0, 0.78, -0.05, spec.shell, 14, 0.85, 1.15);
+    for (let i = 0; i < 6; i++) k.plate(shapeFrom([[0, 0.14], [0.13, 0.05], [0.09, -0.12], [-0.09, -0.12], [-0.13, 0.05]]), 0.04, 0.015, Math.cos(i * 1.05) * 0.38, 1.2, -0.05 + Math.sin(i * 1.05) * 0.5, shade(spec.shell, 0.18), -Math.PI / 2 + 0.3, 0, 0);
   }
-  if (spec.crystal) for (let i = 0; i < 4; i++) k.spike(0.14, 0.6 + (i % 2) * 0.3, 0, 1.25, -0.5 + i * 0.32, spec.crystal, 0, 0, 0, 5);
+  if (spec.crystal) for (let i = 0; i < 5; i++) k.gem(0.13 + (i % 2) * 0.05, ((i % 2) - 0.5) * 0.2, 1.35, -0.6 + i * 0.3, spec.crystal, 2.6);
+  if (spec.saddle) {
+    k.rbox(0.62, 0.12, 0.6, 0.05, 0, 1.08, -0.1, spec.saddle);
+    k.rbox(0.66, 0.05, 0.64, 0.02, 0, 1.02, -0.1, GOLD);
+  }
   addMesh(rig, rig.body, k);
-  if (spec.eye && spec.eye !== '#ffffff') for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.045, 8, 6), spec.eye, s * 0.15, 1.1, 1.1);
+  if (spec.eye && spec.eye !== '#ffffff') for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.03, 8, 6), spec.eye, s * 0.15, 1.15, 1.13);
   for (const [x, z] of [
-    [-0.22, 0.45],
-    [0.22, 0.45],
-    [-0.22, -0.45],
-    [0.22, -0.45],
+    [-0.23, 0.42],
+    [0.23, 0.42],
+    [-0.23, -0.42],
+    [0.23, -0.42],
   ] as const) {
-    const leg = pivot(rig.body, x, 0.55, z);
+    const leg = pivot(rig.body, x, 0.6, z);
     const lk = new K();
-    lk.pill(0.1, 0.3, 0, -0.25, 0, spec.body);
-    lk.ball(0.12, 0, -0.5, 0.04, shadeHex(spec.body, -0.2), 1, 0.6, 1.2);
+    lk.tube(0.12, 0.085, 0.36, 0, -0.18, 0, spec.body, 0, 0, 0, 10);
+    lk.ball(0.12, 0, -0.52, 0.05, shade(spec.body, -0.18), 1, 0.6, 1.2);
+    for (const t of [-0.06, 0, 0.06]) lk.spike(0.02, 0.07, t, -0.55, 0.17, '#f2ead0', Math.PI / 2, 0, 0, 4);
     addMesh(rig, leg, lk);
     rig.legs.push(leg);
   }
-  rig.height = 1.6;
+  rig.height = 1.7;
   if (spec.rider) {
     const rider = humanoid({ ...spec.rider }, 'melee');
     for (const l of rider.legs) l.visible = false;
-    rider.body.position.set(0, 0.62, -0.1);
+    rider.body.position.set(0, 0.6, -0.1);
     rider.root.scale.setScalar(0.85);
     rig.body.add(rider.root);
     rider.root.traverse((o) => {
@@ -541,7 +755,7 @@ export function quadruped(spec: QuadSpec): Rig {
     });
     rig.armR = rider.armR;
     rig.armL = rider.armL;
-    rig.height = 2.9;
+    rig.height = 3.0;
   }
   return rig;
 }
@@ -554,71 +768,102 @@ export interface FlyerSpec {
   accent?: string;
 }
 
+const wingShape = (span: number) =>
+  shapeFrom([
+    [0, 0.15],
+    [span * 0.5, 0.35],
+    [span, 0.25],
+    [span * 0.92, -0.05],
+    [span * 0.78, -0.12],
+    [span * 0.66, -0.35],
+    [span * 0.5, -0.22],
+    [span * 0.36, -0.45],
+    [span * 0.22, -0.25],
+    [0, -0.2],
+  ]);
+
+const featherShape = (len: number, w: number) => shapeFrom([[0, 0], [w, len * 0.3], [w * 0.6, len * 0.85], [0, len], [-w * 0.6, len * 0.85], [-w, len * 0.3]]);
+
 export function flyer(spec: FlyerSpec): Rig {
   const rig = newRig('flyer', spec.kind === 'wisp' ? 'cast' : 'melee');
   const k = new K();
-  const eyes = (x: number, y: number, z: number, r: number) => {
+  const eyes = (x: number, y: number, z: number, r: number, angry = true) => {
     for (const s of [-1, 1]) {
       k.ball(r, s * x, y, z, '#ffffff', 1, 1, 0.6);
       k.ball(r * 0.55, s * x, y, z + r * 0.4, spec.eye ?? '#120a1c', 1, 1, 0.5);
+      k.ball(r * 0.22, s * x - r * 0.3, y + r * 0.3, z + r * 0.6, '#ffffff', 1, 1, 0.5);
+      if (angry) k.curve([[s * (x + r), y + r * 1.1, z], [s * (x - r * 0.8), y + r * 0.7, z + r * 0.5]], r * 0.3, r * 0.2, DARK, 5);
     }
   };
   if (spec.kind === 'drake') {
     k.pill(0.42, 0.9, 0, 0, 0, spec.body, Math.PI / 2);
-    k.pill(0.32, 0.5, 0, 0.12, -0.2, spec.accent ?? spec.body, Math.PI / 2);
-    k.pill(0.2, 0.5, 0, 0.45, 0.85, spec.body, 0.9);
-    k.ball(0.42, 0, 0.75, 1.25, spec.body);
-    k.pill(0.24, 0.3, 0, 0.62, 1.62, spec.body, Math.PI / 2);
+    k.pill(0.32, 0.55, 0, -0.12, 0.05, spec.accent ?? spec.body, Math.PI / 2);
+    k.curve([[0, 0.2, 0.55], [0, 0.55, 0.95], [0, 0.75, 1.2]], 0.24, 0.2, spec.body, 10);
+    k.ball(0.42, 0, 0.8, 1.32, spec.body);
+    k.lathe([[0.26, 0], [0.24, 0.2], [0.16, 0.4], [0.001, 0.45]], 0, 0.68, 1.45, spec.body, 12, 1.1, 0.9, Math.PI / 2);
     for (const s of [-1, 1]) {
-      k.spike(0.07, 0.5, s * 0.22, 1.18, 1.05, '#f3ead2', -0.7, 0, -s * 0.35);
-      k.ball(0.04, s * 0.1, 0.72, 1.98, DARK);
+      k.curve([[s * 0.2, 1.1, 1.2], [s * 0.35, 1.35, 0.95], [s * 0.3, 1.5, 0.6]], 0.08, 0.01, '#f3ead2', 7);
+      k.ball(0.04, s * 0.1, 0.75, 1.9, DARK);
+      k.spike(0.03, 0.1, s * 0.12, 0.55, 1.7, '#ffffff', Math.PI);
     }
-    eyes(0.2, 0.9, 1.55, 0.12);
-    k.pill(0.12, 0.9, 0, 0.05, -1.25, spec.body, -1.3);
-    k.spike(0.16, 0.35, 0, 0.0, -1.9, spec.accent ?? spec.wing, -1.6);
-    for (let i = 0; i < 5; i++) k.spike(0.07, 0.22, 0, 0.42 - i * 0.03, 0.6 - i * 0.38, spec.accent ?? spec.wing, -0.3);
-    rig.height = 1.5;
+    eyes(0.2, 0.95, 1.6, 0.12);
+    k.curve([[0, 0.05, -0.5], [0, 0.0, -1.1], [0, 0.2, -1.6], [0, 0.45, -1.9]], 0.18, 0.03, spec.body, 8);
+    k.plate(shapeFrom([[0, 0], [0.22, 0.12], [0, 0.4], [-0.22, 0.12]]), 0.05, 0.02, 0, 0.48, -1.95, spec.accent ?? spec.wing, 0.6, 0, 0);
+    for (let i = 0; i < 6; i++) k.plate(shapeFrom([[-0.08, 0], [0.08, 0], [0, 0.2]]), 0.03, 0.01, 0, 0.42 - i * 0.02, 0.65 - i * 0.35, spec.accent ?? spec.wing, 0, Math.PI / 2, 0);
+    rig.height = 1.6;
   } else if (spec.kind === 'bird') {
     k.ball(0.5, 0, 0, 0, spec.body, 1, 1, 1.2);
+    k.ball(0.38, 0, -0.1, 0.25, spec.accent ?? spec.body, 0.85, 0.8, 0.9);
     k.ball(0.36, 0, 0.5, 0.45, spec.body);
-    k.spike(0.12, 0.34, 0, 0.42, 0.88, GOLD, Math.PI / 2);
-    for (let i = 0; i < 4; i++) addGlow(rig.body, new THREE.ConeGeometry(0.07, 0.34, 6), i % 2 ? '#ffd34d' : '#ff8a2a', -0.12 + i * 0.08, 0.95, 0.38 - i * 0.07).rotation.set(-0.4, 0, (i - 1.5) * 0.2);
-    eyes(0.16, 0.58, 0.72, 0.09);
-    for (let i = 0; i < 3; i++) k.ball(0.14, (i - 1) * 0.16, -0.15, -0.72 - i * 0.04, spec.accent ?? spec.wing, 0.8, 0.3, 1.8);
+    k.lathe([[0.13, 0], [0.1, 0.12], [0.04, 0.26], [0.001, 0.3]], 0, 0.45, 0.78, GOLD, 10, 1, 0.8, Math.PI / 2 + 0.3);
+    for (let i = 0; i < 5; i++) addGlow(rig.body, new THREE.ConeGeometry(0.06, 0.38, 6), i % 2 ? '#ffd34d' : '#ff8a2a', -0.16 + i * 0.08, 0.98, 0.38 - Math.abs(i - 2) * 0.05).rotation.set(-0.5, 0, (i - 2) * 0.25);
+    eyes(0.16, 0.6, 0.72, 0.09);
+    for (let i = 0; i < 5; i++) k.plate(featherShape(0.7, 0.13), 0.02, 0.01, (i - 2) * 0.12, -0.05, -0.55, i % 2 ? spec.wing : spec.accent ?? spec.wing, -Math.PI / 2 - 0.3, 0, (i - 2) * 0.25);
     rig.height = 1.3;
   } else if (spec.kind === 'wisp') {
-    k.spike(0.34, 0.9, 0, -0.55, 0, spec.wing, Math.PI, 0, 0, 14);
+    k.curve([[0, -0.2, 0], [0.1, -0.6, -0.1], [-0.1, -1.0, -0.2], [0.05, -1.3, -0.3]], 0.3, 0.01, spec.wing, 10);
     rig.height = 0.9;
   } else {
     k.ball(0.38, 0, 0, 0, spec.body, 1, 1.05, 1.1);
+    k.ball(0.25, 0, -0.1, 0.18, spec.accent ?? spec.body, 1, 0.9, 0.8);
     eyes(0.14, 0.12, 0.33, 0.09);
-    if (spec.kind === 'bat') for (const s of [-1, 1]) k.spike(0.1, 0.3, s * 0.18, 0.42, 0.05, spec.body, 0, 0, -s * 0.25);
-    else for (const s of [-1, 1]) k.pill(0.02, 0.35, s * 0.12, 0.5, 0.22, spec.body, -0.4, 0, -s * 0.4);
+    if (spec.kind === 'bat') {
+      for (const s of [-1, 1]) k.plate(shapeFrom([[-0.1, 0], [0.1, 0], [0.02, 0.32]]), 0.04, 0.015, s * 0.18, 0.32, 0.02, spec.body, 0, 0, -s * 0.25);
+      for (const s of [-1, 1]) k.spike(0.025, 0.08, s * 0.06, -0.08, 0.36, '#ffffff', Math.PI);
+    } else for (const s of [-1, 1]) k.curve([[s * 0.08, 0.32, 0.2], [s * 0.15, 0.55, 0.3], [s * 0.3, 0.65, 0.2]], 0.02, 0.01, spec.body, 5);
     rig.height = 0.9;
   }
   addMesh(rig, rig.body, k);
   if (spec.kind === 'wisp') {
-    const orb = addGlow(rig.body, new THREE.SphereGeometry(0.38, 16, 12), spec.body, 0, 0, 0);
+    const orb = addGlow(rig.body, new THREE.IcosahedronGeometry(0.36, 2), spec.body, 0, 0, 0);
     rig.spinners.push(orb);
-    const core = addGlow(rig.body, new THREE.SphereGeometry(0.2, 12, 8), spec.accent ?? '#ffffff', 0, 0.05, 0.12);
-    core.scale.set(1, 1, 0.8);
-    for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.06, 8, 6), spec.eye ?? '#1a1030', s * 0.13, 0.08, 0.33);
+    for (const s of [-1, 1]) {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: spec.eye ?? '#1a1030' }));
+      e.position.set(s * 0.13, 0.06, 0.33);
+      e.scale.set(1, 1.3, 0.6);
+      rig.body.add(e);
+    }
   } else {
-    const span = spec.kind === 'drake' ? 1.6 : spec.kind === 'moth' ? 1.0 : spec.kind === 'bird' ? 1.25 : 0.8;
+    const span = spec.kind === 'drake' ? 1.6 : spec.kind === 'moth' ? 1.0 : spec.kind === 'bird' ? 1.25 : 0.85;
     for (const s of [-1, 1]) {
       const wing = pivot(rig.body, s * 0.32, 0.2, 0);
       const wk = new K();
       if (spec.kind === 'moth') {
-        wk.ball(span * 0.5, (s * span) / 2, 0, 0.12, spec.wing, 1, 0.08, 0.9);
-        wk.ball(span * 0.32, s * span * 0.42, 0, -0.42, spec.accent ?? spec.wing, 1, 0.08, 0.9);
-        wk.ball(span * 0.12, s * span * 0.55, 0.03, 0.15, '#ffffff', 1, 0.1, 1);
+        wk.ball(span * 0.5, (s * span) / 2, 0, 0.12, spec.wing, 1, 0.07, 0.9);
+        wk.ball(span * 0.32, s * span * 0.42, 0, -0.42, spec.accent ?? spec.wing, 1, 0.07, 0.9);
+        wk.ball(span * 0.14, s * span * 0.55, 0.03, 0.15, '#ffffff', 1, 0.1, 1);
+        wk.ball(span * 0.07, s * span * 0.55, 0.05, 0.15, spec.body, 1, 0.1, 1);
       } else if (spec.kind === 'drake' || spec.kind === 'bat') {
-        wk.pill(0.05, span, (s * span) / 2, 0.1, 0, shadeHex(spec.body, -0.15), 0, 0, Math.PI / 2);
-        wk.ball(span * 0.55, (s * span) / 2, 0, -0.35, spec.wing, 1, 0.06, 0.7);
+        wk.plate(wingShape(span), 0.03, 0.015, 0, 0, 0, spec.wing, -Math.PI / 2, 0, 0, 1);
+        for (let i = 0; i < 3; i++) wk.curve([[0, 0.02, 0.15], [span * (0.35 + i * 0.25), 0.04, 0.3 - i * 0.05], [span * (0.45 + i * 0.22), 0.02, -0.2 - i * 0.1]], 0.04, 0.012, shade(spec.body, -0.15), 5);
       } else {
-        for (let i = 0; i < 4; i++) wk.ball(0.22, s * (0.25 + i * 0.28), -i * 0.04, -0.1 - i * 0.04, i % 2 ? spec.wing : spec.accent ?? spec.wing, 1.1, 0.25, 1.6 - i * 0.2);
+        for (let i = 0; i < 5; i++) wk.plate(featherShape(0.55 + i * 0.08, 0.13), 0.02, 0.01, s * (0.15 + i * 0.22), 0, 0.15 - i * 0.04, i % 2 ? spec.wing : spec.accent ?? spec.wing, -Math.PI / 2, 0, s * (Math.PI / 2 + 0.4 - i * 0.12));
       }
       addMesh(rig, wing, wk);
+      if (spec.kind === 'drake' || spec.kind === 'bat') {
+        // Mirror the membrane for the left wing
+        if (s < 0) wing.scale.x = -1;
+      }
       rig.wings.push(wing);
     }
   }
@@ -630,27 +875,30 @@ export function flyer(spec: FlyerSpec): Rig {
 export function golem(stone: string, accent: string, eye: string, lava = false): Rig {
   const rig = newRig('biped', 'melee');
   const k = new K();
-  k.ball(0.95, 0, 1.25, 0, stone, 1.1, 0.95, 0.85);
-  k.ball(0.55, 0, 0.55, 0, shadeHex(stone, -0.1), 1.1, 0.7, 0.9);
-  k.ball(0.62, 0, 2.35, 0.1, stone, 1, 0.9, 0.95);
-  k.rbox(1.0, 0.18, 0.4, 0.08, 0, 2.55, 0.5, shadeHex(stone, -0.18));
-  for (let i = 0; i < 4; i++) k.rbox(0.24, 0.26, 0.24, 0.05, -0.45 + i * 0.3, 2.95, 0.05, stone);
-  for (let i = 0; i < 6; i++) k.ball(0.18, Math.cos(i) * 0.7, 1.0 + (i % 3) * 0.4, 0.62, accent, 1.2, 0.5, 0.4);
+  const rock = (r: number, x: number, y: number, z: number, hex: string, sx = 1, sy = 1, sz = 1) => k.add(new THREE.DodecahedronGeometry(r, 1), hex, x, y, z, 0.3, 0.5, 0.2, sx, sy, sz);
+  rock(0.95, 0, 1.3, 0, stone, 1.15, 0.95, 0.85);
+  rock(0.55, 0, 0.6, 0, shade(stone, -0.1), 1.1, 0.7, 0.9);
+  rock(0.6, 0, 2.38, 0.1, stone, 1, 0.9, 0.95);
+  k.rbox(1.0, 0.2, 0.42, 0.08, 0, 2.58, 0.5, shade(stone, -0.18));
+  for (let i = 0; i < 4; i++) k.rbox(0.25, 0.28, 0.25, 0.06, -0.45 + i * 0.3, 2.98, 0.05, stone);
+  for (let i = 0; i < 7; i++) k.ball(0.17, Math.cos(i * 0.9) * 0.75, 0.95 + (i % 3) * 0.42, 0.6, accent, 1.3, 0.45, 0.4);
+  k.curve([[-0.5, 2.0, 0.5], [-0.2, 1.6, 0.78], [0.1, 1.2, 0.8]], 0.03, 0.02, shade(stone, -0.35), 5);
   addMesh(rig, rig.body, k);
-  for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.1, 10, 8), eye, s * 0.24, 2.4, 0.66).scale.set(1.4, 0.7, 0.5);
-  if (lava) for (let i = 0; i < 5; i++) addGlow(rig.body, new THREE.BoxGeometry(0.06, 0.4, 0.04), eye, -0.5 + i * 0.25, 1.1 + (i % 2) * 0.3, 0.83).rotation.z = (i - 2) * 0.4;
+  for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.1, 10, 8), eye, s * 0.24, 2.42, 0.64).scale.set(1.5, 0.7, 0.5);
+  if (lava) for (let i = 0; i < 6; i++) addGlow(rig.body, new THREE.BoxGeometry(0.06, 0.42, 0.04), eye, -0.55 + i * 0.22, 1.1 + (i % 2) * 0.35, 0.86).rotation.z = (i - 2.5) * 0.4;
   for (const s of [-1, 1]) {
-    const leg = pivot(rig.body, s * 0.45, 0.6, 0);
+    const leg = pivot(rig.body, s * 0.45, 0.62, 0);
     const lk = new K();
-    lk.ball(0.34, 0, -0.32, 0, stone, 1, 1.1, 1);
-    lk.rbox(0.6, 0.22, 0.7, 0.1, 0, -0.55, 0.06, shadeHex(stone, -0.15));
+    lk.add(new THREE.DodecahedronGeometry(0.34, 1), stone, 0, -0.3, 0, 0, s, 0, 1, 1.1, 1);
+    lk.rbox(0.62, 0.24, 0.72, 0.1, 0, -0.56, 0.06, shade(stone, -0.15));
     addMesh(rig, leg, lk);
     rig.legs.push(leg);
-    const arm = pivot(rig.body, s * 1.05, 1.9, 0);
+    const arm = pivot(rig.body, s * 1.08, 1.95, 0);
     const ak = new K();
-    ak.ball(0.36, 0, -0.1, 0, stone);
-    ak.ball(0.3, 0, -0.6, 0, shadeHex(stone, -0.08), 1, 1.2, 1);
-    ak.ball(0.45, 0, -1.15, 0.05, stone, 1, 0.9, 1);
+    ak.add(new THREE.DodecahedronGeometry(0.38, 1), stone, 0, -0.1, 0, 0.4, 0, 0);
+    ak.add(new THREE.DodecahedronGeometry(0.3, 1), shade(stone, -0.08), 0, -0.62, 0, 0, 0.7, 0, 1, 1.25, 1);
+    ak.add(new THREE.DodecahedronGeometry(0.46, 1), stone, 0, -1.18, 0.05, 0.2, 0.3, 0, 1, 0.9, 1);
+    ak.ball(0.12, 0.15, -0.95, 0.25, accent, 1, 0.5, 0.5);
     addMesh(rig, arm, ak);
     if (s === 1) rig.armR = arm;
     else rig.armL = arm;
@@ -662,30 +910,36 @@ export function golem(stone: string, accent: string, eye: string, lava = false):
 function treant(p: { primary: string; secondary: string; accent: string }): Rig {
   const rig = newRig('biped', 'melee');
   const k = new K();
-  k.tube(0.6, 0.85, 2.2, 0, 1.4, 0, p.primary, 0, 0, 0, 12);
-  for (let i = 0; i < 8; i++) k.pill(0.06, 1.2, Math.cos(i * 0.8) * 0.7, 1.4, Math.sin(i * 0.8) * 0.7, shadeHex(p.primary, -0.2));
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    k.ball(0.75, Math.cos(a) * 0.9, 3.0 + Math.sin(i * 1.7) * 0.25, Math.sin(a) * 0.7, i % 2 ? p.secondary : shadeHex(p.secondary, 0.15));
+  k.lathe([[0.95, 0], [0.75, 0.35], [0.62, 1.2], [0.7, 2.0], [0.55, 2.5]], 0, 0.4, 0, p.primary, 12);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    k.curve([[Math.cos(a) * 0.62, 0.7, Math.sin(a) * 0.62], [Math.cos(a) * 0.66, 1.6, Math.sin(a) * 0.66], [Math.cos(a) * 0.6, 2.6, Math.sin(a) * 0.6]], 0.07, 0.04, shade(p.primary, -0.22), 5);
   }
-  k.ball(1.0, 0, 3.4, 0, p.secondary);
-  k.ball(0.3, 0, 1.55, 0.72, '#2a1a10', 1.5, 0.6, 0.4);
-  for (let i = -2; i <= 2; i++) k.spike(0.05, 0.14, i * 0.12, 1.66, 0.8, '#e8dcc0', Math.PI);
-  for (let i = 0; i < 6; i++) k.ball(0.1, Math.cos(i * 2.1) * 0.9, 2.7 + (i % 2) * 0.6, 0.8, '#ff7ac8');
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    k.add(new THREE.IcosahedronGeometry(0.72, 1), i % 2 ? p.secondary : shade(p.secondary, 0.15), Math.cos(a) * 1.0, 3.05 + Math.sin(i * 1.7) * 0.3, Math.sin(a) * 0.75);
+  }
+  k.add(new THREE.IcosahedronGeometry(1.05, 1), p.secondary, 0, 3.5, 0);
+  k.ball(0.32, 0, 1.6, 0.68, '#2a1a10', 1.5, 0.6, 0.4);
+  for (let i = -2; i <= 2; i++) k.spike(0.05, 0.16, i * 0.12, 1.72, 0.78, '#e8dcc0', Math.PI);
+  k.curve([[-0.45, 2.35, 0.6], [-0.2, 2.2, 0.72], [0, 2.15, 0.72]], 0.08, 0.04, shade(p.primary, -0.3), 5);
+  k.curve([[0.45, 2.35, 0.6], [0.2, 2.2, 0.72], [0, 2.15, 0.72]], 0.08, 0.04, shade(p.primary, -0.3), 5);
+  for (let i = 0; i < 8; i++) k.ball(0.1, Math.cos(i * 2.1) * 0.95, 2.8 + (i % 2) * 0.7, 0.75, i % 2 ? '#ff7ac8' : '#ffe066');
+  for (let i = 0; i < 3; i++) k.ball(0.14, -0.4 + i * 0.4, 0.5 + i * 0.2, 0.6, '#f2ead0', 1, 0.6, 1);
   addMesh(rig, rig.body, k);
-  for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.12, 10, 8), p.accent, s * 0.26, 2.05, 0.74).scale.set(1.3, 0.8, 0.5);
+  for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.12, 10, 8), p.accent, s * 0.26, 2.05, 0.72).scale.set(1.3, 0.8, 0.5);
   for (const s of [-1, 1]) {
-    const leg = pivot(rig.body, s * 0.4, 0.7, 0);
+    const leg = pivot(rig.body, s * 0.42, 0.75, 0);
     const lk = new K();
-    lk.tube(0.25, 0.32, 0.7, 0, -0.35, 0, p.primary, 0, 0, 0, 10);
-    for (let i = 0; i < 3; i++) lk.pill(0.09, 0.4, (i - 1) * 0.18, -0.65, 0.25, shadeHex(p.primary, -0.1), 1.2, (i - 1) * 0.4, 0);
+    lk.tube(0.26, 0.34, 0.75, 0, -0.37, 0, p.primary, 0, 0, 0, 10);
+    for (let i = 0; i < 3; i++) lk.curve([[(i - 1) * 0.15, -0.6, 0.1], [(i - 1) * 0.3, -0.72, 0.4], [(i - 1) * 0.4, -0.75, 0.7]], 0.12, 0.02, shade(p.primary, -0.1), 6);
     addMesh(rig, leg, lk);
     rig.legs.push(leg);
-    const arm = pivot(rig.body, s * 0.85, 2.3, 0);
+    const arm = pivot(rig.body, s * 0.85, 2.35, 0);
     const ak = new K();
-    ak.pill(0.16, 1.1, 0, -0.7, 0, p.primary, 0, 0, s * 0.15);
-    for (let i = 0; i < 3; i++) ak.pill(0.06, 0.35, (i - 1) * 0.12, -1.5, 0.1, shadeHex(p.primary, -0.1), 0.3, 0, (i - 1) * 0.4);
-    ak.ball(0.35, 0, -0.35, 0.05, p.secondary);
+    ak.curve([[0, 0, 0], [s * 0.25, -0.6, 0.1], [s * 0.15, -1.3, 0.2]], 0.2, 0.12, p.primary, 8);
+    for (let i = 0; i < 4; i++) ak.curve([[s * 0.15, -1.3, 0.2], [s * (0.15 + (i - 1.5) * 0.12), -1.55, 0.35], [s * (0.15 + (i - 1.5) * 0.2), -1.7, 0.25]], 0.07, 0.01, shade(p.primary, -0.1), 5);
+    ak.add(new THREE.IcosahedronGeometry(0.36, 1), p.secondary, s * 0.1, -0.35, 0.05);
     addMesh(rig, arm, ak);
     if (s === 1) rig.armR = arm;
     else rig.armL = arm;
@@ -697,10 +951,11 @@ function treant(p: { primary: string; secondary: string; accent: string }): Rig 
 function crystalHeart(p: { primary: string; secondary: string; accent: string }): Rig {
   const rig = newRig('float', 'cast');
   const k = new K();
-  k.add(new THREE.OctahedronGeometry(1.1, 1), p.primary, 0, 2.6, 0, 0, 0, 0, 1, 1.5, 1);
-  for (let i = 0; i < 6; i++) k.add(new THREE.OctahedronGeometry(0.35, 0), shadeHex(p.primary, 0.2), Math.cos(i) * 0.9, 1.6 + (i % 3) * 0.5, Math.sin(i) * 0.6, 0, i, 0.4, 1, 1.8, 1);
+  k.add(new THREE.OctahedronGeometry(1.1, 0), p.primary, 0, 2.6, 0, 0, 0.4, 0, 1, 1.5, 1);
+  for (let i = 0; i < 8; i++) k.gem(0.3 + (i % 3) * 0.08, Math.cos(i * 0.8) * 0.95, 1.6 + (i % 3) * 0.55, Math.sin(i * 0.8) * 0.65, shade(p.primary, 0.2), 2);
+  for (let i = 0; i < 5; i++) k.curve([[0, 1.0, 0], [Math.cos(i * 1.26) * 0.6, 0.6, Math.sin(i * 1.26) * 0.6], [Math.cos(i * 1.26) * 0.9, 0.1, Math.sin(i * 1.26) * 0.9]], 0.12, 0.02, shade(p.primary, -0.3), 5);
   addMesh(rig, rig.body, k);
-  const core = addGlow(rig.body, new THREE.OctahedronGeometry(0.45, 1), p.secondary, 0, 2.6, 0.6);
+  const core = addGlow(rig.body, new THREE.OctahedronGeometry(0.45, 0), p.secondary, 0, 2.6, 0.62);
   rig.spinners.push(core);
   const ring = new THREE.Group();
   ring.position.y = 2.6;
@@ -708,7 +963,7 @@ function crystalHeart(p: { primary: string; secondary: string; accent: string })
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     const sk = new K();
-    sk.add(new THREE.OctahedronGeometry(0.28, 0), i % 2 ? p.secondary : p.accent, Math.cos(a) * 1.9, Math.sin(i) * 0.3, Math.sin(a) * 1.9, 0, 0, 0, 1, 1.6, 1);
+    sk.gem(0.28, Math.cos(a) * 1.9, Math.sin(i) * 0.3, Math.sin(a) * 1.9, i % 2 ? p.secondary : p.accent, 1.6);
     addMesh(rig, ring, sk);
   }
   rig.spinners.push(ring);
@@ -724,19 +979,23 @@ export function bossRig(sprite: string, p: { primary: string; secondary: string;
     case 'crystal_heart':
       return crystalHeart(p);
     case 'magma_titan':
-      return golem(p.primary, shadeHex(p.primary, 0.2), p.secondary, true);
+      return golem(shade(p.primary, 0.22), shade(p.primary, 0.4), p.secondary, true);
     case 'ice_queen':
-      return humanoid({ body: p.primary, legs: p.secondary, skin: '#d6eaf8', head: 'long', hair: '#ffffff', headColor: '#ffffff', weapon: 'staff', magic: '#bfe6fa', robe: true, crown: true, cape: p.secondary, trim: '#ffffff', bulk: 1.15, mood: 'sly', eye: '#5dade2' }, 'cast');
+      return humanoid({ body: p.primary, legs: p.secondary, skin: '#d6eaf8', head: 'long', hair: '#ffffff', headColor: '#ffffff', weapon: 'staff', magic: '#bfe6fa', robe: true, crown: true, cape: p.secondary, trim: '#ffffff', bulk: 1.15, mood: 'sly', eye: '#5dade2', armor: '#e8f6ff' }, 'cast');
     case 'lich_king':
-      return humanoid({ body: p.primary, legs: p.primary, skin: '#ece6d6', head: 'skull', headColor: p.secondary, weapon: 'staff', magic: p.accent, robe: true, crown: true, cape: '#2a1338', trim: p.accent, bulk: 1.15, eyeGlow: p.accent }, 'cast');
+      return humanoid({ body: p.primary, legs: p.primary, skin: '#ece6d6', head: 'skull', headColor: p.secondary, weapon: 'staff', magic: p.accent, robe: true, crown: true, cape: '#2a1338', trim: p.accent, bulk: 1.15, eyeGlow: p.accent, armor: '#6c5a7c' }, 'cast');
+    case 'troll':
     case 'mossback':
-      return quadruped({ body: p.primary, belly: p.accent, shell: p.secondary, eye: '#ffd34d' });
+      return humanoid({ body: p.secondary, legs: p.primary, skin: '#7fa36a', head: 'bald', headColor: p.secondary, weapon: 'club', bulk: 1.6, mood: 'angry', beard: p.secondary, eye: '#ffd34d', ears: 'pointy', armor: shade(p.secondary, 0.1), trim: p.accent, scar: true });
+    case 'yeti':
     case 'yeti_chieftain':
-      return humanoid({ body: '#f2f4f7', legs: '#dfe6ee', skin: '#9fb7cc', head: 'horns', headColor: '#e8dcc0', weapon: 'club', bulk: 1.5, mood: 'angry', beard: '#ffffff', eye: '#5dade2' });
+      return humanoid({ body: '#f2f4f7', legs: '#dfe6ee', skin: '#9fb7cc', head: 'horns', headColor: '#e8dcc0', weapon: 'club', bulk: 1.5, mood: 'angry', beard: '#ffffff', eye: '#5dade2', scar: true });
+    case 'overseer':
     case 'forge_overseer':
       return humanoid({ body: p.primary, legs: '#2c2c2c', skin: '#e9a77a', head: 'fullhelm', headColor: '#4d535c', hair: p.secondary, weapon: 'hammer', bulk: 1.45, eyeGlow: p.secondary, armor: '#5d6670', trim: p.secondary });
+    case 'warden':
     case 'grave_warden':
-      return humanoid({ body: p.primary, legs: '#3d3d3d', skin: '#ece6d6', head: 'skull', headColor: '#bdc3c7', weapon: 'sword', shield: 'tower', shieldColor: p.secondary, bulk: 1.3, eyeGlow: p.accent, armor: '#7f8796' });
+      return humanoid({ body: p.primary, legs: '#3d3d3d', skin: '#ece6d6', head: 'skull', headColor: '#bdc3c7', weapon: 'sword', shield: 'tower', shieldColor: p.secondary, bulk: 1.3, eyeGlow: p.accent, armor: '#7f8796', emblem: p.accent });
     case 'shardmaw':
       return quadruped({ body: p.primary, belly: p.accent, crystal: p.secondary, eye: '#ffffff' });
     default:
@@ -751,29 +1010,29 @@ const SKIN = '#f6c9a0';
 export function cardRig(cardId: string): Rig {
   switch (cardId) {
     case 'thornbow_archer':
-      return humanoid({ body: '#3f8f4a', legs: '#7a5230', skin: SKIN, head: 'hood', headColor: '#2f7a3c', weapon: 'bow', mood: 'sly', eye: '#3f8f4a', trim: '#d9f2a0', ears: 'pointy' }, 'bow');
+      return humanoid({ body: '#3f8f4a', legs: '#7a5230', skin: SKIN, head: 'hood', headColor: '#2f7a3c', weapon: 'bow', mood: 'sly', eye: '#3f8f4a', trim: '#d9f2a0', ears: 'pointy', hair: '#7a4a1f' }, 'bow');
     case 'oakshield_knight':
-      return humanoid({ body: '#4a6fb5', legs: '#5d6b80', skin: SKIN, head: 'helm', headColor: STEEL, weapon: 'sword', shield: 'round', bulk: 1.12, mood: 'brave', mustache: '#a0662e', armor: STEEL, trim: GOLD });
+      return humanoid({ body: '#4a6fb5', legs: '#5d6b80', skin: SKIN, head: 'helm', headColor: STEEL, hair: '#e74c3c', weapon: 'sword', shield: 'round', bulk: 1.12, mood: 'brave', mustache: '#a0662e', armor: STEEL, trim: GOLD, tabard: '#3a5a9a' });
     case 'field_medic':
-      return humanoid({ body: '#f4f1e8', legs: '#5aae73', skin: SKIN, head: 'cap', hair: '#8a4b2a', headColor: '#ffffff', weapon: 'potion', mood: 'happy', trim: '#e74c3c' }, 'throw');
+      return humanoid({ body: '#f4f1e8', legs: '#5aae73', skin: SKIN, head: 'cap', hair: '#8a4b2a', headColor: '#ffffff', weapon: 'potion', mood: 'happy', trim: '#e74c3c', ears: 'round' }, 'throw');
     case 'wolf_rider':
-      return quadruped({ body: '#7a6a58', belly: '#b3a28c', mane: '#5d4f40', eye: '#ffd34d', rider: { body: '#b5462f', legs: '#5b4a3a', skin: '#e9a77a', head: 'wolfhood', headColor: '#8d7c69', weapon: 'axe', mood: 'angry', beard: '#7a3b1e' } });
+      return quadruped({ body: '#7a6a58', belly: '#b3a28c', mane: '#5d4f40', eye: '#ffd34d', saddle: '#8a3a2a', rider: { body: '#b5462f', legs: '#5b4a3a', skin: '#e9a77a', head: 'wolfhood', headColor: '#8d7c69', weapon: 'axe', mood: 'angry', beard: '#7a3b1e', scar: true } });
     case 'powder_bombardier':
-      return humanoid({ body: '#6b5440', legs: '#3a2a1e', skin: SKIN, head: 'goggles', headColor: '#3a2a1e', weapon: 'bomb', mood: 'happy', trim: '#ff9f43' }, 'throw');
+      return humanoid({ body: '#6b5440', legs: '#3a2a1e', skin: SKIN, head: 'goggles', headColor: '#3a2a1e', weapon: 'bomb', mood: 'happy', trim: '#ff9f43', ears: 'round' }, 'throw');
     case 'ember_mage':
       return humanoid({ body: '#b03a2e', legs: '#7b241c', skin: '#f8d2ad', head: 'spiky', hair: '#ff7a2a', headColor: '#ff7a2a', weapon: 'staff', magic: '#ff8c1a', robe: true, trim: '#f39c12', mood: 'sly', eye: '#e67e22' }, 'cast');
     case 'hawkeye_ranger':
-      return humanoid({ body: '#2e5e3e', legs: '#6b4f2a', skin: SKIN, head: 'hat', headColor: '#7d5d33', weapon: 'bow', cape: '#24502b', mood: 'sly', eye: '#2e5e3e', trim: '#c9a227' }, 'bow');
+      return humanoid({ body: '#2e5e3e', legs: '#6b4f2a', skin: SKIN, head: 'hat', headColor: '#7d5d33', weapon: 'bow', cape: '#24502b', mood: 'sly', eye: '#2e5e3e', trim: '#c9a227', ears: 'round' }, 'bow');
     case 'dawn_paladin':
-      return humanoid({ body: '#fdfefe', legs: '#d4ac0d', skin: SKIN, head: 'helm', headColor: GOLD, weapon: 'goldsword', cape: '#f5b041', bulk: 1.12, mood: 'calm', armor: GOLD, trim: '#fdfefe', eye: '#3498db' });
+      return humanoid({ body: '#fdfefe', legs: '#d4ac0d', skin: SKIN, head: 'helm', headColor: GOLD, hair: '#ffffff', weapon: 'goldsword', cape: '#f5b041', bulk: 1.12, mood: 'calm', armor: GOLD, trim: '#fdfefe', eye: '#3498db', tabard: '#fdfefe', emblem: '#f39c12' });
     case 'bastion_golem':
       return golem('#8e9aa3', '#6aa84f', '#5dade2');
     case 'frost_witch':
-      return humanoid({ body: '#1b4f72', legs: '#154360', skin: '#cfe6f7', head: 'wizard', headColor: '#1b4f72', trim: '#bfe6fa', weapon: 'staff', magic: '#bfe6fa', robe: true, mood: 'sly', eye: '#48c9f0' }, 'cast');
+      return humanoid({ body: '#1b4f72', legs: '#154360', skin: '#cfe6f7', head: 'wizard', headColor: '#1b4f72', trim: '#bfe6fa', weapon: 'staff', magic: '#bfe6fa', robe: true, mood: 'sly', eye: '#48c9f0', ears: 'pointy' }, 'cast');
     case 'aegis_guardian':
-      return humanoid({ body: '#1f618d', legs: '#2c3e50', skin: SKIN, head: 'fullhelm', headColor: '#8fb3d1', hair: '#f5b041', weapon: 'sword', shield: 'tower', bulk: 1.25, eyeGlow: '#ffd34d', armor: '#8fb3d1', trim: GOLD });
+      return humanoid({ body: '#1f618d', legs: '#2c3e50', skin: SKIN, head: 'fullhelm', headColor: '#8fb3d1', hair: '#f5b041', weapon: 'sword', shield: 'tower', bulk: 1.25, eyeGlow: '#ffd34d', armor: '#8fb3d1', trim: GOLD, tabard: '#1f618d' });
     case 'shade_assassin':
-      return humanoid({ body: '#2c2c54', legs: '#1c1c3a', skin: '#e9c2a0', head: 'hood', headColor: '#3b3b6e', weapon: 'dagger', cape: '#8e44ad', mood: 'angry', eye: '#b98ee0', trim: '#8e44ad' });
+      return humanoid({ body: '#2c2c54', legs: '#1c1c3a', skin: '#e9c2a0', head: 'hood', headColor: '#3b3b6e', weapon: 'dagger', cape: '#8e44ad', mood: 'angry', eye: '#b98ee0', trim: '#8e44ad', scar: true });
     case 'storm_adept':
       return humanoid({ body: '#5b2c6f', legs: '#3d1d5e', skin: SKIN, head: 'spiky', hair: '#ece2f5', headColor: '#ece2f5', weapon: 'staff', magic: '#f7dc6f', robe: true, trim: '#f7dc6f', mood: 'happy', eye: '#f7dc6f', beard: '#ece2f5' }, 'cast');
     case 'phoenix_warden':
@@ -786,7 +1045,7 @@ export function cardRig(cardId: string): Rig {
 }
 
 export function heroRig(cape: string, sword: 'sword' | 'goldsword'): Rig {
-  return humanoid({ body: '#7b4fd0', legs: '#3a3550', skin: SKIN, head: 'hair', hair: '#7a3b1e', headColor: '#7a3b1e', weapon: sword, cape, bulk: 1.15, mood: 'brave', armor: '#d5dbe3', trim: GOLD, eye: '#4a7bd0' });
+  return humanoid({ body: '#7b4fd0', legs: '#3a3550', skin: SKIN, head: 'hair', hair: '#7a3b1e', headColor: '#7a3b1e', weapon: sword, cape, bulk: 1.15, mood: 'brave', armor: '#d5dbe3', trim: GOLD, eye: '#4a7bd0', tabard: '#5b35a8', emblem: GOLD, ears: 'round' });
 }
 
 export function enemyRig(role: string, world: number, p: { primary: string; secondary: string; accent: string }): Rig {
@@ -797,23 +1056,24 @@ export function enemyRig(role: string, world: number, p: { primary: string; seco
       return humanoid(
         {
           body: p.secondary,
-          legs: shadeHex(p.secondary, -0.2),
+          legs: shade(p.secondary, -0.2),
           skin,
           head: skull ? 'skull' : 'hood',
-          headColor: shadeHex(p.secondary, 0.1),
+          headColor: shade(p.secondary, 0.1),
           weapon: world === 2 ? 'bomb' : world === 4 || world === 1 ? 'staff' : 'bow',
           magic: p.accent,
           eyeGlow: skull ? p.accent : undefined,
           mood: 'angry',
           eye: '#c0392b',
           ears: skull ? null : 'pointy',
+          trim: p.accent,
         },
         world === 2 ? 'throw' : world === 4 || world === 1 ? 'cast' : 'bow',
       );
     case 'fast':
       return world === 3
         ? humanoid({ body: p.secondary, legs: p.secondary, skin, head: 'skull', headColor: skin, weapon: 'claws', eyeGlow: p.accent })
-        : quadruped({ body: p.primary, belly: p.accent, mane: shadeHex(p.primary, -0.2), eye: world === 2 ? '#ffd34d' : '#ff5c5c' });
+        : quadruped({ body: p.primary, belly: p.accent, mane: shade(p.primary, -0.2), eye: world === 2 ? '#ffd34d' : '#ff5c5c' });
     case 'armored':
       return humanoid({ body: p.secondary, legs: '#3d3d3d', skin, head: 'fullhelm', headColor: world === 4 ? p.primary : '#7f8796', hair: p.accent, weapon: 'hammer', shield: 'round', shieldColor: '#5d6670', bulk: 1.38, eyeGlow: p.accent, armor: '#7f8796', trim: p.accent });
     case 'flying': {
@@ -823,7 +1083,7 @@ export function enemyRig(role: string, world: number, p: { primary: string; seco
     default:
       return humanoid({
         body: p.secondary,
-        legs: shadeHex(p.secondary, -0.2),
+        legs: shade(p.secondary, -0.2),
         skin,
         head: skull ? 'skull' : world === 2 || world === 4 ? 'horns' : 'bald',
         headColor: p.accent,
