@@ -1,11 +1,15 @@
+import { lazy, Suspense } from 'react';
 import { store, useGame } from '../../app/store';
 import { BALANCE } from '../../core/config/balance';
 import { BUILDINGS, getBuilding, type BuildingId } from '../../core/content/buildings';
+import type { GameState } from '../../core/state/types';
 import { activeUpgrades, buildingLevelCap, buildingUpgradeDuration, checkBuildingUpgrade, mineStored, skipCostGems } from '../../core/systems/buildings';
 import { formatDuration, formatNumber } from '../../core/util';
 import { drawBuilding } from '../art/scenery';
 import { ArtCanvas, Bar, BuildingArt, ModalShell, useNow } from '../components/common';
 import { Icon } from '../components/Icon';
+
+const Base3DView = lazy(() => import('../base3d/Base3DView'));
 
 const REASON_TEXT: Record<string, string> = {
   locked: 'Raise your Castle to unlock',
@@ -17,6 +21,7 @@ const REASON_TEXT: Record<string, string> = {
   gold: 'Not enough gold',
 };
 
+/** Fallback for devices without WebGL: the original 2D painted scene. */
 const LAYOUT: { id: BuildingId; x: number; y: number; s: number }[] = [
   { id: 'castle', x: 246, y: 120, s: 1.15 },
   { id: 'gold_mine', x: 70, y: 150, s: 0.8 },
@@ -29,35 +34,43 @@ const LAYOUT: { id: BuildingId; x: number; y: number; s: number }[] = [
   { id: 'guild_hall', x: 150, y: 110, s: 0.7 },
 ];
 
+function Base2D({ game }: { game: GameState }) {
+  return (
+    <div className="base-scene">
+      <ArtCanvas
+        width={492}
+        height={230}
+        animate
+        draw={(ctx, t) => {
+          const sky = ctx.createLinearGradient(0, 0, 0, 230);
+          sky.addColorStop(0, '#6ec6ff');
+          sky.addColorStop(1, '#c8f0c0');
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, 492, 230);
+          ctx.fillStyle = '#6dbb4f';
+          ctx.beginPath();
+          ctx.ellipse(246, 230, 330, 140, 0, Math.PI, 0);
+          ctx.fill();
+          ctx.fillStyle = '#c9a66b';
+          ctx.beginPath();
+          ctx.ellipse(246, 200, 140, 26, 0, 0, Math.PI * 2);
+          ctx.fill();
+          for (const l of [...LAYOUT].sort((a, b) => a.y - b.y)) drawBuilding(ctx, l.id, game.buildings[l.id].level, l.x, l.y, l.s, t);
+        }}
+      />
+    </div>
+  );
+}
+
 export function BaseScreen() {
   const { game } = useGame();
   const now = useNow(1000);
   const busy = activeUpgrades(game).length;
   return (
     <div className="stack-m">
-      <div className="base-scene">
-        <ArtCanvas
-          width={492}
-          height={230}
-          animate
-          draw={(ctx, t) => {
-            const sky = ctx.createLinearGradient(0, 0, 0, 230);
-            sky.addColorStop(0, '#6ec6ff');
-            sky.addColorStop(1, '#c8f0c0');
-            ctx.fillStyle = sky;
-            ctx.fillRect(0, 0, 492, 230);
-            ctx.fillStyle = '#6dbb4f';
-            ctx.beginPath();
-            ctx.ellipse(246, 230, 330, 140, 0, Math.PI, 0);
-            ctx.fill();
-            ctx.fillStyle = '#c9a66b';
-            ctx.beginPath();
-            ctx.ellipse(246, 200, 140, 26, 0, 0, Math.PI * 2);
-            ctx.fill();
-            for (const l of [...LAYOUT].sort((a, b) => a.y - b.y)) drawBuilding(ctx, l.id, game.buildings[l.id].level, l.x, l.y, l.s, t);
-          }}
-        />
-      </div>
+      <Suspense fallback={<div className="base3d" />}>
+        <Base3DView game={game} now={now} fallback={<Base2D game={game} />} />
+      </Suspense>
       <div className="spread small">
         <span className="dim">
           Builders: <b className="display">{BALANCE.buildings.builders - busy}</b> free of {BALANCE.buildings.builders}
@@ -85,7 +98,7 @@ export function BaseScreen() {
                   <Icon name="up" size={12} /> {formatNumber(check.cost)} gold
                 </span>
               ) : (
-                <span className="xsmall faint center">{REASON_TEXT[check.reason] ?? ''}</span>
+                <span className="xsmall faint center">{locked ? `Unlocks at Castle ${def.unlockCastleLevel}` : (REASON_TEXT[check.reason] ?? '')}</span>
               )}
               {def.id === 'gold_mine' && b.level > 0 && <span className="xsmall gold-text center">{formatNumber(mineStored(game, now))} ready</span>}
             </button>

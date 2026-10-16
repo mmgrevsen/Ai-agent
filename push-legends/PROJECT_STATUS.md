@@ -13,7 +13,17 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16)
+## Latest change (2026-10-16): 3D base
+
+The Base tab is now a 3D walled fortress (three.js, original low-poly models generated in code) with
+all 9 buildings on their own plots: Castle, Gold Mine, Academy, Barracks, Training Grounds, Treasury,
+Guild Hall, Blacksmith and Pet Sanctuary. Buildings visibly grow through 5 tiers, show scaffolding
+while upgrading, locked/unbuilt sites, an animated gold mine with a collect bubble, soldiers doing
+push-ups, owned pets and patrolling soldiers. Floating labels show level, upgrade availability and
+timers; tapping opens the upgrade panel. The building list below the scene is unchanged. See
+GAME_DESIGN.md §9.
+
+## Earlier change (2026-10-16): push-ups deal damage
 
 Push-ups now deal damage directly instead of charging the Legend Strike: each verified rep makes the
 hero strike the nearest enemy for 4× hero damage (knee reps 50%). A new **Armory** (Hero → Gear)
@@ -56,7 +66,8 @@ BattleRenderer (Canvas 2D, procedural sprites)
 | --- | --- | --- |
 | Type check (strict) | `npm run typecheck` | Pass, 0 errors |
 | Unit + invariant + simulation tests | `npm test` | **105 passed / 105** (7 files: exercise 22, no-loss 8, combat 21, systems 31, save + social codes 14, simulation 6, armory 3) |
-| Production build | `npm run build` | Pass (main bundle 515 kB / 157 kB gzip; MediaPipe loaded lazily, 154 kB) |
+| Production build | `npm run build` | Pass (main bundle 522 kB / 159 kB gzip; 3D base with three.js loaded lazily, 599 kB / 155 kB gzip; MediaPipe loaded lazily, 154 kB) |
+| 3D base, headless Chromium (SwiftShader WebGL) | Playwright script | Pass: fresh and mid-game bases render, labels follow buildings, wheel zoom, tapping the 3D castle opens its panel, single-file Mac build renders it from `file://`; no console errors. Real-GPU frame rate on phones not yet measured. |
 | UI smoke test, headless Chromium 390×844 | `scripts/e2e-smoke.cjs` | Pass: intro → first battle → victory → all tabs → card/building modals → shop → modes → social → settings → pre-battle → camera setup → battle with camera. No app errors in the console (only headless GPU driver warnings). |
 | Pose pipeline in a browser | same, with Chromium's fake camera | MediaPipe WASM and the bundled model load and run ("Tracking: searching" on the synthetic test video, correctly 0 reps). |
 | Native compile | - | **Not run**: no Android SDK or Xcode in this environment. The Capacitor projects were generated and permissions added. |
@@ -79,6 +90,7 @@ Test coverage highlights:
 - All online features (accounts, cloud saves, friend requests, global leaderboards, guilds, co-op bosses, seasonal events) are planned only.
 - Music and sound effects are simple synthesized placeholders behind a `SoundId` interface; real audio assets can replace them.
 - Haptics use the Vibration API (works on Android; iOS WebViews ignore it). A Capacitor Haptics plugin would add iOS support.
+- The 3D base has not been profiled on low-end phones; shadows or pixel ratio may need a quality setting.
 - `npm audit` reports 3 moderate advisories in a dev-only dependency chain (`@capacitor/cli` → `xcode` → `uuid`); they don't ship in the app.
 
 ## Next steps

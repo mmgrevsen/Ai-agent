@@ -574,3 +574,115 @@ svg.flip,
   color: transparent;
   filter: drop-shadow(0 4px 0 #5a2d00) drop-shadow(0 10px 24px rgba(255, 170, 0, 0.4));
 }
+
+/* 3D base */
+.base3d {
+  position: relative;
+  height: min(62vh, 560px);
+  min-height: 340px;
+  border-radius: var(--radius-l);
+  overflow: hidden;
+  border: 2px solid var(--panel-edge);
+  background: #bfe3f2;
+  margin: 0 -4px;
+}
+
+.base3d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.base3d-canvas:active {
+  cursor: grabbing;
+}
+
+.base3d-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.plot-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  will-change: transform;
+}
+
+.plot-tag,
+.plot-collect {
+  pointer-events: auto;
+  font-family: var(--font-display);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  padding: 2px 8px 3px;
+  line-height: 1.1;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.plot-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(36, 26, 92, 0.88);
+  color: var(--text);
+}
+
+.plot-tag.locked {
+  background: rgba(60, 56, 80, 0.8);
+  color: var(--text-dim);
+}
+
+.plot-name {
+  font-size: var(--fs-xs);
+}
+
+.plot-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.plot-sub.ok {
+  color: #8ff0b1;
+}
+
+.plot-sub.busy {
+  color: var(--sky);
+}
+
+.plot-collect {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  background: linear-gradient(#ffd96a, var(--gold-deep));
+  color: #4a2a00;
+  animation: plot-bob 1.6s ease-in-out infinite;
+}
+
+@keyframes plot-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.base3d-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(15, 10, 38, 0.55);
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+}

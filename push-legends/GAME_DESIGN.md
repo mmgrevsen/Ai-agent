@@ -235,6 +235,24 @@ push-up power, +6% rep gold), Academy (card discount, extra fragments), Blacksmi
 discount), Treasury (offline cap, mine storage), Pet Sanctuary (+5% pet bonuses), Guild Hall (+4%
 quest rewards; online guilds planned). Buildings are drawn procedurally and grow with their level.
 
+**3D base view** (`src/ui/base3d/`, three.js, all geometry generated in code, no external models):
+
+- A walled fortress seen from an isometric-style camera: stone walls with battlements and towers,
+  a gatehouse with a "PUSH LEGENDS" sign, wooden stakes, siege engines, roads, a plaza with a
+  flagpole and a well, and trees and rocks outside. Drag to pan, pinch or scroll to zoom, tap a
+  building (or its floating label) to open its upgrade panel.
+- Each of the 9 buildings has its own fenced plot. Unbuilt plots show a building site (or a padlock
+  stone with the required Castle level); upgrading plots get scaffolding and a swinging crane.
+- Visuals step through 5 tiers spread over each building's level range: the castle gains towers,
+  an upper keep and gold trim; the mine shows gold piles that grow as gold accumulates and an
+  animated cart; the barracks adds tents and a watchtower; the training grounds show more soldiers
+  doing animated push-ups; the blacksmith's forge smokes; the pet sanctuary shows your owned pets.
+- Soldiers in your deck's colours (more with higher Barracks level) and the hero patrol the roads.
+- Upgrading one building never changes another: each plot is rebuilt only from its own state.
+- Performance: each building is merged into one mesh (one draw call); three.js is loaded only when
+  the Base tab opens; rendering pauses while the app is hidden; reduced motion stops the animation.
+  Devices without WebGL get the earlier 2D painted scene.
+
 ---
 
 ## 10. Modes
