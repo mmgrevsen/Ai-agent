@@ -10,6 +10,7 @@ export type CameraStatus = 'idle' | 'requesting' | 'denied' | 'unavailable' | 'l
 const MP_VERSION = '1.0.1';
 const LOCAL_WASM = './mediapipe';
 const CDN_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
+const CDN_WASM_2 = `https://unpkg.com/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
 const LOCAL_MODEL = './models/pose_landmarker_lite.task';
 const CDN_MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 
@@ -22,31 +23,39 @@ let landmarkerPromise: Promise<Landmarker> | null = null;
 
 async function loadLandmarker(): Promise<Landmarker> {
   const vision = await import('@mediapipe/tasks-vision');
-  const fileset = await vision.FilesetResolver.forVisionTasks(LOCAL_WASM).catch(() => vision.FilesetResolver.forVisionTasks(CDN_WASM));
-  const create = (modelAssetPath: string, delegate: 'GPU' | 'CPU') =>
-    vision.PoseLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath, delegate },
-      runningMode: 'VIDEO',
-      numPoses: 1,
-      minPoseDetectionConfidence: 0.5,
-      minPosePresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
-  const attempts: [string, 'GPU' | 'CPU'][] = [
-    [LOCAL_MODEL, 'GPU'],
-    [LOCAL_MODEL, 'CPU'],
-    [CDN_MODEL, 'GPU'],
-    [CDN_MODEL, 'CPU'],
-  ];
+  // A page opened straight from disk (file://, e.g. the single-file Mac build) cannot fetch bundled
+  // assets, so it goes to the CDN directly. Otherwise bundled assets are tried first (offline apps).
+  const fromDisk = typeof location !== 'undefined' && location.protocol === 'file:';
+  const sources: [string, string][] = fromDisk
+    ? [
+        [CDN_WASM, CDN_MODEL],
+        [CDN_WASM_2, CDN_MODEL],
+      ]
+    : [
+        [LOCAL_WASM, LOCAL_MODEL],
+        [CDN_WASM, CDN_MODEL],
+        [CDN_WASM_2, CDN_MODEL],
+      ];
   let lastError: unknown;
-  for (const [path, delegate] of attempts) {
-    try {
-      return (await create(path, delegate)) as unknown as Landmarker;
-    } catch (err) {
-      lastError = err;
+  for (const [wasm, model] of sources) {
+    for (const delegate of ['GPU', 'CPU'] as const) {
+      try {
+        const fileset = await vision.FilesetResolver.forVisionTasks(wasm);
+        const landmarker = await vision.PoseLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: model, delegate },
+          runningMode: 'VIDEO',
+          numPoses: 1,
+          minPoseDetectionConfidence: 0.5,
+          minPosePresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+        return landmarker as unknown as Landmarker;
+      } catch (err) {
+        lastError = err;
+      }
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('Pose model failed to load');
+  throw lastError instanceof Error ? lastError : new Error('Pose model failed to load (an internet connection is needed the first time)');
 }
 
 export function preloadPoseModel(): Promise<Landmarker> {

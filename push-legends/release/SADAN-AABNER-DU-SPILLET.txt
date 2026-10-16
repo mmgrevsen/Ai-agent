@@ -1,0 +1,17 @@
+PUSH LEGENDS - spil det på din Mac
+===================================
+
+1. Hent filen PushLegends.html (fx til mappen Overførsler).
+2. Dobbeltklik på den. Spillet åbner i din browser - ingen installation.
+   Tip: Chrome giver den bedste oplevelse (også til kameraet).
+   Højreklik -> "Åbn med" -> Google Chrome, hvis Safari åbner den.
+3. Gør vinduet smalt (som en telefon), eller tryk Cmd+Alt+I i Chrome og vælg
+   telefonvisning, så ser det ud som på mobilen.
+
+Godt at vide
+- Dine fremskridt gemmes i browseren. Åbner du filen i samme browser igen,
+  fortsætter du hvor du slap. (Settings -> Export save tager en sikkerhedskopi.)
+- Kameraet/push-up-tælling kræver internet første gang (pose-modellen hentes),
+  og at du giver browseren lov til kameraet. Alt andet virker uden internet.
+- Vil du teste uden at lave push-ups: Settings -> Developer tools -> slå til.
+  Så får du en "Sim rep"-knap i kampene.

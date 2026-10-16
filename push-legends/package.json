@@ -14,7 +14,8 @@
     "simulate": "vitest run tests/simulation --reporter=verbose",
     "cap:sync": "vite build && cap sync",
     "predev": "node scripts/prepare-assets.mjs",
-    "prebuild": "node scripts/prepare-assets.mjs"
+    "prebuild": "node scripts/prepare-assets.mjs",
+    "build:mac": "vite build --mode single && node scripts/make-single-file.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
