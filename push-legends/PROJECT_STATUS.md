@@ -13,7 +13,27 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): drag cards onto the field
+## Latest change (2026-10-16): realistic look and fight animations
+
+The cartoon look was replaced by a realistic stylised one in both battle and base: physically
+based materials with band-limited procedural surface detail (colour patches, grain, bump, metal
+that reflects the sky), a low warm sun with soft shadows, an image-based sky environment, GTAO
+ambient occlusion, fog, ACES filmic tone mapping and a split-tone grade; ink outlines are off and
+the palette is muted. Humanoids got heroic proportions (about four heads tall, smaller heads with
+smaller eyes, longer legs and arms, shoulders), the camera is a little lower (46°), the checkered
+turf became natural grass and the purple gatehouse roofs slate.
+
+Units now really fight each other: they face and step towards their opponent, hold a guard
+stance, wind up before each blow (from the engine's attack cooldown), strike with one of three
+swings, recover, block with shields, stagger or get knocked back, clash blades, and the fallen
+topple backwards, lie still and sink away. Ranged units draw, cast and throw with wind-ups.
+
+Verified: typecheck, 110 unit tests, the browser smoke test, the drag-to-place check, screenshots
+of the battle (worlds 1 and 3), the base and a model line-up, and frame-by-frame captures of melee
+fights in a temporary deterministic test page (removed again). Performance on real phones is not
+measured; "Pixel 256" mode turns ambient occlusion off.
+
+## Earlier change (2026-10-16): drag cards onto the field
 
 Cards can now be dragged onto the battlefield and dropped where you want the troops (CR-style
 placement, own visuals): blue deploy zone, red blocked part of the lane, a pulsing edge, a drop

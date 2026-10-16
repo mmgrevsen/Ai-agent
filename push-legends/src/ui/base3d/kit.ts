@@ -7,6 +7,12 @@ import { toonMaterial } from './style';
  * colours, so a whole building is a single draw call (important for phones).
  */
 export const SHARED: THREE.Material = toonMaterial(0.35);
+
+/** Colours that are drawn as polished metal (steel, gold, blades); filled in by the model files. */
+const METAL_HEX = new Set<string>();
+export function registerMetals(...hex: string[]): void {
+  for (const h of hex) METAL_HEX.add(h.toLowerCase());
+}
 const color = new THREE.Color();
 const pos = new THREE.Vector3();
 const quat = new THREE.Quaternion();
@@ -41,6 +47,7 @@ export class Kit {
       arr[i * 3 + 2] = color.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+    g.setAttribute('aMetal', new THREE.BufferAttribute(new Float32Array(n).fill(METAL_HEX.has(hex.toLowerCase()) ? 1 : 0), 1));
     this.geos.push(g);
     return this;
   }

@@ -162,22 +162,38 @@ combat engine is unchanged; the 3D scene only reads its state and events.
   spikes, a volcano with lava pools and cracks, a ruined fortress with graves and pillars, and a
   crystal realm. Ambient particles (fireflies, snow, embers, dust, sparkles), the hero's keep with
   a flag on the left and a swirling enemy portal on the right.
-- **Look:** cel ("toon") shading with a four-step light ramp and a soft rim light, ink outlines
-  around every character, soft blob shadows under units plus real shadows, and a bloom pass so
-  magic orbs, eyes, lanterns, lava, crystals, the portal and strike effects glow. Lights are kept
-  low and lifted by exposure in the output pass so only glowing materials bloom.
-- Every card, enemy role (tinted per world), mini-boss and boss has a detailed cartoon model with
-  chibi proportions and a wide shape vocabulary: lathed helmets, hats, robes, flasks and torsos
+- **Look (realistic stylised):** physically based materials (`realMaterial` in `style.ts`) on the
+  vertex-coloured models. A band-limited world-space noise adds colour patches, fine grain, a
+  warm/cool drift and a bump on the normals, so stone, grass, wood and cloth catch the light
+  unevenly; colours marked as metal (steel, gold, blades) become polished metal that reflects the
+  sky. Lighting is a low warm sun with soft 2048 px shadows, an image-based sky dome
+  (`skyEnvironment`) for reflections and soft fill, ground-truth ambient occlusion (GTAO) for
+  contact shadows, aerial fog, ACES filmic tone mapping and a grade with split toning, contrast and
+  vignette. Glowing materials (magic, eyes, lanterns, lava, the portal) still bloom. Characters use
+  a cleaner variant (less grain and bump). No ink outlines.
+- Every card, enemy role (tinted per world), mini-boss and boss has a detailed model with heroic
+  proportions (humanoids are about four heads tall: smaller head on its own neck pivot, longer
+  thighs and shins, longer arms, rounded shoulders, natural-sized eyes) and a wide shape vocabulary: lathed helmets, hats, robes, flasks and torsos
   (V-shaped chests), bevelled blades, axe heads and kite shields, curved tapered horns, hair locks,
   bows, roots and tails, folded capes and cloth panels, eyelids that set the mood, and: big heads with eyes, pupils, highlights, brows that show the mood,
   nose, mouth, cheeks, mustaches or beards; helmets with nose guards and plumes, hoods, hats,
   crowns; chest plates, shoulder pads, belts with buckles, boots and gloves; detailed swords, bows
   with quivers, staffs with glowing orbs, shields with rims and bosses. Models are rigged with legs,
-  arms, wings and capes. Animations: walking with leg swing and bobbing, melee swings with a
-  lunge, bow draws, spell casts, bomb throws, wing flaps, cape sway, hit flash and knockback,
-  freeze/burn/boss-cast tints, shield bubbles, stun wobble, allies dropping in from the sky with a
-  dust ring and squash on landing, enemies growing out of the portal, and deaths that topple and
-  burst into cube particles and gold.
+  arms, wings and capes. Fight animations (`animateUnit` in `BattleScene3D.ts`):
+  fighters turn to face their opponent and step across the lane to meet it face to face, keep a
+  sword's length apart and take a guard stance (bent knees, staggered feet, weapon and shield up,
+  sway). Each blow is staged around the engine's timing: a wind-up while `attackCd` runs out, a
+  fast strike when `lastAttackAt` fires, then a recovery. Melee units cycle three swings (overhead
+  chop, side slash with a body twist, lunging thrust) with dust on the step-in; archers draw and
+  release with recoil, casters raise the staff and push the spell forward, throwers wind back and
+  throw, flyers rise and dive, mounts rear up and pounce. Hits stagger the target away from the
+  attacker (heavy hits and crits knock it back with a hop), the head snaps back, shields come up to
+  block with a spark, and simultaneous blows clash with sparks and a small shake. The fallen face
+  their killer, topple backwards with a bounce, lie still and darken, then sink into the ground.
+  Also: walking with leg swing and bobbing, wing flaps, cape sway, freeze/burn/boss-cast tints,
+  shield bubbles, stun wobble, allies dropping in from the sky with a dust ring and squash on
+  landing, enemies growing out of the portal, and death bursts with gold. Developer close-up:
+  `?debug=1&zoom=0.5` follows the front line (`&front=1` for a three-quarter view).
 - Effects: arrows, spell orbs and lobbed bombs, a golden crescent per push-up strike with a
   shockwave, splash rings, chain lightning, meteor telegraphs with falling meteors, the Legend
   Strike sweep, rebirth pillars, a war-cry ground glow, camera shake and a camera push-in when a
@@ -185,8 +201,8 @@ combat engine is unchanged; the 3D scene only reads its state and events.
   feet and a spinning rune when a card is deployed. The arena has banner poles along both edges,
   supplies and a stone gatehouse with towers, an arch and a portcullis behind the hero. Damage
   numbers, health bars and banners are drawn on a 2D overlay.
-- **Graphics setting** (Settings → Graphics): "Smooth" (default) renders the detailed cartoon 3D at
-  full resolution with soft lighting and tone mapping; "Pixel 256" renders the 3D battle and base
+- **Graphics setting** (Settings → Graphics): "Smooth" (default) renders the detailed 3D at full
+  resolution with the realistic lighting, shadows and ambient occlusion; "Pixel 256" renders the 3D battle and base
   at 256 pixels height with hard pixel edges for a pixel-art look. Players who never picked a style
   get the current default. Reduced motion stops idle animation, shake and most particles.
 - three.js is loaded only when needed; without WebGL the original 2D renderer is used.
@@ -301,9 +317,11 @@ quest rewards; online guilds planned). Buildings are drawn procedurally and grow
   sign, a moat with stone banks, sparkles and a wooden bridge, cobblestone roads, a lawn with
   instanced grass tufts and flowers, a fountain with animated water jets, market stalls, lantern
   posts, catapults and cannons, trees and rocks outside, drifting clouds and circling birds.
-- Rendering matches the battle: cel shading with rim light, ink outlines, soft shadows, baked
-  ground ambient occlusion, bloom on glowing materials (windows, forge, gold, magic, lanterns) and
-  a light colour grade, through a shared pipeline (`render.ts`) with multisampled anti-aliasing.
+- Rendering matches the battle: physically based materials with procedural surface detail, a sky
+  environment, soft shadows, GTAO contact shadows plus baked ground ambient occlusion, bloom on
+  glowing materials (windows, forge, gold, magic, lanterns) and a filmic grade, through a shared
+  pipeline (`render.ts`) with multisampled anti-aliasing. The palette is muted and natural
+  (terracotta and slate roofs, weathered wood and stone, olive grass).
 - Each of the 9 buildings is assembled from architectural pieces (`models.ts`): stone block walls,
   shingled gable and cone roofs, timber frames, arched plank doors, framed arched windows,
   chimneys and cloth banners. Visuals step through 5 tiers spread over each building's level

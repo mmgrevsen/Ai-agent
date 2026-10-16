@@ -9,7 +9,7 @@ import { formatNumber } from '../../core/util';
 import { rr, type Ctx } from '../art/draw';
 import { disposeTree } from '../base3d/kit';
 import { addOutlines, glowColor, glowMaterial } from '../base3d/style';
-import { createPipeline, type Pipeline } from '../base3d/render';
+import { createPipeline, skyEnvironment, type Pipeline } from '../base3d/render';
 import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } from '../battle/placement';
 import { buildBattlefield, FLY_Y, toX, toZ, XS, type Battlefield } from './battlefield3d';
 import { bossRig, cardRig, enemyRig, heroRig, type Rig } from './units3d';
@@ -43,7 +43,7 @@ const TYPE_COLOR: Record<DamageType, string> = {
 };
 
 const PIXEL_HEIGHT = 256;
-const UNIT_SCALE = 3.2;
+const UNIT_SCALE = 3.5;
 
 interface UnitView {
   rig: Rig;
@@ -53,6 +53,18 @@ interface UnitView {
   facing: number;
   seed: number;
   lastDust: number;
+  /** Displayed lane position: melee fighters step across to meet their opponent face to face. */
+  dispZ: number;
+  /** Current heading (smoothed), turned towards the opponent while fighting. */
+  yaw: number;
+  /** Attacks seen so far; picks the next swing (chop, slash, thrust). */
+  attacks: number;
+  lastSeenAttack: number;
+  lastX: number;
+  /** Last hit taken: scene time, heavy or not, and where the attacker stood (lane-local x). */
+  hitT: number;
+  hitHeavy: boolean;
+  hitFromX: number;
 }
 
 interface Corpse {
@@ -60,6 +72,27 @@ interface Corpse {
   born: number;
   y: number;
   fall: number;
+  /** Heading while falling (faces the killer, falls backwards). */
+  yaw: number;
+  x: number;
+  z: number;
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+const easeOut = (k: number) => 1 - (1 - k) * (1 - k);
+const easeIn = (k: number) => k * k;
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+function lerpAngle(a: number, b: number, k: number): number {
+  let d = b - a;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return a + d * k;
+}
+/** Fall with two small bounces. */
+function fallBounce(k: number): number {
+  if (k < 0.62) return easeIn(k / 0.62);
+  if (k < 0.85) return 1 - Math.sin(((k - 0.62) / 0.23) * Math.PI) * 0.08;
+  return 1 - Math.sin(((k - 0.85) / 0.15) * Math.PI) * 0.025;
 }
 
 interface Proj {
@@ -103,6 +136,7 @@ interface Banner {
 }
 
 const MAX_PARTICLES = 420;
+const DEBUG_FLAGS = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
 
 
 export class BattleScene3D implements PlacementView {
@@ -130,6 +164,9 @@ export class BattleScene3D implements PlacementView {
   private readonly warCryRing: THREE.Mesh;
   private readonly shields = new Map<number, THREE.Mesh>();
   private time = 0;
+  private frameDt = 0;
+  private debugFocus = 0;
+  private debugLane = 0;
   private shake = 0;
   private flash = 0;
   private zoomPulse = 0;
@@ -212,10 +249,11 @@ export class BattleScene3D implements PlacementView {
     this.reducedMotion = opts.reducedMotion;
     this.renderer = new THREE.WebGLRenderer({ antialias: !opts.pixel, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
+    // PCF with a wide kernel: soft-edged shadows
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 0.9;
     const canvas = this.renderer.domElement;
     canvas.className = `battle3d-canvas${opts.pixel ? ' pixel' : ''}`;
     host.prepend(canvas);
@@ -226,18 +264,24 @@ export class BattleScene3D implements PlacementView {
     this.scene.add(this.world);
     this.world.add(this.field.group);
     this.scene.background = this.field.sky;
-    this.scene.fog = new THREE.Fog(this.field.fog, 220, 520);
+    // Aerial perspective: distant scenery fades into the horizon colour
+    this.scene.fog = new THREE.Fog(this.field.fog, 120, 420);
     const dark = world.index >= 2;
-    // Lights are kept at half strength and lifted by exposure in the output pass, so only glowing
-    // surfaces cross the bloom threshold.
-    this.scene.add(new THREE.HemisphereLight('#ffffff', dark ? '#8a7aa0' : world.ground, dark ? 0.95 : 0.85));
-    this.scene.add(new THREE.AmbientLight('#ffffff', dark ? 0.25 : 0.18));
-    const sun = new THREE.DirectionalLight(dark ? '#ffd8bc' : '#fff1d6', dark ? 1.3 : 1.45);
-    sun.position.set(16, 42, 20);
+    // Low, warm late-afternoon sun with long soft shadows, sky light from an image-based dome
+    const sunDir = new THREE.Vector3(18, 21, 26).normalize();
+    this.scene.environment = skyEnvironment(this.renderer, world.sky[0], world.sky[1], dark ? '#3a3040' : '#6e6650', sunDir);
+    this.scene.environmentIntensity = dark ? 0.7 : 0.5;
+    // Night and lava worlds: brighter exposure so the dusk palette still reads
+    if (dark) this.renderer.toneMappingExposure = 1.25;
+    this.scene.add(new THREE.HemisphereLight(dark ? '#c9b8ff' : '#dcecff', dark ? '#4a3a3a' : '#5a5040', dark ? 0.55 : 0.3));
+    const sun = new THREE.DirectionalLight(dark ? '#ffcfa8' : '#ffe6c0', dark ? 3.0 : 2.7);
+    sun.position.copy(sunDir).multiplyScalar(60);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 5, far: 120 });
-    sun.shadow.bias = -0.0008;
+    sun.shadow.mapSize.set(opts.pixel ? 1024 : 2048, opts.pixel ? 1024 : 2048);
+    Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 20, far: 120 });
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.04;
+    sun.shadow.radius = 4;
     this.scene.add(sun);
     this.scene.add(sun.target);
 
@@ -255,10 +299,17 @@ export class BattleScene3D implements PlacementView {
     bg.addColorStop(1, 'rgba(0,0,0,0)');
     bx.fillStyle = bg;
     bx.fillRect(0, 0, 64, 64);
-    this.blobMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), transparent: true, depthWrite: false });
+    this.blobMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), transparent: true, opacity: 0.55, depthWrite: false });
     this.blobMat.userData.shared = true;
 
-    this.pipeline = createPipeline(this.renderer, this.scene, this.camera, { msaa: !opts.pixel, bloom: { strength: 0.5, radius: 0.45, threshold: 2.3 } });
+    this.pipeline = createPipeline(this.renderer, this.scene, this.camera, {
+      msaa: !opts.pixel,
+      bloom: { strength: 0.35, radius: 0.5, threshold: 2.6 },
+      saturation: 1.0,
+      contrast: 1.08,
+      vignette: 0.32,
+      ao: opts.pixel || DEBUG_FLAGS.get('ao') === '0' ? null : { radius: 2.2, intensity: 1 },
+    });
 
     const aura = COSMETIC_BY_ID.get(opts.aura);
     if (aura && aura.color !== 'transparent') {
@@ -417,7 +468,7 @@ export class BattleScene3D implements PlacementView {
   // --- Mapping helpers ---------------------------------------------------------------------------
 
   private unitPos(u: Unit, out = new THREE.Vector3()): THREE.Vector3 {
-    return out.set(toX(u.x), u.flying ? FLY_Y : 0, toZ(u.lane));
+    return out.set(toX(u.x), u.flying ? FLY_Y : 0, this.views.get(u.id)?.dispZ ?? toZ(u.lane));
   }
 
   private topOf(u: Unit, out = new THREE.Vector3()): THREE.Vector3 {
@@ -594,11 +645,21 @@ export class BattleScene3D implements PlacementView {
         case 'attack': {
           const src = byId(e.sourceId);
           const dst = byId(e.targetId);
+          const dv = this.views.get(e.targetId);
+          if (dv) dv.hitFromX = toX(e.fromX);
           if (!e.ranged) {
             if (dst) {
               const at = this.midOf(dst, e.toX);
+              // Contact point: between the two fighters, at weapon height
+              if (src) at.lerp(this.midOf(src, e.fromX), 0.35);
               this.burst(at, '#ffffff', 4, 4, 0.18, 0.25, -10, 1);
               this.slash(at, src?.side === 'ally' ? '#fff3c4' : '#ffb0c8');
+              // Both swung at the same moment: the blades clash
+              if (src && dst.targetId === src.id && Math.abs(dst.lastAttackAt - battle.time) < 0.18) {
+                this.spark(at, '#ffe9a0', 1.6);
+                this.burst(at, '#ffd23f', 10, 9, 0.16, 0.35, -12, 3);
+                this.shakeBy(1.5);
+              }
             }
             break;
           }
@@ -610,6 +671,13 @@ export class BattleScene3D implements PlacementView {
         case 'damage': {
           if (e.amount < 1) break;
           const u = byId(e.targetId);
+          const hv = this.views.get(e.targetId);
+          if (hv && u) {
+            hv.hitT = this.time;
+            hv.hitHeavy = e.amount > u.maxHp * 0.12 || e.crit;
+            if (hv.rig.shield && !hv.hitHeavy) this.spark(this.midOf(u, e.x).add(new THREE.Vector3(Math.sin(hv.yaw), 0, Math.cos(hv.yaw)).multiplyScalar(1.2)), '#dfe8ff', 0.9);
+            if (hv.hitHeavy && !u.flying) this.burst(this.unitPos(u).setY(0.3), '#c9b48f', 6, 3, 0.26, 0.5, -8, 1.5);
+          }
           const pos = u ? this.topOf(u) : new THREE.Vector3(toX(e.x), 3, 0);
           pos.x += (Math.random() - 0.5) * 0.8;
           if (this.texts.length < 60)
@@ -628,7 +696,7 @@ export class BattleScene3D implements PlacementView {
           break;
         }
         case 'death': {
-          const at = new THREE.Vector3(toX(e.x), e.flying ? FLY_Y : 1, 0);
+          const at = new THREE.Vector3(toX(e.x), e.flying ? FLY_Y : 1, this.views.get(e.unitId)?.dispZ ?? 0);
           this.burst(at, e.side === 'enemy' ? '#d7c8ff' : '#ffffff', 12, 7, 0.32, 0.6);
           if (e.side === 'enemy' && e.gold > 0) {
             this.burst(at, '#ffc94a', 7, 5, 0.34, 0.9, -18, 8);
@@ -779,7 +847,24 @@ export class BattleScene3D implements PlacementView {
     const br = (rig.kind === 'quad' ? 1.0 : rig.kind === 'flyer' ? 0.7 : 0.62) * scale * (rig.height > 3 ? 1.5 : 1);
     blob.scale.set(br, br * 0.8, 1);
     this.world.add(blob);
-    return { rig, blob, scale, baseY: 0, facing, seed: (u.id * 0.61803) % 1, lastDust: 0 };
+    rig.root.rotation.order = 'YXZ';
+    return {
+      rig,
+      blob,
+      scale,
+      baseY: 0,
+      facing,
+      seed: (u.id * 0.61803) % 1,
+      lastDust: 0,
+      dispZ: toZ(u.lane),
+      yaw: facing,
+      attacks: 0,
+      lastSeenAttack: u.lastAttackAt,
+      lastX: u.x,
+      hitT: -10,
+      hitHeavy: false,
+      hitFromX: toX(u.x) + (u.side === 'ally' ? 5 : -5),
+    };
   }
 
   private addEliteMark(rig: Rig): void {
@@ -794,17 +879,68 @@ export class BattleScene3D implements PlacementView {
     rig.body.add(crown);
   }
 
-  private animateUnit(u: Unit, v: UnitView, battle: Battle): void {
+  /**
+   * Fight animation. The engine only says when a blow lands (lastAttackAt) and how long until the
+   * next one (attackCd), so every swing is staged around that: a wind-up while the cooldown runs
+   * out, a fast strike on the hit, then a recovery into a guard stance. Fighters turn to face their
+   * opponent and step across the lane to meet them; hits stagger the target (heavy hits knock it
+   * back), shields come up to block.
+   */
+  private animateUnit(u: Unit, v: UnitView, battle: Battle, byId: Map<number, Unit>): void {
     const { rig } = v;
     const bt = battle.time;
+    const dt = Math.min(0.1, this.frameDt);
     const t = this.time + v.seed * 10;
-    const pos = this.unitPos(u, this.tmp);
-    const sinceAttack = bt - u.lastAttackAt;
-    const attackK = sinceAttack >= 0 && sinceAttack < 0.35 ? sinceAttack / 0.35 : -1;
-    const stunned = u.stunUntil > bt;
-    const moving = u.kind !== 'hero' && u.kind !== 'boss' ? !stunned && attackK < 0 && battle.waveState !== 'done' : u.kind === 'boss' && !stunned && attackK < 0;
     const motion = this.reducedMotion ? 0 : 1;
+    const stunned = u.stunUntil > bt;
+    const casting = !!u.boss && u.boss.castingUntil > bt;
     const age = bt - u.spawnedAt;
+
+    // Opponent and engagement (mirrors the engine's range check)
+    const target = u.targetId !== null ? byId.get(u.targetId) : undefined;
+    const foe = target && !target.dead ? target : undefined;
+    const gap = foe ? Math.max(0, Math.abs(foe.x - u.x) - (u.size + foe.size - 2) * 1.5) : Infinity;
+    const engaged = !!foe && gap <= u.range + 0.6 && !stunned;
+    const melee = u.range <= 6 && (rig.attack === 'melee' || u.kind === 'boss');
+
+    // A new blow landed: count it (the count picks the swing variant)
+    if (u.lastAttackAt !== v.lastSeenAttack) {
+      v.lastSeenAttack = u.lastAttackAt;
+      v.attacks++;
+    }
+    const since = bt - u.lastAttackAt;
+    const STRIKE = 0.14;
+    const RECOVER = 0.42;
+    const windWindow = Math.min(0.36, u.attackInterval * 0.55);
+    const strikeK = since >= 0 && since < STRIKE ? since / STRIKE : -1;
+    const recoverK = since >= STRIKE && since < STRIKE + RECOVER ? (since - STRIKE) / RECOVER : -1;
+    const windK = engaged && strikeK < 0 && recoverK < 0 && u.attackCd < windWindow ? clamp01(1 - u.attackCd / windWindow) : 0;
+    const swingNow = (v.attacks + 2) % 3; // variant of the blow that just landed
+    const swingNext = (v.attacks + 3) % 3; // variant being wound up
+    const inFight = engaged || strikeK >= 0 || recoverK >= 0;
+
+    // Movement
+    const speed = Math.abs(u.x - v.lastX) / Math.max(1e-4, dt);
+    v.lastX = u.x;
+    const moving = !stunned && !casting && !inFight && speed > 0.15 && u.kind !== 'hero';
+
+    // Step across the lane to meet the opponent, drift back to the own lane otherwise
+    let wantZ = toZ(u.lane);
+    if (foe && melee && gap < u.range + 6) {
+      const fv = this.views.get(foe.id);
+      wantZ = (fv ? fv.dispZ : toZ(foe.lane)) + (v.seed - 0.5) * 3.2;
+    }
+    v.dispZ += (Math.max(-4.8, Math.min(4.8, wantZ)) - v.dispZ) * Math.min(1, dt * 2.2);
+
+    // Face the opponent while fighting or closing in
+    let wantYaw = v.facing;
+    if (foe && (inFight || gap < 14)) {
+      const fv = this.views.get(foe.id);
+      wantYaw = Math.atan2(toX(foe.x) - toX(u.x), (fv ? fv.dispZ : toZ(foe.lane)) - v.dispZ);
+    }
+    v.yaw = lerpAngle(v.yaw, wantYaw, Math.min(1, dt * 9));
+    const fx = Math.sin(v.yaw);
+    const fz = Math.cos(v.yaw);
 
     // Spawn: allies drop from the sky, enemies grow out of the portal
     let spawnY = 0;
@@ -815,85 +951,251 @@ export class BattleScene3D implements PlacementView {
       else spawnS = 0.25 + 0.75 * k;
     }
     const landing = age >= 0.4 && age < 0.62 && u.side === 'ally' && u.kind !== 'hero' ? Math.sin(((age - 0.4) / 0.22) * Math.PI) : 0;
+    const base = this.unitPos(u, this.tmp);
     if (age >= 0.4 && age < 0.43 && u.side === 'ally' && u.kind === 'card' && !rig.root.userData.landed) {
       rig.root.userData.landed = true;
-      this.ring(pos.x, pos.z, 0.12, 2.4, '#ffffff', 0.35);
-      this.burst(pos.clone().setY(0.3), '#d9c39a', 8, 4, 0.25, 0.45, -12, 2);
+      this.ring(base.x, base.z, 0.12, 2.4, '#ffffff', 0.35);
+      this.burst(base.clone().setY(0.3), '#d9c39a', 8, 4, 0.25, 0.45, -12, 2);
     }
 
-    // Hit knockback and flash
-    const hit = Math.max(0, 1 - (bt - u.lastHitAt) / 0.14);
-    const dir = u.side === 'ally' ? 1 : -1;
-    let lunge = 0;
-    if (attackK >= 0 && rig.attack === 'melee') lunge = Math.sin(attackK * Math.PI) * 0.6 * dir;
-    if (attackK >= 0 && rig.attack !== 'melee') lunge = -Math.sin(attackK * Math.PI) * 0.25 * dir;
-    rig.root.position.set(pos.x + lunge - hit * 0.25 * dir * motion, pos.y + spawnY, pos.z);
-    v.blob.position.set(rig.root.position.x, 0.06, pos.z);
-
-    // Bob, breathing and squash
+    // --- Pose ------------------------------------------------------------------------------------
+    // a = right arm raise (0 down, PI/2 forward, PI overhead); aZ = arm swung out to the side
+    let a = 0;
+    let aZ = 0;
+    let aL = 0;
+    let aLZ = 0;
+    let lean = 0; // + forward
+    let twist = 0; // + right shoulder back
+    let crouch = 0;
+    let lunge = 0; // world units along the heading
+    let dive = 0;
+    let legA = 0;
+    let legB = 0;
     const walk = moving ? t * (u.kind === 'enemy' && u.role === 'fast' ? 16 : 10) : 0;
+
+    if (moving) {
+      a = -Math.sin(walk) * 0.45;
+      aL = Math.sin(walk) * 0.45;
+      legA = Math.sin(walk) * 0.7;
+      legB = -legA;
+      lean = 0.12;
+    } else if (!inFight) {
+      a = Math.sin(t * 2) * 0.05;
+      aL = Math.sin(t * 2 + 1) * 0.05;
+    }
+
+    if (inFight && !stunned) {
+      // Guard: knees bent, feet staggered, weapon and shield up, a little sway
+      const sway = Math.sin(t * 2.6) * motion;
+      crouch = 0.07;
+      legA = 0.32 + sway * 0.05;
+      legB = -0.22 - sway * 0.05;
+      lean = 0.1;
+      twist = 0.12 * sway;
+      a = 0.95 + Math.sin(t * 3.1) * 0.06 * motion;
+      aL = rig.shield ? 1.15 : 0.45;
+      aLZ = rig.shield ? 0.35 : 0.15;
+
+      if (melee) {
+        const wind = easeOut(windK);
+        if (windK > 0) {
+          if (swingNext === 0) {
+            // Overhead chop
+            a = lerp(a, 2.95, wind);
+            lean = lerp(lean, -0.14, wind);
+            twist = lerp(twist, 0.25, wind);
+          } else if (swingNext === 1) {
+            // Side slash
+            a = lerp(a, 1.5, wind);
+            aZ = lerp(0, 1.15, wind);
+            twist = lerp(twist, 0.85, wind);
+          } else {
+            // Thrust
+            a = lerp(a, 1.15, wind);
+            twist = lerp(twist, 0.55, wind);
+            lean = lerp(lean, -0.12, wind);
+          }
+          lunge = -0.45 * wind;
+          if (rig.kind === 'quad') lean = -0.4 * wind; // rear up before pouncing
+        }
+        if (strikeK >= 0) {
+          const k = easeOut(strikeK);
+          if (swingNow === 0) {
+            a = lerp(2.95, -0.55, k);
+            lean = lerp(-0.14, 0.38, k);
+            twist = lerp(0.25, -0.1, k);
+            lunge = lerp(-0.45, 1.1, k);
+          } else if (swingNow === 1) {
+            a = 1.5;
+            aZ = lerp(1.15, -0.55, k);
+            twist = lerp(0.85, -0.85, k);
+            lean = 0.2;
+            lunge = lerp(-0.3, 0.7, k);
+          } else {
+            a = lerp(1.15, 1.7, k);
+            twist = lerp(0.55, -0.35, k);
+            lean = lerp(-0.12, 0.4, k);
+            lunge = lerp(-0.45, 1.9, k);
+          }
+          legA = 0.65;
+          legB = -0.4;
+          aL = rig.shield ? 0.7 : -0.35; // off-hand swings back for balance
+          if (rig.kind === 'quad') lean = 0.35;
+        } else if (recoverK >= 0) {
+          const k = easeOut(recoverK);
+          const from =
+            swingNow === 0
+              ? { a: -0.55, aZ: 0, twist: -0.1, lean: 0.38, lunge: 1.1 }
+              : swingNow === 1
+                ? { a: 1.5, aZ: -0.55, twist: -0.85, lean: 0.2, lunge: 0.7 }
+                : { a: 1.7, aZ: 0, twist: -0.35, lean: 0.4, lunge: 1.9 };
+          a = lerp(from.a, a, k);
+          aZ = lerp(from.aZ, aZ, k);
+          twist = lerp(from.twist, twist, k);
+          lean = lerp(from.lean, lean, k);
+          lunge = lerp(from.lunge, 0, k);
+          legA = lerp(0.65, legA, k);
+          legB = lerp(-0.4, legB, k);
+        }
+        if (rig.kind === 'flyer') {
+          // Flyers swoop: rise while winding up, dive into the strike
+          dive = strikeK >= 0 ? -1.4 * Math.sin(strikeK * Math.PI) : windK * 0.8;
+        }
+      } else {
+        // Ranged and casters
+        const wind = easeOut(windK);
+        if (rig.attack === 'bow') {
+          aL = 1.5;
+          aLZ = 0;
+          twist = 0.45;
+          a = lerp(1.25, 1.55, wind);
+          aZ = lerp(0, -0.25, wind);
+          if (strikeK >= 0) {
+            a = lerp(1.55, 0.7, easeOut(strikeK));
+            lean = -0.08;
+          } else if (recoverK >= 0) a = lerp(0.7, 1.25, easeOut(recoverK));
+        } else if (rig.attack === 'throw') {
+          a = lerp(0.9, 2.8, wind);
+          twist = lerp(0.1, 0.6, wind);
+          if (strikeK >= 0) {
+            a = lerp(2.8, -0.4, easeOut(strikeK));
+            twist = lerp(0.6, -0.4, easeOut(strikeK));
+            lean = 0.25;
+          } else if (recoverK >= 0) a = lerp(-0.4, 0.9, easeOut(recoverK));
+        } else {
+          // cast: staff lifted while the spell charges, then pushed forward
+          a = lerp(1.0, 2.7, wind);
+          aL = lerp(0.5, 1.2, wind);
+          lean = lerp(0.05, -0.12, wind);
+          if (strikeK >= 0) {
+            a = lerp(2.7, 1.55, easeOut(strikeK));
+            lean = 0.25;
+            lunge = 0.4 * Math.sin(strikeK * Math.PI);
+          } else if (recoverK >= 0) a = lerp(1.55, 1.0, easeOut(recoverK));
+        }
+      }
+    }
+
+    // The hero's push-up strikes
+    if (u.kind === 'hero') {
+      const s = this.time - this.heroStrikeAt;
+      if (s >= 0 && s < 0.4) {
+        const k = s / 0.4;
+        a = k < 0.25 ? lerp(1, 3.0, k / 0.25) : lerp(3.0, -0.6, easeOut((k - 0.25) / 0.75));
+        twist = Math.sin(k * Math.PI) * 0.6;
+        lean = k < 0.25 ? -0.15 : 0.35 * (1 - k);
+        lunge = Math.sin(k * Math.PI) * 0.8;
+      }
+    }
+
+    // Hit reaction: stagger back, head snaps, heavy blows knock the unit off its feet a little
+    const hitDur = v.hitHeavy ? 0.5 : 0.28;
+    const hk = (this.time - v.hitT) / hitDur;
+    let knock = 0;
+    let hop = 0;
+    let neckBack = 0;
+    if (hk >= 0 && hk < 1 && u.kind !== 'hero') {
+      const s = hk < 0.2 ? hk / 0.2 : 1 - (hk - 0.2) / 0.8;
+      const heavy = v.hitHeavy ? 1 : 0;
+      knock = s * (0.55 + heavy * 1.1) * (u.kind === 'boss' ? 0.3 : 1);
+      lean -= s * (0.28 + heavy * 0.3);
+      neckBack = s * 0.45;
+      hop = heavy * Math.sin(hk * Math.PI) * 0.5;
+      if (rig.shield && !v.hitHeavy) {
+        aL = 1.45;
+        aLZ = 0.55;
+      }
+    }
+
+    // --- Apply -----------------------------------------------------------------------------------
+    // Knock-back pushes away from where the attacker stood
+    const away = Math.sign(base.x - v.hitFromX) || (u.side === 'ally' ? -1 : 1);
+    // The models are wider than the engine's contact distance: melee fighters keep a sword's
+    // length apart (the lunge closes it on the strike)
+    const spacing = inFight && melee && foe && rig.kind !== 'flyer' ? Math.min(2.4, 0.9 + v.scale * 0.4) : 0;
+    const lungeM = (lunge - spacing) * motion;
+    rig.root.position.set(base.x + fx * lungeM + away * knock * motion, base.y + spawnY + (hop + dive) * motion, base.z + fz * lungeM);
+    rig.root.rotation.y = v.yaw;
+    v.blob.position.set(rig.root.position.x, 0.06, rig.root.position.z);
+
     if (moving && !u.flying && rig.kind !== 'float' && !this.reducedMotion && this.time - v.lastDust > 0.32) {
       v.lastDust = this.time + Math.random() * 0.1;
-      this.burst(new THREE.Vector3(pos.x - dir * 0.4, 0.15, pos.z + (Math.random() - 0.5) * 0.6), '#cbb894', 2, 1.2, 0.22, 0.45, -2, 0.6);
+      this.burst(new THREE.Vector3(base.x - fx * 0.4, 0.15, base.z - fz * 0.4 + (Math.random() - 0.5) * 0.6), '#cbb894', 2, 1.2, 0.22, 0.45, -2, 0.6);
     }
+    if (strikeK >= 0 && strikeK < 0.3 && melee && !u.flying && rig.kind !== 'float' && !this.reducedMotion && this.time - v.lastDust > 0.2) {
+      v.lastDust = this.time;
+      this.burst(new THREE.Vector3(base.x + fx * 1.2, 0.15, base.z + fz * 1.2), '#cbb894', 3, 2, 0.24, 0.4, -4, 0.8);
+    }
+
     let bob = 0;
     if (rig.kind === 'flyer') bob = Math.sin(t * 3) * 0.25;
     else if (rig.kind === 'float') bob = 0.3 + Math.sin(t * 1.5) * 0.3;
     else if (moving) bob = Math.abs(Math.sin(walk)) * 0.12;
-    rig.body.position.y = bob * motion;
+    rig.body.position.y = (bob - crouch) * motion;
     const breathe = 1 + Math.sin(t * 2.2) * 0.02 * motion;
     const squash = 1 - landing * 0.25;
     rig.body.scale.set((1 + landing * 0.18) * spawnS, breathe * squash * spawnS, (1 + landing * 0.18) * spawnS);
+    rig.body.rotation.x = lean * motion;
+    rig.body.rotation.y = twist * motion;
+    rig.body.rotation.z = stunned ? Math.sin(t * 8) * 0.12 : 0;
 
-    // Legs
     if (rig.kind === 'quad') {
-      rig.legs.forEach((l, i) => (l.rotation.x = moving ? Math.sin(walk + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.7 * motion : 0));
+      rig.legs.forEach((l, i) => {
+        const gallop = moving ? Math.sin(walk + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.7 : 0;
+        const rear = inFight ? (i < 2 ? -lean * 1.4 : lean * 0.6) : 0;
+        l.rotation.x = (gallop + rear) * motion;
+      });
     } else {
-      rig.legs.forEach((l, i) => (l.rotation.x = moving ? Math.sin(walk + i * Math.PI) * 0.65 * motion : 0));
+      rig.legs.forEach((l, i) => (l.rotation.x = (i === 0 ? legA : legB) * motion));
     }
-
-    // Arms: attack animation by style
-    const arm = rig.armR;
-    if (arm) {
-      let a = moving ? -Math.sin(walk) * 0.4 * motion : Math.sin(t * 2) * 0.05;
-      if (attackK >= 0) {
-        if (rig.attack === 'melee') a = attackK < 0.35 ? 2.3 - (attackK / 0.35) * 3.4 : -1.1 + ((attackK - 0.35) / 0.65) * 1.1;
-        else if (rig.attack === 'bow') a = -1.45 + Math.min(1, attackK * 3) * 0.25;
-        else if (rig.attack === 'throw') a = attackK < 0.3 ? 2.6 : 2.6 - ((attackK - 0.3) / 0.7) * 3.6;
-        else a = -2.3 + attackK * 1.4;
-      }
-      if (u.kind === 'hero') {
-        const s = this.time - this.heroStrikeAt;
-        if (s >= 0 && s < 0.35) a = s < 0.1 ? 2.6 : 2.6 - ((s - 0.1) / 0.25) * 4;
-      }
-      arm.rotation.x = -a;
+    if (rig.armR) {
+      rig.armR.rotation.x = -a * (motion || 0.3);
+      rig.armR.rotation.z = (aZ + 0.12) * motion; // relaxed: arms hang slightly away from the body
     }
     if (rig.armL) {
-      let a = moving ? Math.sin(walk) * 0.4 * motion : 0;
-      if (rig.attack === 'bow') a = attackK >= 0 ? 1.45 : 0.5;
-      rig.armL.rotation.x = -a;
+      rig.armL.rotation.x = -aL * (motion || 0.3);
+      rig.armL.rotation.z = (aLZ - 0.12) * motion;
     }
-    if (rig.cape) rig.cape.rotation.x = -(0.12 + (moving ? 0.25 : 0) + Math.sin(t * 4) * 0.06) * motion;
+    if (rig.neck) {
+      // The head stays on the opponent while the body twists, and snaps back when hit
+      rig.neck.rotation.y = -twist * 0.7 * motion;
+      rig.neck.rotation.x = (-neckBack + (inFight ? 0.08 : 0)) * motion;
+    }
+    if (rig.cape) rig.cape.rotation.x = -(0.12 + (moving ? 0.25 : 0) + Math.max(0, lunge) * 0.15 + Math.sin(t * 4) * 0.06) * motion;
     for (const wng of rig.wings) {
       const s = wng.position.x > 0 ? 1 : -1;
-      wng.rotation.z = s * Math.sin(t * (rig.height > 1.3 ? 6 : 14)) * 0.7 * motion;
+      const beat = strikeK >= 0 ? 20 : rig.height > 1.3 ? 6 : 14;
+      wng.rotation.z = s * Math.sin(t * beat) * 0.7 * motion;
     }
-    for (const sp of rig.spinners) sp.rotation.y = t * 1.5;
-
-    // Hero takes a stance: body twist on strike
-    if (u.kind === 'hero') {
-      const s = this.time - this.heroStrikeAt;
-      rig.body.rotation.y = s >= 0 && s < 0.35 ? Math.sin((s / 0.35) * Math.PI) * 0.6 : 0;
-    }
-    if (stunned) rig.body.rotation.z = Math.sin(t * 8) * 0.12;
-    else rig.body.rotation.z = 0;
+    for (const sp of rig.spinners) sp.rotation.y = t * (windK > 0 ? 6 : 1.5);
 
     // Tints: hit flash, frost, burn, boss casting
+    const hit = Math.max(0, 1 - (bt - u.lastHitAt) / 0.1);
     const em = rig.material.emissive;
-    if (hit > 0) em.setRGB(hit * 0.9, hit * 0.9, hit * 0.9);
+    if (hit > 0) em.setRGB(hit * 0.32, hit * 0.26, hit * 0.22);
     else if (u.burnUntil > bt) em.setRGB(0.45 + Math.sin(t * 20) * 0.15, 0.15, 0);
     else if (u.slowMult < 1) em.setRGB(0.05, 0.2, 0.4);
-    else if (u.boss && u.boss.castingUntil > bt) em.setRGB(0.4 + Math.sin(t * 14) * 0.25, 0.05, 0.05);
+    else if (casting) em.setRGB(0.4 + Math.sin(t * 14) * 0.25, 0.05, 0.05);
     else if (battle.warCryActive && u.side === 'ally') em.setRGB(0.18, 0.08, 0);
     else em.setRGB(0, 0, 0);
 
@@ -906,7 +1208,7 @@ export class BattleScene3D implements PlacementView {
         this.shields.set(u.id, bubble);
       }
       const r = v.rig.height * v.scale * 0.55;
-      bubble.position.set(pos.x, pos.y + r, pos.z);
+      bubble.position.set(rig.root.position.x, base.y + r, rig.root.position.z);
       bubble.scale.setScalar(r * (1 + Math.sin(this.time * 5) * 0.03));
     } else if (bubble) {
       this.world.remove(bubble);
@@ -917,6 +1219,8 @@ export class BattleScene3D implements PlacementView {
 
   private syncUnits(battle: Battle): void {
     const seen = new Set<number>();
+    const byId = new Map<number, Unit>();
+    for (const u of battle.units) byId.set(u.id, u);
     for (const u of battle.units) {
       if (u.dead) continue;
       seen.add(u.id);
@@ -925,7 +1229,7 @@ export class BattleScene3D implements PlacementView {
         v = this.createView(u, battle);
         this.views.set(u.id, v);
       }
-      this.animateUnit(u, v, battle);
+      this.animateUnit(u, v, battle, byId);
     }
     for (const [id, v] of this.views) {
       if (seen.has(id)) continue;
@@ -937,23 +1241,45 @@ export class BattleScene3D implements PlacementView {
         (bubble.material as THREE.Material).dispose();
         this.shields.delete(id);
       }
-      v.rig.material.emissive.setRGB(0.6, 0.6, 0.6);
-      this.corpses.push({ rig: v.rig, born: this.time, y: v.rig.root.position.y, fall: v.rig.kind === 'flyer' ? 1 : 0 });
+      const r = v.rig.root;
+      v.rig.material.emissive.setRGB(0.25, 0.22, 0.2);
+      // Fall backwards, away from the killer
+      const yaw = Math.atan2(v.hitFromX - r.position.x, 0.0001) || v.yaw;
+      this.corpses.push({ rig: v.rig, born: this.time, y: r.position.y, fall: v.rig.kind === 'flyer' ? 1 : 0, yaw, x: r.position.x, z: r.position.z });
     }
-    // Death animation: topple, sink and shrink
+    // Death: topple backwards with a bounce, lie still, then sink into the ground
+    const FALL = 0.55;
+    const LIE = 1.5;
+    const SINK = 0.8;
     this.corpses = this.corpses.filter((c) => {
-      const k = (this.time - c.born) / 0.7;
-      if (k >= 1) {
+      const age = this.time - c.born;
+      if (age >= FALL + LIE + SINK) {
         this.world.remove(c.rig.root);
         disposeTree(c.rig.root);
         return false;
       }
       const r = c.rig.root;
-      r.rotation.z = Math.min(1, k * 2.5) * (Math.PI / 2.2);
-      r.position.y = c.fall ? c.y * (1 - Math.min(1, k * 2)) : c.y - Math.max(0, k - 0.5) * 2;
-      const s = r.scale.x;
-      if (k > 0.55) r.scale.setScalar(s * 0.9);
-      c.rig.material.emissive.setRGB(Math.max(0, 0.6 - k), Math.max(0, 0.6 - k), Math.max(0, 0.6 - k));
+      const k = Math.min(1, age / FALL);
+      const f = this.reducedMotion ? 1 : fallBounce(k);
+      r.rotation.order = 'YXZ';
+      r.rotation.y = lerpAngle(r.rotation.y, c.yaw, Math.min(1, age * 12));
+      r.rotation.x = -f * (Math.PI / 2) * 0.92;
+      // Slide back a little as the body hits the ground
+      const back = easeOut(k) * 0.9;
+      r.position.x = c.x - Math.sin(c.yaw) * back;
+      r.position.z = c.z - Math.cos(c.yaw) * back;
+      const sink = Math.max(0, age - FALL - LIE) / SINK;
+      r.position.y = (c.fall ? c.y * (1 - easeIn(k)) : c.y * (1 - k)) - sink * 1.6;
+      // Limbs go limp
+      if (c.rig.armR) c.rig.armR.rotation.x = lerp(c.rig.armR.rotation.x, -2.4, Math.min(1, age * 6));
+      if (c.rig.armL) c.rig.armL.rotation.x = lerp(c.rig.armL.rotation.x, -2.1, Math.min(1, age * 6));
+      c.rig.body.rotation.y *= 0.9;
+      c.rig.body.rotation.x *= 0.9;
+      const glow = Math.max(0, 0.25 - age * 1.2);
+      c.rig.material.emissive.setRGB(glow, glow * 0.9, glow * 0.8);
+      // Darken while lying, so the living stand out
+      const dim = 1 - Math.min(0.45, age * 0.6);
+      c.rig.material.color.setRGB(dim, dim, dim);
       return true;
     });
   }
@@ -1075,6 +1401,7 @@ export class BattleScene3D implements PlacementView {
 
   render(battle: Battle, dt: number, overlay: Ctx): void {
     this.time += dt;
+    this.frameDt = dt;
     const t = this.time;
     if (!this.reducedMotion) this.field.update(t, dt);
     this.syncUnits(battle);
@@ -1094,7 +1421,21 @@ export class BattleScene3D implements PlacementView {
     if (this.fitFor !== `${this.w}x${this.h}`) this.fitCamera();
     this.zoomPulse = Math.max(0, this.zoomPulse - dt * 0.6);
     const zp = Math.sin(Math.min(1, this.zoomPulse) * Math.PI) * 0.16;
-    this.placeCamera(this.fit.d * (1 - zp), this.fit.tz - zp * 18);
+    const zoom = Number(DEBUG_FLAGS.get('zoom') ?? 0);
+    if (zoom > 0 && DEBUG_FLAGS.has('debug')) {
+      // Developer close-up (?debug=1&zoom=0.35): follow the front line to inspect animations
+      const lead = battle.units.filter((x) => !x.dead && x.side === 'enemy').reduce<Unit | null>((m, x) => (!m || x.x < m.x ? x : m), null);
+      const front = lead?.x ?? 60;
+      this.debugFocus = lerp(this.debugFocus || front, front - 4, 0.05);
+      this.debugLane = lerp(this.debugLane, lead ? (this.views.get(lead.id)?.dispZ ?? 0) : 0, 0.05);
+      if (DEBUG_FLAGS.has('front')) {
+        // Three-quarter view from the enemy side, inside the hedges
+        const fz = -toX(this.debugFocus);
+        this.camera.position.set(this.debugLane + 11 * zoom, 11 * zoom, fz - 2);
+        this.camera.lookAt(this.debugLane, 2.2, fz);
+        this.camera.updateMatrixWorld();
+      } else this.placeCamera(this.fit.d * zoom, -toX(this.debugFocus) + 6 * zoom);
+    } else this.placeCamera(this.fit.d * (1 - zp), this.fit.tz - zp * 18);
     if (this.shake > 0.2 && !this.reducedMotion) {
       this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.08;
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.08;
@@ -1106,7 +1447,7 @@ export class BattleScene3D implements PlacementView {
 
   private fit = { d: 60, tz: 0 };
   private fitFor = '';
-  private static readonly PITCH = (55 * Math.PI) / 180;
+  private static readonly PITCH = (46 * Math.PI) / 180;
 
   private placeCamera(d: number, tz: number): void {
     const p = BattleScene3D.PITCH;
@@ -1249,6 +1590,7 @@ export class BattleScene3D implements PlacementView {
     disposeTree(this.scene);
     this.particles.dispose();
     this.field.sky.dispose();
+    this.scene.environment?.dispose();
     this.pipeline.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

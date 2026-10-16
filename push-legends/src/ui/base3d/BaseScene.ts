@@ -4,9 +4,9 @@ import { disposeTree } from './kit';
 import { MAP, PATROLS, PLOTS, ROADS, type Plot } from './layout';
 import { heroRig, humanoid } from '../battle3d/units3d';
 import { barrel, banner, buildPlot, BUILD_MAT, C, cannon, catapult, crate, flag, lantern, merlons, stoneBox, torch, tower, tree, type Animator, type BuiltPlot, type PlotInfo } from './models';
-import { bakeGroundAO, createPipeline, type Pipeline } from './render';
+import { bakeGroundAO, createPipeline, skyEnvironment, type Pipeline } from './render';
 import { K, shade as shadeHex, star } from './sculpt';
-import { addOutlines, glowMaterial, toonMaterial, toonRamp } from './style';
+import { addOutlines, glowMaterial, toonMaterial } from './style';
 
 /**
  * Isometric-style 3D view of the player's base, rendered with three.js. Everything is generated
@@ -134,22 +134,24 @@ export class BaseScene {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 0.9;
     const canvas = this.renderer.domElement;
     canvas.className = `base3d-canvas${this.pixel ? ' pixel' : ''}`;
     canvas.style.touchAction = 'none';
     container.prepend(canvas);
 
-    this.scene.background = new THREE.Color('#a9dcf2');
-    this.scene.fog = new THREE.Fog('#a9dcf2', 140, 320);
-    // Lights at half strength, lifted by exposure in the output pass so only glows bloom
-    this.scene.add(new THREE.HemisphereLight('#ffffff', '#8fb86a', 0.9));
-    this.scene.add(new THREE.AmbientLight('#ffffff', 0.18));
-    const sun = new THREE.DirectionalLight('#fff0d4', 1.55);
-    sun.position.set(22, 42, 16);
+    this.scene.background = new THREE.Color('#a9d4ea');
+    this.scene.fog = new THREE.Fog('#bcd9e6', 120, 320);
+    // Warm low sun with soft shadows; the sky dome lights the shade and is reflected by metal
+    const sunDir = new THREE.Vector3(26, 30, 18).normalize();
+    this.scene.environment = skyEnvironment(this.renderer, '#6fa8d6', '#d7e8ee', '#5d7a45', sunDir);
+    this.scene.environmentIntensity = 0.5;
+    this.scene.add(new THREE.HemisphereLight('#dcecff', '#4d6b35', 0.3));
+    const sun = new THREE.DirectionalLight('#ffe6c0', 2.7);
+    sun.position.copy(sunDir).multiplyScalar(60);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
@@ -163,7 +165,14 @@ export class BaseScene {
     sun.shadow.radius = 3;
     sun.shadow.normalBias = 0.03;
     this.scene.add(sun);
-    this.pipeline = createPipeline(this.renderer, this.scene, this.camera, { msaa: !this.pixel, bloom: { strength: 0.45, radius: 0.5, threshold: 2.2 }, saturation: 1.1, vignette: 0.22 });
+    this.pipeline = createPipeline(this.renderer, this.scene, this.camera, {
+      msaa: !this.pixel,
+      bloom: { strength: 0.35, radius: 0.5, threshold: 2.6 },
+      saturation: 1.0,
+      contrast: 1.08,
+      vignette: 0.26,
+      ao: this.pixel ? null : { radius: 1.6, intensity: 1 },
+    });
     this.scene.add(this.world);
     this.world.add(this.walkerGroup);
     this.buildStatic();
@@ -185,14 +194,12 @@ export class BaseScene {
     const rand = seeded(1337);
     const { minX, maxX, minZ, maxZ } = MAP;
     // Meadow outside, lush lawn inside the walls
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshToonMaterial({ color: '#79bf55', gradientMap: toonRamp() }));
-    grass.rotation.x = -Math.PI / 2;
-    grass.position.y = -0.2;
-    grass.receiveShadow = true;
+    // Built with the Kit so the meadow gets the same procedural colour patches and grain
+    const grass = new K().add(new THREE.PlaneGeometry(500, 500, 40, 40), '#5f8a42', 0, -0.2, 0, -Math.PI / 2).build(false);
     this.world.add(grass);
 
     const ground = new K();
-    ground.box(maxX - minX, 0.2, maxZ - minZ, 0, -0.2, 0, '#7ec05a');
+    ground.box(maxX - minX, 0.2, maxZ - minZ, 0, -0.2, 0, '#76a650');
     // Cobblestone roads
     for (const [x0, z0, x1, z1] of ROADS) {
       ground.box(x1 - x0 + 0.5, 0.06, z1 - z0 + 0.5, (x0 + x1) / 2, -0.02, (z0 + z1) / 2, '#a99b86');
@@ -367,7 +374,7 @@ export class BaseScene {
     const w = 3.2;
     const off = 2.4;
     const k = new K();
-    const water = new THREE.MeshToonMaterial({ color: '#4fb8e8', gradientMap: toonRamp(), transparent: true, opacity: 0.92 });
+    const water = new THREE.MeshStandardMaterial({ color: '#3f8fb8', roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.88 });
     const rects: [number, number, number, number][] = [
       [minX - off - w, minZ - off - w, maxX + off + w, minZ - off],
       [minX - off - w, maxZ + off, maxX + off + w, maxZ + off + w],
@@ -435,11 +442,11 @@ export class BaseScene {
     const birds: THREE.Group[] = [];
     for (let i = 0; i < 5; i++) {
       const b = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshToonMaterial({ color: '#3a3550' }));
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshStandardMaterial({ color: '#3a3550' }));
       body.scale.set(1, 0.8, 1.6);
       b.add(body);
       for (const s of [-1, 1]) {
-        const wing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.35), new THREE.MeshToonMaterial({ color: '#4a4560' }));
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.35), new THREE.MeshStandardMaterial({ color: '#4a4560' }));
         wing.geometry.translate(s * 0.45, 0, 0);
         wing.userData.side = s;
         b.add(wing);
@@ -568,7 +575,7 @@ export class BaseScene {
     const add = (rig: { root: THREE.Object3D; legs: THREE.Object3D[]; armR: THREE.Object3D | null; armL: THREE.Object3D | null }, pathIdx: number, offset: number, speed: number) => {
       const mesh = rig.root;
       mesh.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = true) : undefined));
-      addOutlines(mesh, 0.02, (m) => !(m.material as THREE.Material).userData?.glow && (m.material as THREE.Material).type === 'MeshToonMaterial');
+      addOutlines(mesh, 0.02, (m) => !(m.material as THREE.Material).userData?.glow && (m.material as THREE.Material).type === 'MeshStandardMaterial');
       const arms = [rig.armR, rig.armL].filter((a): a is THREE.Object3D => !!a);
       const raw = PATROLS[pathIdx % PATROLS.length]!;
       const path = [...raw, raw[0]!];
@@ -768,6 +775,7 @@ export class BaseScene {
     if (this.raf !== null) cancelAnimationFrame(this.raf);
     this.raf = null;
     this.resizeObs.disconnect();
+    this.scene.environment?.dispose();
     const canvas = this.renderer.domElement;
     canvas.removeEventListener('pointerdown', this.onPointerDown);
     canvas.removeEventListener('pointermove', this.onPointerMove);

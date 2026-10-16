@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { Kit } from '../base3d/kit';
+import { Kit, registerMetals } from '../base3d/kit';
 import { K, shade, shapeFrom, star } from '../base3d/sculpt';
-import { glowMaterial, toonMaterial } from '../base3d/style';
+import { glowMaterial, realMaterial } from '../base3d/style';
 
 /**
  * Detailed stylised battle models built in code (no external assets). Chibi proportions, a wide
@@ -19,12 +19,18 @@ export interface Rig {
   armL: THREE.Object3D | null;
   wings: THREE.Object3D[];
   cape: THREE.Object3D | null;
+  /** Head pivot at the neck (humanoids): turned and tilted by the fight animations. */
+  neck: THREE.Object3D | null;
+  /** Where head parts (and glowing eyes) are attached while the model is built. */
+  head: THREE.Object3D | null;
   /** Parts that spin or bob continuously (orbiting shards, floating orbs). */
   spinners: THREE.Object3D[];
   /** Top of the model in local units (before root scale). */
   height: number;
-  material: THREE.MeshToonMaterial;
+  material: THREE.MeshStandardMaterial;
   kind: 'biped' | 'quad' | 'flyer' | 'float';
+  /** Carries a shield in the left hand (raised to block). */
+  shield: boolean;
   /** Ranged style used for the attack animation. */
   attack: 'melee' | 'bow' | 'cast' | 'throw';
 }
@@ -36,8 +42,9 @@ function pivot(parent: THREE.Object3D, x: number, y: number, z: number): THREE.G
   return g;
 }
 
-function rigMaterial(): THREE.MeshToonMaterial {
-  const m = toonMaterial(0.6);
+function rigMaterial(): THREE.MeshStandardMaterial {
+  // Characters keep clean colours: only a hint of grain and bump (cloth and skin, not stone)
+  const m = realMaterial({ grain: 0.25, bump: 0.3, roughness: 0.72 });
   // Lathed brims, cloth and wing membranes are open surfaces
   m.side = THREE.DoubleSide;
   return m;
@@ -47,7 +54,7 @@ function newRig(kind: Rig['kind'], attack: Rig['attack']): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
-  return { root, body, legs: [], armR: null, armL: null, wings: [], cape: null, spinners: [], height: 2.3, material: rigMaterial(), kind, attack };
+  return { root, body, legs: [], armR: null, armL: null, wings: [], cape: null, neck: null, head: null, shield: false, spinners: [], height: 2.3, material: rigMaterial(), kind, attack };
 }
 
 function addMesh(rig: Rig, parent: THREE.Object3D, k: Kit): THREE.Mesh {
@@ -71,6 +78,7 @@ const LEATHER = '#6b4626';
 const LEATHER_DARK = '#4a2f18';
 const BOOT = '#4f3422';
 const DARK = '#1c1428';
+registerMetals(STEEL, STEEL_DARK, GOLD, GOLD_DARK, '#e8eef5', '#ffd34d', '#8fb3d1', '#6d7480', '#7b7b88');
 
 // --- Faces ---------------------------------------------------------------------------------------
 
@@ -96,13 +104,14 @@ function face(k: K, rig: Rig, f: FaceSpec, hy: number, r: number): void {
   const ey = hy + r * 0.08;
   const mood = f.mood ?? 'brave';
   if (f.eyeGlow) {
-    for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(r * 0.15, 10, 8), f.eyeGlow, s * ex, ey, z + r * 0.06).scale.set(1.1, 0.65, 0.6);
+    for (const s of [-1, 1]) addGlow(rig.head ?? rig.body, new THREE.SphereGeometry(r * 0.15, 10, 8), f.eyeGlow, s * ex, ey, z + r * 0.06).scale.set(1.1, 0.65, 0.6);
   } else {
     for (const s of [-1, 1]) {
-      k.ball(r * 0.24, s * ex, ey, z - r * 0.03, '#ffffff', 0.82, 1.05, 0.55);
-      k.ball(r * 0.15, s * ex - s * 0.008, ey - r * 0.02, z + r * 0.08, f.eye ?? '#3b6fb6', 1, 1, 0.5);
-      k.ball(r * 0.085, s * ex - s * 0.008, ey - r * 0.02, z + r * 0.13, '#120a1c', 1, 1, 0.5);
-      k.ball(r * 0.05, s * ex - r * 0.06, ey + r * 0.07, z + r * 0.17, '#ffffff', 1, 1, 0.5);
+      // Natural-sized eyes set into the face (no cartoon highlights)
+      k.ball(r * 0.16, s * ex, ey, z - r * 0.05, '#f1ece4', 1.1, 0.8, 0.5);
+      k.ball(r * 0.1, s * ex - s * 0.006, ey - r * 0.01, z + r * 0.03, f.eye ?? '#3b6fb6', 1, 1, 0.5);
+      k.ball(r * 0.055, s * ex - s * 0.006, ey - r * 0.01, z + r * 0.07, '#120a1c', 1, 1, 0.5);
+      k.ball(r * 0.19, s * ex, ey + r * 0.06, z - r * 0.1, shade(f.skin, -0.12), 1.15, 0.45, 0.6);
       // Eyelids give attitude
       if (mood === 'angry' || mood === 'sly' || mood === 'calm') {
         const lid = mood === 'calm' ? 0.35 : 0.5;
@@ -126,8 +135,8 @@ function face(k: K, rig: Rig, f: FaceSpec, hy: number, r: number): void {
     k.rbox(r * 0.42, r * 0.07, r * 0.06, 0.02, 0, my + r * 0.03, z + r * 0.02, '#ffffff');
     k.rbox(r * 0.42, r * 0.06, r * 0.06, 0.02, 0, my - r * 0.04, z + r * 0.02, '#ffffff');
   } else k.curve([[-r * 0.16, my + r * 0.04, z], [0, my - (mood === 'sly' ? 0 : r * 0.03), z + r * 0.04], [r * 0.18, my + (mood === 'sly' ? r * 0.08 : r * 0.04), z]], r * 0.035, r * 0.03, '#6b1a2a', 5);
-  // Cheeks, ears are added by the body
-  for (const s of [-1, 1]) k.ball(r * 0.13, s * r * 0.55, hy - r * 0.2, r * 0.72, '#ff9c8a', 1, 0.65, 0.4);
+  // Cheekbones
+  for (const s of [-1, 1]) k.ball(r * 0.16, s * r * 0.5, hy - r * 0.16, r * 0.66, shade(f.skin, -0.04), 1, 0.7, 0.5);
   if (f.mustache) for (const s of [-1, 1]) k.curve([[s * r * 0.04, hy - r * 0.27, r * 1.0], [s * r * 0.25, hy - r * 0.33, r * 0.94], [s * r * 0.42, hy - r * 0.2, r * 0.8]], r * 0.11, r * 0.03, f.mustache, 7);
   if (f.beard) {
     k.ball(r * 0.6, 0, hy - r * 0.62, r * 0.36, f.beard, 1, 0.78, 0.8);
@@ -214,9 +223,10 @@ function headGear(k: K, rig: Rig, spec: HumanSpec, hy: number): number {
       top = hy + r * 1.6;
       break;
     case 'hood':
-      k.lathe([[r * 1.15, -r * 0.9], [r * 1.25, -r * 0.3], [r * 1.18, r * 0.35], [r * 0.85, r * 0.95], [0.001, r * 1.2]], 0, hy, -0.06, c, 16);
-      k.curve([[0, hy + r * 0.9, -r * 0.4], [0, hy + r * 1.05, -r * 0.9], [0, hy + r * 0.6, -r * 1.35]], r * 0.3, 0.01, c, 8);
-      k.ring(r * 1.0, 0.07, 0, hy - r * 0.05, r * 0.55, shade(c, -0.28), 0, 0, 0);
+      // Pushed back so the face looks out of the opening
+      k.lathe([[r * 1.1, -r * 0.9], [r * 1.2, -r * 0.3], [r * 1.14, r * 0.35], [r * 0.82, r * 0.95], [0.001, r * 1.18]], 0, hy, -r * 0.42, c, 16);
+      k.curve([[0, hy + r * 0.9, -r * 0.8], [0, hy + r * 1.0, -r * 1.3], [0, hy + r * 0.55, -r * 1.75]], r * 0.3, 0.01, c, 8);
+      k.ring(r * 0.98, 0.07, 0, hy + r * 0.05, r * 0.5, shade(c, -0.28), 0.25, 0, 0);
       top = hy + r * 1.25;
       break;
     case 'hat':
@@ -295,7 +305,7 @@ function headGear(k: K, rig: Rig, spec: HumanSpec, hy: number): number {
       for (let i = -2; i <= 2; i++) k.spike(0.03, 0.11, i * 0.07, hy + r * 0.4, r * 1.12, '#ffffff', Math.PI);
       for (const s of [-1, 1]) {
         k.plate(shapeFrom([[-0.12, 0], [0.12, 0], [0, 0.34]]), 0.06, 0.02, s * r * 0.6, hy + r * 0.95, -0.05, c, -0.2, 0, -s * 0.3);
-        addGlow(rig.body, new THREE.SphereGeometry(0.04, 8, 6), '#ffd34d', s * 0.14, hy + r * 0.8, r * 1.06);
+        addGlow(rig.head ?? rig.body, new THREE.SphereGeometry(0.04, 8, 6), '#ffd34d', s * 0.14, hy + r * 0.8, r * 1.06);
       }
       k.cloth(r * 1.6, 0.9, 0, hy - r * 0.2, -r * 0.95, c, 2, 0.06, 0.4);
       top = hy + r * 1.35;
@@ -395,20 +405,35 @@ function weaponMesh(rig: Rig, hand: THREE.Object3D, spec: HumanSpec): void {
   if (!k.empty) addMesh(rig, w, k);
 }
 
-/** A detailed chibi humanoid rig, ≈ 2.3 units tall. */
+/** Heroic proportions: a smaller head on a longer body (about four heads tall). */
+const HEAD_SCALE = 0.54;
+const LEG_STRETCH = 1.5;
+const ARM_STRETCH = 1.25;
+const NECK_Y = 1.36;
+/** How far the upper body sits above the original chibi layout because of the longer legs. */
+export const HUMAN_LIFT = 0.49 * (LEG_STRETCH - 1);
+
+/** A detailed humanoid rig (about 2 units tall) with pivots for every animated part. */
 export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig {
   const rig = newRig('biped', attack);
   const b = spec.bulk ?? 1;
   const k = new K();
+  const hk = new K();
   const hipY = 0.52;
   const hy = 1.6;
+  const lift = HUMAN_LIFT;
+  const frame = pivot(rig.body, 0, lift, 0);
+  const neck = pivot(frame, 0, NECK_Y, 0);
+  neck.scale.setScalar(HEAD_SCALE);
+  rig.neck = neck;
+  const head = pivot(neck, 0, -NECK_Y, 0);
+  rig.head = head;
   const skull = spec.head === 'skull';
   const skin = skull ? '#efe8d8' : spec.skin;
   // Robe or hips
   if (spec.robe) {
-    k.lathe([[0.6 * b, 0], [0.58 * b, 0.12], [0.45 * b, 0.55], [0.34 * b, 0.95]], 0, 0, 0, spec.legs, 18);
-    k.lathe([[0.62 * b, 0], [0.62 * b, 0.1], [0.6 * b, 0.12]], 0, 0, 0, spec.trim ?? shade(spec.legs, -0.2), 18);
-    for (let i = 0; i < 6; i++) k.rbox(0.04, 0.7, 0.04, 0.02, Math.cos((i / 6) * 6.28 + 0.5) * 0.5 * b, 0.4, Math.sin((i / 6) * 6.28 + 0.5) * 0.5 * b, shade(spec.legs, -0.15), Math.sin((i / 6) * 6.28 + 0.5) * 0.2, 0, -Math.cos((i / 6) * 6.28 + 0.5) * 0.2);
+    k.lathe([[0.64 * b, -lift], [0.6 * b, 0.12], [0.45 * b, 0.55], [0.34 * b, 0.95]], 0, 0, 0, spec.legs, 18);
+    k.lathe([[0.66 * b, 0], [0.66 * b, 0.1], [0.64 * b, 0.12]], 0, -lift, 0, spec.trim ?? shade(spec.legs, -0.2), 18);
   } else k.rbox(0.6 * b, 0.28, 0.42 * b, 0.11, 0, hipY + 0.06, 0, spec.legs);
   // V-shaped torso
   k.lathe([[0.27, 0], [0.3, 0.12], [0.37, 0.36], [0.38, 0.5], [0.3, 0.62], [0.13, 0.68]], 0, 0.62, 0, spec.body, 16, b, 0.74 * b);
@@ -432,38 +457,47 @@ export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig 
   }
   // Collar, neck, head, ears
   k.ring(0.17, 0.05, 0, 1.28, 0, spec.trim ?? shade(spec.body, -0.2), Math.PI / 2);
-  k.tube(0.13, 0.15, 0.16, 0, 1.33, 0, skin, 0, 0, 0, 10);
-  k.ball(HEAD_R, 0, hy, 0, skin, 1.04, 0.98, 1);
-  k.ball(HEAD_R * 0.62, 0, hy - HEAD_R * 0.45, HEAD_R * 0.15, skin, 1.15, 0.75, 1);
+  k.tube(0.12, 0.15, 0.2, 0, 1.3, 0, skin, 0, 0, 0, 10);
+  // Shoulders: rounded deltoids join the arms to the torso
+  for (const s of [-1, 1]) k.ball(0.15 * b, s * 0.4 * b, 1.17, 0, spec.body, 1, 0.9, 1);
+  // Head parts go on their own pivot (scaled down to heroic proportions, turned by the animations)
+  hk.ball(HEAD_R, 0, hy, 0, skin, 0.96, 1.04, 1);
+  hk.ball(HEAD_R * 0.62, 0, hy - HEAD_R * 0.5, HEAD_R * 0.2, skin, 1.05, 0.8, 1);
   if (spec.ears && !skull) {
     for (const s of [-1, 1]) {
-      if (spec.ears === 'pointy') k.curve([[s * HEAD_R * 0.9, hy, 0], [s * HEAD_R * 1.3, hy + 0.1, -0.05], [s * HEAD_R * 1.6, hy + 0.3, -0.1]], 0.1, 0.01, skin, 6);
+      if (spec.ears === 'pointy') hk.curve([[s * HEAD_R * 0.9, hy, 0], [s * HEAD_R * 1.3, hy + 0.1, -0.05], [s * HEAD_R * 1.6, hy + 0.3, -0.1]], 0.1, 0.01, skin, 6);
       else {
-        k.ball(0.11, s * HEAD_R * 0.98, hy - 0.02, 0, skin, 0.55, 1, 0.85);
-        k.ball(0.05, s * HEAD_R * 1.03, hy - 0.02, 0.02, shade(skin, -0.15), 0.5, 1, 0.8);
+        hk.ball(0.11, s * HEAD_R * 0.98, hy - 0.02, 0, skin, 0.55, 1, 0.85);
+        hk.ball(0.05, s * HEAD_R * 1.03, hy - 0.02, 0.02, shade(skin, -0.15), 0.5, 1, 0.8);
       }
     }
   }
-  face(k, rig, { skin, eye: spec.eye, mood: spec.mood, mustache: spec.mustache, beard: spec.beard, eyeGlow: skull || spec.head === 'fullhelm' ? undefined : spec.eyeGlow, hidden: spec.head === 'fullhelm' || skull, scar: spec.scar }, hy, HEAD_R);
-  if (skull && spec.eyeGlow) for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.06, 8, 6), spec.eyeGlow, s * HEAD_R * 0.36, hy + HEAD_R * 0.08, HEAD_R * 0.9);
-  if (spec.head === 'fullhelm' && spec.eyeGlow) for (const s of [-1, 1]) addGlow(rig.body, new THREE.SphereGeometry(0.05, 8, 6), spec.eyeGlow, s * HEAD_R * 0.32, hy + HEAD_R * 0.12, HEAD_R * 1.08).scale.set(1.6, 0.6, 0.6);
-  rig.height = headGear(k, rig, spec, hy) + 0.05;
-  addMesh(rig, rig.body, k);
+  face(hk, rig, { skin, eye: spec.eye, mood: spec.mood, mustache: spec.mustache, beard: spec.beard, eyeGlow: skull || spec.head === 'fullhelm' ? undefined : spec.eyeGlow, hidden: spec.head === 'fullhelm' || skull, scar: spec.scar }, hy, HEAD_R);
+  if (skull && spec.eyeGlow) for (const s of [-1, 1]) addGlow(head, new THREE.SphereGeometry(0.06, 8, 6), spec.eyeGlow, s * HEAD_R * 0.36, hy + HEAD_R * 0.08, HEAD_R * 0.9);
+  if (spec.head === 'fullhelm' && spec.eyeGlow) for (const s of [-1, 1]) addGlow(head, new THREE.SphereGeometry(0.05, 8, 6), spec.eyeGlow, s * HEAD_R * 0.32, hy + HEAD_R * 0.12, HEAD_R * 1.08).scale.set(1.6, 0.6, 0.6);
+  const top = headGear(hk, rig, spec, hy);
+  rig.height = lift + NECK_Y + (top - NECK_Y) * HEAD_SCALE + 0.05;
+  addMesh(rig, frame, k);
+  addMesh(rig, head, hk);
 
   // Legs: tapered thigh, knee, shin, boot with cuff, toe cap and sole
   if (!spec.robe) {
     for (const s of [-1, 1]) {
-      const leg = pivot(rig.body, s * 0.17 * b, hipY, 0);
+      const leg = pivot(frame, s * 0.17 * b, hipY, 0);
       const lk = new K();
       const lb = Math.sqrt(b);
-      lk.tube(0.13 * lb, 0.11 * lb, 0.22, 0, -0.1, 0, spec.legs, 0, 0, 0, 10);
-      if (spec.armor) lk.dome(0.11 * lb, 0, -0.22, 0.07, spec.armor, 0.8, 1, 0.7);
-      else lk.ball(0.1 * lb, 0, -0.22, 0.03, shade(spec.legs, -0.1));
-      lk.lathe([[0.15 * lb, 0], [0.14 * lb, 0.16], [0.12 * lb, 0.22]], 0, -0.48, 0, BOOT, 12);
-      lk.ring(0.13 * lb, 0.035, 0, -0.27, 0, LEATHER, Math.PI / 2);
-      lk.rbox(0.25 * lb, 0.14, 0.32, 0.06, 0, -0.43, 0.08, BOOT);
-      lk.ball(0.12 * lb, 0, -0.42, 0.22, shade(BOOT, 0.08), 1, 0.7, 0.9);
-      lk.rbox(0.27 * lb, 0.04, 0.36, 0.02, 0, -0.49, 0.08, LEATHER_DARK);
+      // Only thigh and shin get longer; the boot keeps its shape and sits lower
+      const off = 0.49 * (LEG_STRETCH - 1);
+      const upper = 0.27 + off;
+      lk.tube(0.14 * lb, 0.11 * lb, upper * 0.55, 0, -upper * 0.27, 0, spec.legs, 0, 0, 0, 10);
+      if (spec.armor) lk.dome(0.11 * lb, 0, -upper * 0.55, 0.07, spec.armor, 0.8, 1, 0.7);
+      else lk.ball(0.1 * lb, 0, -upper * 0.55, 0.02, shade(spec.legs, -0.1));
+      lk.tube(0.105 * lb, 0.09 * lb, upper * 0.5, 0, -upper * 0.78, 0, spec.legs, 0, 0, 0, 10);
+      lk.lathe([[0.14 * lb, 0], [0.13 * lb, 0.16], [0.115 * lb, 0.22]], 0, -0.48 - off, 0, BOOT, 12);
+      lk.ring(0.12 * lb, 0.03, 0, -0.27 - off, 0, LEATHER, Math.PI / 2);
+      lk.rbox(0.22 * lb, 0.12, 0.34, 0.05, 0, -0.44 - off, 0.08, BOOT);
+      lk.ball(0.1 * lb, 0, -0.44 - off, 0.22, shade(BOOT, 0.08), 1, 0.6, 0.9);
+      lk.rbox(0.24 * lb, 0.035, 0.38, 0.015, 0, -0.49 - off, 0.08, LEATHER_DARK);
       addMesh(rig, leg, lk);
       rig.legs.push(leg);
     }
@@ -471,7 +505,7 @@ export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig 
 
   // Arms: tapered sleeve, elbow, forearm, cuff, hand with thumb, shoulder pads
   for (const s of [-1, 1]) {
-    const arm = pivot(rig.body, s * 0.43 * b, 1.18, 0);
+    const arm = pivot(frame, s * 0.43 * b, 1.18, 0);
     const ak = new K();
     ak.tube(0.11, 0.095, 0.22, 0, -0.12, 0, spec.body, 0, 0, 0, 10);
     ak.ball(0.095, 0, -0.24, 0, shade(spec.body, -0.08));
@@ -486,14 +520,15 @@ export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig 
       ak.ring(0.2, 0.025, 0, -0.03, 0, spec.trim ?? GOLD, Math.PI / 2);
       for (const z of [-0.12, 0.12]) ak.ball(0.03, s * 0.1, 0.06, z, GOLD);
     }
-    addMesh(rig, arm, ak);
-    const hand = pivot(arm, 0, -0.48, 0.02);
+    addMesh(rig, arm, ak).scale.y = ARM_STRETCH;
+    const hand = pivot(arm, 0, -0.48 * ARM_STRETCH, 0.02);
     if (s === 1) {
       rig.armR = arm;
       weaponMesh(rig, hand, spec);
     } else {
       rig.armL = arm;
       const sk = new K();
+      rig.shield = !!spec.shield;
       if (spec.shield === 'round') {
         const sc = spec.shieldColor ?? '#9a6430';
         sk.lathe([[0.001, 0.07], [0.3, 0.05], [0.46, 0.0], [0.48, -0.02]], 0.06, 0, 0.2, sc, 20, 1, 1, Math.PI / 2);
@@ -526,11 +561,11 @@ export function humanoid(spec: HumanSpec, attack: Rig['attack'] = 'melee'): Rig 
       qk.pill(0.012, 0.25, 0.2 + i * 0.04, 1.32 + i * 0.02, -0.5 + i * 0.03, '#d9c39a', 0.3, 0, -0.3);
       qk.plate(shapeFrom([[0, 0], [0.05, 0.08], [0, 0.16], [-0.05, 0.08]]), 0.01, 0.005, 0.22 + i * 0.04, 1.45 + i * 0.02, -0.53 + i * 0.03, i % 2 ? '#e74c3c' : '#ffffff', 0, 0.6, -0.3);
     }
-    addMesh(rig, rig.body, qk);
+    addMesh(rig, frame, qk);
   }
   // Cape with folds
   if (spec.cape) {
-    const cape = pivot(rig.body, 0, 1.25, -0.25 * b);
+    const cape = pivot(frame, 0, 1.25, -0.25 * b);
     const ck = new K();
     ck.cloth(0.78 * b, 1.05, 0, 0, -0.02, spec.cape, 3, 0.05, 0.35);
     ck.rbox(0.8 * b, 0.1, 0.12, 0.04, 0, 0, 0.02, spec.trim ?? GOLD);
@@ -605,7 +640,7 @@ export function quadruped(spec: QuadSpec): Rig {
   if (spec.rider) {
     const rider = humanoid({ ...spec.rider }, 'melee');
     for (const l of rider.legs) l.visible = false;
-    rider.body.position.set(0, 0.6, -0.1);
+    rider.body.position.set(0, 0.6 - HUMAN_LIFT, -0.1);
     rider.root.scale.setScalar(0.85);
     rig.body.add(rider.root);
     rider.root.traverse((o) => {

@@ -72,8 +72,10 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   const k = new Kit();
   const laneColor = mix(world.ground, idx === 1 ? '#ffffff' : '#e3cf9f', idx >= 2 ? 0.22 : 0.5);
   // Arena: checkered turf, a paved road down the middle and a low border on both sides
-  const tileA = mix(world.ground, '#ffffff', idx === 1 ? 0.25 : idx >= 2 ? 0.07 : 0.1);
-  const tileB = mix(world.ground, world.groundDark, idx >= 2 ? 0.1 : 0.18);
+  // Natural turf: barely different tiles, the material noise does the variation
+  const natural = mix(world.ground, '#7d7a55', idx === 0 ? 0.28 : 0.1);
+  const tileA = mix(natural, '#ffffff', idx === 1 ? 0.18 : 0.02);
+  const tileB = mix(natural, world.groundDark, 0.07);
   const T = 2.4;
   for (let ix = -13; ix <= 13; ix++) {
     for (let iz = -5; iz <= 5; iz++) {
@@ -225,7 +227,7 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   const kx = toX(-3.5);
   const gk = new K();
   const grand = seeded(77);
-  for (const x of [-5.6, 5.6]) tower(gk, grand, x, 0, 2.0, 6.4, 0, '#7b4fd0', '#f5c542');
+  for (const x of [-5.6, 5.6]) tower(gk, grand, x, 0, 2.0, 6.4, 0, '#4d5a6a', '#f5c542');
   stoneBox(gk, grand, 7.4, 4.8, 2.6, 0, 0, 0.2, '#ddd5c7');
   merlons(gk, 7.4, 2.6, 0, 4.8, 0.2, '#ddd5c7', false);
   gk.add(new THREE.TorusGeometry(1.75, 0.3, 6, 16, Math.PI), '#b3a999', 0, 2.3, 1.55, 0, 0, 0);

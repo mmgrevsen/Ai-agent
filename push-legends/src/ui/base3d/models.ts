@@ -13,33 +13,34 @@ import { addOutlines, glowMaterial, toonMaterial } from './style';
  * cloth banners) and visibly grows through 5 tiers. Glowing parts (windows, forges, gold, magic)
  * feed the bloom pass.
  */
+/** Natural, slightly muted palette (terracotta and slate roofs, weathered wood and stone). */
 export const C = {
-  sand: '#efc07a',
+  sand: '#cfae7a',
   pad: '#d9cfbd',
   padEdge: '#b5aa97',
   road: '#d8cbb8',
   roadEdge: '#b9a68c',
-  grass: '#7cc35a',
-  grassDark: '#5fa648',
+  grass: '#77a24f',
+  grassDark: '#5b8640',
   stone: '#ddd5c7',
   stoneDark: '#b3a999',
   mortar: '#9d9384',
-  wood: '#b07c45',
+  wood: '#8f6338',
   woodDark: '#6e4a2a',
-  plaster: '#f3e6cf',
-  red: '#e0574f',
-  blue: '#3f72dc',
-  purple: '#8150cf',
-  green: '#2f9e6b',
+  plaster: '#e2d6bf',
+  red: '#9c4a38',
+  blue: '#4c5f7a',
+  purple: '#5e4a72',
+  green: '#3d6e4c',
   slate: '#5f6876',
   gold: '#f5c542',
   iron: '#4d535c',
   steel: '#c9d1da',
   skin: '#f2c79b',
   white: '#f7f4ee',
-  leaf: '#4caf50',
-  leafDark: '#2e7d32',
-  water: '#5ec8f2',
+  leaf: '#4f8a3c',
+  leafDark: '#33612a',
+  water: '#3f89a8',
   glass: '#2e3a66',
 };
 
@@ -533,7 +534,7 @@ function flagTexture(): THREE.CanvasTexture {
 export function flag(g: THREE.Group, x: number, y: number, z: number, animators: Animator[], w = 2.4, h = 1.5): void {
   const geo = new THREE.PlaneGeometry(w, h, 12, 4);
   geo.translate(w / 2, 0, 0);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ map: flagTexture(), side: THREE.DoubleSide }));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: flagTexture(), side: THREE.DoubleSide }));
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   g.add(mesh);
@@ -983,7 +984,7 @@ const blacksmith: Builder = (k, g, plot, info, anim, rand) => {
   // Smoke puffs rising from the chimney
   const puffs: THREE.Mesh[] = [];
   for (let i = 0; i < 6; i++) {
-    const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), new THREE.MeshToonMaterial({ color: '#d8d8d8', transparent: true, opacity: 0.6, depthWrite: false }));
+    const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), new THREE.MeshStandardMaterial({ color: '#d8d8d8', transparent: true, opacity: 0.6, depthWrite: false }));
     g.add(p);
     puffs.push(p);
   }
@@ -998,7 +999,7 @@ const blacksmith: Builder = (k, g, plot, info, anim, rand) => {
       const life = (time * 0.32 + i / puffs.length) % 1;
       p.position.set(1 + Math.sin(life * 6 + i) * 0.35, chimneyH + 0.8 + life * 4.5, -3.4 - life * 1.4);
       p.scale.setScalar(0.5 + life * 1.5);
-      (p.material as THREE.MeshToonMaterial).opacity = 0.65 * (1 - life);
+      (p.material as THREE.MeshStandardMaterial).opacity = 0.65 * (1 - life);
     });
   });
 };
