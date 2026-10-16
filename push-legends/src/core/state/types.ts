@@ -114,6 +114,8 @@ export interface Settings {
   reducedMotion: boolean;
   /** 3D views: 'pixel' renders at 256 px height with hard pixel edges, 'smooth' at full resolution. */
   graphics: 'pixel' | 'smooth';
+  /** True once the player picked a graphics style themselves (otherwise the default applies). */
+  graphicsChosen: boolean;
   largeText: boolean;
   devTools: boolean;
   exerciseMode: ExerciseMode;

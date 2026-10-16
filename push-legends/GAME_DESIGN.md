@@ -145,12 +145,19 @@ setup always produces the same result, so balance can be simulated and tested.
 **3D battlefield** (`src/ui/battle3d/`, three.js, all models generated in code): the deterministic
 combat engine is unchanged; the 3D scene only reads its state and events.
 
+- The arena is seen from behind the hero, looking up a paved road toward the enemy portal, like a
+  mobile arena battler: checkered turf, a curbed stone road, hedges or walls framing both sides,
+  the hero's gatehouse with two towers at the bottom. The camera fits the whole lane to any screen.
 - Each world has its own battlefield: enchanted forest with glowing mushrooms, snowy pines and ice
   spikes, a volcano with lava pools and cracks, a ruined fortress with graves and pillars, and a
   crystal realm. Ambient particles (fireflies, snow, embers, dust, sparkles), the hero's keep with
   a flag on the left and a swirling enemy portal on the right.
-- Every card, enemy role (tinted per world), mini-boss and boss has a voxel-style model rigged with
-  legs, arms, wings and capes. Animations: walking with leg swing and bobbing, melee swings with a
+- Every card, enemy role (tinted per world), mini-boss and boss has a detailed, rounded cartoon
+  model with chibi proportions: big heads with eyes, pupils, highlights, brows that show the mood,
+  nose, mouth, cheeks, mustaches or beards; helmets with nose guards and plumes, hoods, hats,
+  crowns; chest plates, shoulder pads, belts with buckles, boots and gloves; detailed swords, bows
+  with quivers, staffs with glowing orbs, shields with rims and bosses. Models are rigged with legs,
+  arms, wings and capes. Animations: walking with leg swing and bobbing, melee swings with a
   lunge, bow draws, spell casts, bomb throws, wing flaps, cape sway, hit flash and knockback,
   freeze/burn/boss-cast tints, shield bubbles, stun wobble, allies dropping in from the sky with a
   dust ring and squash on landing, enemies growing out of the portal, and deaths that topple and
@@ -159,9 +166,10 @@ combat engine is unchanged; the 3D scene only reads its state and events.
   shockwave, splash rings, chain lightning, meteor telegraphs with falling meteors, the Legend
   Strike sweep, rebirth pillars, a war-cry ground glow, camera shake and a camera push-in when a
   boss arrives. Damage numbers, health bars and banners are drawn on a 2D overlay.
-- **Graphics setting** (Settings → Graphics): "Pixel 256" (default) renders the 3D battle and base at
-  256 pixels height with hard pixel edges for a pixel-art look; "Smooth" renders at full
-  resolution with anti-aliasing. Reduced motion stops idle animation, shake and most particles.
+- **Graphics setting** (Settings → Graphics): "Smooth" (default) renders the detailed cartoon 3D at
+  full resolution with soft lighting and tone mapping; "Pixel 256" renders the 3D battle and base
+  at 256 pixels height with hard pixel edges for a pixel-art look. Players who never picked a style
+  get the current default. Reduced motion stops idle animation, shake and most particles.
 - three.js is loaded only when needed; without WebGL the original 2D renderer is used.
 
 ### Worlds and bosses

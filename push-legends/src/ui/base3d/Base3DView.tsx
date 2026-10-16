@@ -56,7 +56,7 @@ export default function Base3DView({ game, now, fallback }: { game: GameState; n
     if (!host || failed) return;
     let scene: BaseScene;
     try {
-      scene = new BaseScene(host, { onSelect: (id) => store.openModal({ kind: 'building', id }) }, { reducedMotion, pixel: game.settings.graphics !== 'smooth' });
+      scene = new BaseScene(host, { onSelect: (id) => store.openModal({ kind: 'building', id }) }, { reducedMotion, pixel: game.settings.graphics === 'pixel' });
     } catch {
       setFailed(true);
       return;

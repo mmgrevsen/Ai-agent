@@ -19,6 +19,16 @@ describe('save system', () => {
     if (r.ok) expect(r.state).toEqual(s);
   });
 
+  it('graphics style: default applies until the player chooses one', () => {
+    const s = createInitialState(NOW, 1);
+    s.settings.graphics = 'pixel';
+    expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.graphics).toBe('smooth');
+    s.settings.graphicsChosen = true;
+    expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.graphics).toBe('pixel');
+    (s.settings as { graphics: string }).graphics = 'bogus';
+    expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.graphics).toBe('smooth');
+  });
+
   it('save manager persists and reloads', () => {
     const storage = new MemoryStorage();
     const m = new SaveManager(storage);

@@ -14,7 +14,7 @@ export interface Battlefield {
 /** Battle lane x (0..104) → world X. */
 export const XS = 0.44;
 export const toX = (x: number): number => (x - 54) * XS;
-export const toZ = (lane: number): number => lane * 3.2;
+export const toZ = (lane: number): number => lane * 4.3;
 export const FLY_Y = 6;
 
 function seeded(seed: number): () => number {
@@ -66,25 +66,47 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   ground.receiveShadow = true;
   group.add(ground);
   const k = new Kit();
-  const laneColor = mix(world.ground, idx === 1 ? '#ffffff' : '#d9c39a', idx >= 2 ? 0.18 : 0.35);
-  k.box(64, 0.04, 11.4, 0, 0, 0, mix(world.groundDark, world.ground, 0.4));
-  k.box(64, 0.06, 10.2, 0, 0, 0, laneColor);
-  // Lane stones / tufts
-  for (let i = 0; i < 40; i++) {
-    const x = (rand() * 2 - 1) * 28;
-    const z = (rand() < 0.5 ? -1 : 1) * (5.4 + rand() * 0.8);
-    k.rock(0.18 + rand() * 0.25, x, 0, z, mix(world.groundDark, '#888888', 0.3), rand() * 3, 0.6);
+  const laneColor = mix(world.ground, idx === 1 ? '#ffffff' : '#e3cf9f', idx >= 2 ? 0.22 : 0.5);
+  // Arena: checkered turf, a paved road down the middle and a low border on both sides
+  const tileA = mix(world.ground, '#ffffff', idx === 1 ? 0.25 : idx >= 2 ? 0.07 : 0.1);
+  const tileB = mix(world.ground, world.groundDark, idx >= 2 ? 0.1 : 0.18);
+  const T = 2.4;
+  for (let ix = -13; ix <= 13; ix++) {
+    for (let iz = -5; iz <= 5; iz++) {
+      const z = iz * T;
+      if (Math.abs(z) < 4.6) continue;
+      k.box(T, 0.05, T, ix * T, 0, z, (ix + iz) % 2 === 0 ? tileA : tileB);
+    }
+  }
+  k.box(64, 0.06, 9.6, 0, 0, 0, mix(laneColor, world.groundDark, 0.15));
+  for (let i = 0; i < 46; i++) {
+    const x = -30 + i * 1.32 + (rand() - 0.5) * 0.3;
+    for (let j = -2; j <= 2; j++) k.box(1.1 + rand() * 0.15, 0.1, 1.6 + rand() * 0.2, x, 0.02, j * 1.82 + (i % 2) * 0.4, mix(laneColor, '#ffffff', rand() * 0.12), (rand() - 0.5) * 0.1);
+  }
+  const curb = mix(world.groundDark, '#a8a29a', 0.55);
+  for (const z of [-4.95, 4.95]) for (let i = 0; i < 26; i++) k.box(2.2, 0.32, 0.55, -30 + i * 2.4, 0, z, i % 2 ? curb : mix(curb, '#ffffff', 0.12));
+  // Border hedges / walls framing the arena
+  const borderHex = ['#3f8f3a', '#f2f6fa', '#3a2a26', '#7b7b7b', '#3a2a5a'][idx] ?? '#3f8f3a';
+  for (const z of [-14, 14]) {
+    for (let i = 0; i < 26; i++) {
+      const x = -30 + i * 2.4;
+      if (idx === 0 || idx === 1) {
+        k.add(new THREE.SphereGeometry(1.25, 12, 8), i % 2 ? borderHex : mix(borderHex, '#ffffff', 0.12), x, 0.7, z, 0, 0, 0, 1.1, 0.75, 0.9);
+        if (idx === 0 && i % 3 === 0) k.add(new THREE.SphereGeometry(0.18, 8, 6), i % 2 ? '#ff7ac8' : '#ffe066', x + 0.4, 1.45, z + (z < 0 ? 0.6 : -0.6));
+      } else {
+        k.box(2.3, 1.1 + (i % 3) * 0.25, 1, x, 0, z, i % 2 ? borderHex : mix(borderHex, '#ffffff', 0.08));
+        if (i % 2 === 0) k.box(0.6, 0.4, 1.05, x, 1.1 + (i % 3) * 0.25, z, mix(borderHex, '#ffffff', 0.12));
+      }
+    }
   }
 
-  // Scenery per world
-  const back = scatter(rand, 52, -40, -9);
-  const front = scatter(rand, 30, 9, 26, 36);
-  // Ground detail: darker patches and tufts so the foreground is never empty
-  for (let i = 0; i < 70; i++) {
+  // Scenery per world (both sides of the arena) plus small items along the borders
+  const back = [...scatter(rand, 40, -42, -16), ...scatter(rand, 40, 16, 42)];
+  const front = [...scatter(rand, 10, 15.2, 16.5, 30), ...scatter(rand, 10, -16.5, -15.2, 30)];
+  for (let i = 0; i < 60; i++) {
     const x = (rand() * 2 - 1) * 40;
-    const z = rand() < 0.6 ? 7 + rand() * 18 : -6 - rand() * 14;
-    if (rand() < 0.5) k.add(new THREE.CircleGeometry(0.8 + rand() * 1.6, 6), mix(world.ground, world.groundDark, 0.5), x, 0.02, z, -Math.PI / 2, 0, rand() * 3);
-    else for (let j = 0; j < 3; j++) k.box(0.12, 0.3 + rand() * 0.3, 0.12, x + j * 0.18, 0, z + (j % 2) * 0.15, mix(world.groundDark, world.accent, idx === 0 ? 0.1 : 0.3));
+    const z = (rand() < 0.5 ? -1 : 1) * (16 + rand() * 20);
+    if (rand() < 0.5) k.add(new THREE.CircleGeometry(0.8 + rand() * 1.6, 8), mix(world.ground, world.groundDark, 0.5), x, 0.02, z, -Math.PI / 2, 0, rand() * 3);
   }
   const props = new Kit();
   const glowGroup = new THREE.Group();
@@ -189,20 +211,30 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   group.add(k.build(false));
   group.add(props.build(true));
 
-  // Ally keep (left) and enemy portal (right)
+  // Ally gatehouse behind the hero and the enemy portal at the far end
   const keep = new Kit();
-  const kx = toX(-6);
-  keep.box(4.4, 5, 4, kx - 1, 0, -3.5, '#d8d2c6');
-  keep.crenels(4.4, kx - 1, 5, -1.6, '#d8d2c6', false, 0.6, 0.5);
-  keep.cyl(1.3, 1.4, 7, kx - 3.4, 0, -4.5, '#e3ddd3', 10);
-  keep.cone(1.6, 2.4, kx - 3.4, 7, -4.5, '#7b4fd0', 10);
-  keep.box(1.6, 2.4, 0.2, kx - 1, 0, -1.45, '#5b3a1e');
-  keep.box(1.2, 0.3, 6, kx + 1, 0, 3.4, '#a0703c');
+  const kx = toX(-3.5);
+  for (const z of [-5.6, 5.6]) {
+    keep.cyl(2, 2.2, 6.5, kx, 0, z, '#e3ddd3', 14);
+    keep.cyl(2.35, 2.35, 0.5, kx, 6.5, z, '#cfc7b8', 14);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      keep.box(0.6, 0.7, 0.6, kx + Math.cos(a) * 2.05, 7, z + Math.sin(a) * 2.05, '#e3ddd3');
+    }
+    keep.cone(2.4, 3.2, kx, 7.6, z, '#7b4fd0', 14);
+    keep.box(0.5, 1.2, 0.1, kx + 2.05, 3.5, z, '#3b2a55');
+  }
+  keep.box(2.6, 4.6, 7.2, kx - 0.4, 0, 0, '#d8d2c6');
+  keep.crenels(7.2, kx + 0.6, 4.6, 0, '#d8d2c6', true, 0.6, 0.5);
+  keep.box(0.2, 3, 3.2, kx + 0.92, 0, 0, '#5b3a1e');
+  keep.box(0.25, 0.3, 3.6, kx + 0.95, 3, 0, '#f5c542');
   group.add(keep.build(true));
-  flag(group, kx - 3.3, 9.4, -4.5, anim, 2.2, 1.3);
-  const pole = new Kit();
-  pole.cyl(0.08, 0.08, 1.6, kx - 3.4, 9.0, -4.5, '#f7f4ee', 6);
-  group.add(pole.build(false));
+  for (const z of [-5.6, 5.6]) {
+    flag(group, kx, 12.2, z, anim, 2.4, 1.4);
+    const pole = new Kit();
+    pole.cyl(0.08, 0.08, 1.8, kx, 10.8, z, '#f7f4ee', 6);
+    group.add(pole.build(false));
+  }
 
   const portal = new Kit();
   const px = toX(108);

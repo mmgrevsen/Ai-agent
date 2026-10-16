@@ -13,7 +13,15 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): 3D battles and pixel-art mode
+## Latest change (2026-10-16): arena camera and detailed cartoon models
+
+The battle is now viewed like a mobile arena battler: the lane runs up the screen from the hero's
+gatehouse to the enemy portal, which makes units about twice as large on a phone. All battle models
+were rebuilt as detailed, rounded cartoon characters (big expressive faces, armour, weapons, capes)
+with smooth lighting; the base's patrolling soldiers use the same models. "Smooth" is now the
+default graphics style; "Pixel 256" remains available in Settings.
+
+## Earlier change (2026-10-16): 3D battles and pixel-art mode
 
 Battles are now rendered in 3D (three.js): five themed battlefields, rigged voxel-style models for
 all cards, enemies and bosses, and animated walking, attacks, spells, hits, spawns and deaths with
@@ -79,7 +87,7 @@ BattleRenderer (Canvas 2D, procedural sprites)
 | Check | Command | Result |
 | --- | --- | --- |
 | Type check (strict) | `npm run typecheck` | Pass, 0 errors |
-| Unit + invariant + simulation tests | `npm test` | **105 passed / 105** (7 files: exercise 22, no-loss 8, combat 21, systems 31, save + social codes 14, simulation 6, armory 3) |
+| Unit + invariant + simulation tests | `npm test` | **106 passed / 106** (7 files: exercise 22, no-loss 8, combat 21, systems 31, save + social codes 15, simulation 6, armory 3) |
 | Production build | `npm run build` | Pass (main bundle 522 kB / 159 kB gzip; 3D base with three.js loaded lazily, 599 kB / 155 kB gzip; MediaPipe loaded lazily, 154 kB) |
 | 3D battle, headless Chromium (SwiftShader WebGL) | Playwright scripts | Pass: first battle, boss stages in all 5 worlds with simulated reps, Pixel 256 and Smooth modes, single-file Mac build from `file://`; no console errors. Frame rate on real phones not yet measured. |
 | 3D base, headless Chromium (SwiftShader WebGL) | Playwright script | Pass: fresh and mid-game bases render, labels follow buildings, wheel zoom, tapping the 3D castle opens its panel, single-file Mac build renders it from `file://`; no console errors. Real-GPU frame rate on phones not yet measured. |
@@ -105,7 +113,7 @@ Test coverage highlights:
 - All online features (accounts, cloud saves, friend requests, global leaderboards, guilds, co-op bosses, seasonal events) are planned only.
 - Music and sound effects are simple synthesized placeholders behind a `SoundId` interface; real audio assets can replace them.
 - Haptics use the Vibration API (works on Android; iOS WebViews ignore it). A Capacitor Haptics plugin would add iOS support.
-- The 3D battle and base have not been profiled on real phones; on slow devices "Pixel 256" is also the cheaper mode, and shadows may need a further quality option.
+- The 3D battle and base have not been profiled on real phones (headless software rendering here runs at only a few frames per second, which says little about phone GPUs); on slow devices "Pixel 256" is also the cheaper mode, and shadows may need a further quality option.
 - `npm audit` reports 3 moderate advisories in a dev-only dependency chain (`@capacitor/cli` → `xcode` → `uuid`); they don't ship in the app.
 
 ## Next steps

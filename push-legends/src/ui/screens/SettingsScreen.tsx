@@ -46,12 +46,12 @@ export function SettingsScreen() {
 
         <div className="panel">
           <h3>Graphics</h3>
-          <Row label="3D style" hint="Pixel renders the 3D battle and base at 256 px height for a crisp pixel-art look">
+          <Row label="3D style" hint="Smooth: detailed cartoon 3D. Pixel 256: renders the 3D battle and base at 256 px height for a pixel-art look">
             <Segmented
-              value={s.graphics === 'smooth' ? 'smooth' : 'pixel'}
+              value={s.graphics === 'pixel' ? 'pixel' : 'smooth'}
               options={[
-                { value: 'pixel', label: 'Pixel 256' },
                 { value: 'smooth', label: 'Smooth' },
+                { value: 'pixel', label: 'Pixel 256' },
               ]}
               onChange={(v) => set({ graphics: v })}
             />

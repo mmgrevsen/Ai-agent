@@ -40,7 +40,7 @@ const TYPE_COLOR: Record<DamageType, string> = {
 };
 
 const PIXEL_HEIGHT = 256;
-const UNIT_SCALE = 3;
+const UNIT_SCALE = 3.2;
 
 interface UnitView {
   rig: Rig;
@@ -101,7 +101,9 @@ const MAX_PARTICLES = 420;
 export class BattleScene3D {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(30, 1, 0.5, 400);
+  /** Everything in battle-lane coordinates; rotated so the lane runs up the screen. */
+  private readonly world = new THREE.Group();
+  private readonly camera = new THREE.PerspectiveCamera(27, 1, 0.5, 600);
   private readonly field: Battlefield;
   private readonly views = new Map<number, UnitView>();
   private corpses: Corpse[] = [];
@@ -121,7 +123,6 @@ export class BattleScene3D {
   private shake = 0;
   private flash = 0;
   private zoomPulse = 0;
-  private zoomTargetX = 0;
   private heroStrikeAt = -10;
   private w = 1;
   private h = 1;
@@ -162,22 +163,27 @@ export class BattleScene3D {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
     const canvas = this.renderer.domElement;
     canvas.className = `battle3d-canvas${opts.pixel ? ' pixel' : ''}`;
     host.prepend(canvas);
 
     const world = WORLDS[opts.world] ?? WORLDS[0]!;
     this.field = buildBattlefield(world);
-    this.scene.add(this.field.group);
+    this.world.rotation.y = Math.PI / 2;
+    this.scene.add(this.world);
+    this.world.add(this.field.group);
     this.scene.background = this.field.sky;
-    this.scene.fog = new THREE.Fog(this.field.fog, 160, 340);
+    this.scene.fog = new THREE.Fog(this.field.fog, 220, 520);
     const dark = world.index >= 2;
-    this.scene.add(new THREE.HemisphereLight('#ffffff', dark ? '#8a7aa0' : world.ground, dark ? 1.7 : 1.6));
-    const sun = new THREE.DirectionalLight(dark ? '#ffd2b0' : '#fff3dc', dark ? 2.3 : 2.4);
-    sun.position.set(-18, 34, 22);
+    this.scene.add(new THREE.HemisphereLight('#ffffff', dark ? '#8a7aa0' : world.ground, dark ? 1.9 : 1.7));
+    this.scene.add(new THREE.AmbientLight('#ffffff', dark ? 0.5 : 0.35));
+    const sun = new THREE.DirectionalLight(dark ? '#ffd8bc' : '#fff1d6', dark ? 2.6 : 2.8);
+    sun.position.set(16, 42, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 26, bottom: -26, near: 5, far: 110 });
+    Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 5, far: 120 });
     sun.shadow.bias = -0.0008;
     this.scene.add(sun);
     this.scene.add(sun.target);
@@ -185,7 +191,7 @@ export class BattleScene3D {
     this.particles = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: '#ffffff' }), MAX_PARTICLES);
     this.particles.count = 0;
     this.particles.frustumCulled = false;
-    this.scene.add(this.particles);
+    this.world.add(this.particles);
 
     const aura = COSMETIC_BY_ID.get(opts.aura);
     if (aura && aura.color !== 'transparent') {
@@ -193,14 +199,14 @@ export class BattleScene3D {
       m.rotation.x = -Math.PI / 2;
       m.position.set(toX(BALANCE.combat.heroX), 0.08, 0);
       m.scale.setScalar(2.2);
-      this.scene.add(m);
+      this.world.add(m);
       this.heroAura = m;
     }
     this.warCryRing = new THREE.Mesh(this.geo.disc, new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0, depthWrite: false }));
     this.warCryRing.rotation.x = -Math.PI / 2;
     this.warCryRing.position.set(toX(30), 0.07, 0);
     this.warCryRing.scale.set(16, 5, 1);
-    this.scene.add(this.warCryRing);
+    this.world.add(this.warCryRing);
   }
 
   resize(w: number, h: number): void {
@@ -298,7 +304,7 @@ export class BattleScene3D {
     m.rotation.x = -Math.PI / 2;
     m.position.set(x, y, z);
     m.scale.setScalar(0.01);
-    this.scene.add(m);
+    this.world.add(m);
     this.fx.push({ mesh: m, born: this.time + delay, life, grow: radius, kind: 'ring' });
   }
 
@@ -306,7 +312,7 @@ export class BattleScene3D {
     const m = new THREE.Mesh(this.geo.plane, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     m.position.set(x, height / 2, 0.5);
     m.scale.set(width, height, 1);
-    this.scene.add(m);
+    this.world.add(m);
     this.fx.push({ mesh: m, born: this.time, life, grow: width, kind: 'column' });
   }
 
@@ -326,7 +332,7 @@ export class BattleScene3D {
       pts.push(points[i]!.clone());
     }
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true }));
-    this.scene.add(line);
+    this.world.add(line);
     this.fx.push({ mesh: line, born: this.time, life: 0.25, grow: 0, kind: 'bolt' });
   }
 
@@ -336,7 +342,7 @@ export class BattleScene3D {
     else if (style === 'bomb') mesh = new THREE.Mesh(this.geo.bomb, this.mats.bomb);
     else mesh = new THREE.Mesh(this.geo.orb, this.mats.type[type]);
     mesh.position.copy(from);
-    this.scene.add(mesh);
+    this.world.add(mesh);
     const dist = from.distanceTo(to);
     this.projs.push({ mesh, from, to, born: this.time, life: style === 'bomb' ? 0.32 : 0.22, arc: style === 'bomb' ? 3 + dist * 0.1 : style === 'arrow' ? 0.8 + dist * 0.04 : 0.4, spin: style === 'arrow' ? 0 : 8, strike: false, trail: style === 'orb' ? TYPE_COLOR[type] : style === 'bomb' ? '#ffb347' : null });
   }
@@ -450,7 +456,7 @@ export class BattleScene3D {
         case 'special': {
           const m = new THREE.Mesh(this.geo.plane, new THREE.MeshBasicMaterial({ color: '#fff0a0', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
           m.scale.set(3.5, 16, 1);
-          this.scene.add(m);
+          this.world.add(m);
           this.fx.push({ mesh: m, born: this.time, life: 0.55, grow: 0, kind: 'sweep', x0: toX(e.x0), x1: toX(e.x1) });
           this.flash = 0.8;
           this.shakeBy(10);
@@ -470,7 +476,6 @@ export class BattleScene3D {
           this.showBanner(e.name, e.title, e.tier === 2 ? '#ff5c7a' : '#ffb347', 2.4);
           this.shakeBy(9);
           this.zoomPulse = 1;
-          this.zoomTargetX = toX(BALANCE.combat.enemySpawnX - 10);
           this.cb.onSound('boss');
           break;
         case 'phase':
@@ -482,7 +487,7 @@ export class BattleScene3D {
           const to = new THREE.Vector3(toX(e.x), e.flying ? FLY_Y + 0.6 : 1.4, 0);
           const mesh = new THREE.Mesh(this.geo.crescent, this.mats.crescent);
           mesh.position.copy(from);
-          this.scene.add(mesh);
+          this.world.add(mesh);
           this.projs.push({ mesh, from, to, born: this.time, life: 0.2, arc: 1, spin: 0, strike: true, trail: '#ffd23f' });
           this.heroStrikeAt = this.time;
           this.ring(to.x, 0, 0.16, BALANCE.exercise.repStrikeSplashRadius * 0.44 + 1, '#ffd23f', 0.4, 0.2);
@@ -527,9 +532,9 @@ export class BattleScene3D {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.castShadow = true;
     });
-    const facing = u.side === 'ally' ? Math.PI / 2 - 0.42 : -Math.PI / 2 + 0.42;
+    const facing = u.side === 'ally' ? Math.PI / 2 : -Math.PI / 2;
     rig.root.rotation.y = facing;
-    this.scene.add(rig.root);
+    this.world.add(rig.root);
     return { rig, scale, baseY: 0, facing, seed: (u.id * 0.61803) % 1 };
   }
 
@@ -648,14 +653,14 @@ export class BattleScene3D {
     if (u.shield > 0) {
       if (!bubble) {
         bubble = new THREE.Mesh(this.geo.bubble, new THREE.MeshBasicMaterial({ color: '#7fd3ff', transparent: true, opacity: 0.25, depthWrite: false }));
-        this.scene.add(bubble);
+        this.world.add(bubble);
         this.shields.set(u.id, bubble);
       }
       const r = v.rig.height * v.scale * 0.55;
       bubble.position.set(pos.x, pos.y + r, pos.z);
       bubble.scale.setScalar(r * (1 + Math.sin(this.time * 5) * 0.03));
     } else if (bubble) {
-      this.scene.remove(bubble);
+      this.world.remove(bubble);
       (bubble.material as THREE.Material).dispose();
       this.shields.delete(u.id);
     }
@@ -678,7 +683,7 @@ export class BattleScene3D {
       this.views.delete(id);
       const bubble = this.shields.get(id);
       if (bubble) {
-        this.scene.remove(bubble);
+        this.world.remove(bubble);
         (bubble.material as THREE.Material).dispose();
         this.shields.delete(id);
       }
@@ -689,7 +694,7 @@ export class BattleScene3D {
     this.corpses = this.corpses.filter((c) => {
       const k = (this.time - c.born) / 0.7;
       if (k >= 1) {
-        this.scene.remove(c.rig.root);
+        this.world.remove(c.rig.root);
         disposeTree(c.rig.root);
         return false;
       }
@@ -715,7 +720,7 @@ export class BattleScene3D {
       if (!m) {
         m = new THREE.Mesh(round ? this.geo.disc : this.geo.plane, new THREE.MeshBasicMaterial({ color: tel.kind === 'shield' ? '#7fd3ff' : tel.kind === 'summon' ? '#b670ff' : '#ff3b3b', transparent: true, opacity: 0.4, depthWrite: false }));
         m.rotation.x = -Math.PI / 2;
-        this.scene.add(m);
+        this.world.add(m);
         this.telegraphs.set(tel.id, m);
       }
       const cx = (x0 + x1) / 2;
@@ -728,7 +733,7 @@ export class BattleScene3D {
         let met = this.meteors.get(tel.id);
         if (!met) {
           met = new THREE.Mesh(this.geo.meteor, tel.kind === 'meteor' ? this.mats.meteor : this.mats.type.lightning);
-          this.scene.add(met);
+          this.world.add(met);
           this.meteors.set(tel.id, met);
         }
         met.position.set(cx + (1 - p) * 6, 1 + (1 - p) * 24, 0);
@@ -738,12 +743,12 @@ export class BattleScene3D {
     }
     for (const [id, m] of this.telegraphs) {
       if (live.has(id)) continue;
-      this.scene.remove(m);
+      this.world.remove(m);
       (m.material as THREE.Material).dispose();
       this.telegraphs.delete(id);
       const met = this.meteors.get(id);
       if (met) {
-        this.scene.remove(met);
+        this.world.remove(met);
         this.meteors.delete(id);
       }
     }
@@ -753,7 +758,7 @@ export class BattleScene3D {
     this.projs = this.projs.filter((p) => {
       const k = (this.time - p.born) / p.life;
       if (k >= 1) {
-        this.scene.remove(p.mesh);
+        this.world.remove(p.mesh);
         if (p.strike) {
           this.burst(p.to, '#ffd23f', 14, 8, 0.32, 0.5, -10, 3);
           this.burst(p.to, '#fff3b0', 6, 4, 0.22, 0.35, -6, 2);
@@ -768,7 +773,7 @@ export class BattleScene3D {
         p.mesh.rotateZ(-Math.PI / 2 + Math.sin(k * Math.PI) * 0.3);
         p.mesh.scale.setScalar(0.8 + k * 0.6);
       } else if (p.spin) p.mesh.rotation.set(this.time * p.spin, this.time * p.spin, 0);
-      else p.mesh.lookAt(p.mesh.position.clone().add(p.mesh.position.clone().sub(prev)));
+      else p.mesh.lookAt(this.world.localToWorld(p.mesh.position.clone().add(p.mesh.position.clone().sub(prev))));
       if (p.trail && !this.reducedMotion) this.burst(p.mesh.position.clone(), p.trail, p.strike ? 2 : 1, 0.5, p.strike ? 0.3 : 0.18, 0.3, 0, 0);
       return true;
     });
@@ -779,7 +784,7 @@ export class BattleScene3D {
       const k = (this.time - f.born) / f.life;
       if (k < 0) return true;
       if (k >= 1) {
-        this.scene.remove(f.mesh);
+        this.world.remove(f.mesh);
         (f.mesh.material as THREE.Material).dispose();
         if (f.kind === 'bolt') f.mesh.geometry.dispose();
         return false;
@@ -820,30 +825,61 @@ export class BattleScene3D {
     }
     (this.warCryRing.material as THREE.MeshBasicMaterial).opacity = battle.warCryActive ? 0.12 + 0.06 * Math.sin(t * 6) : 0;
 
-    // Camera: fit the whole lane, with shake and a short push-in when a boss arrives
-    const fov = 30;
-    const aspect = this.w / this.h;
-    const fit = 25.5 / (Math.tan(((fov / 2) * Math.PI) / 180) * aspect);
-    const dist = THREE.MathUtils.clamp(fit, 40, 140);
-    const pitch = (27 * Math.PI) / 180;
+    // Camera: looks down the lane from behind the hero (lane runs up the screen), with shake and a
+    // short push-in when a boss arrives
+    if (this.fitFor !== `${this.w}x${this.h}`) this.fitCamera();
     this.zoomPulse = Math.max(0, this.zoomPulse - dt * 0.6);
-    const zp = Math.sin(Math.min(1, this.zoomPulse) * Math.PI) * 0.18;
-    const d = dist * (1 - zp);
-    const lookX = -1.2 + (this.zoomTargetX + 1.2) * zp * 1.6;
-    const lookY = 12.5;
-    this.camera.position.set(lookX, lookY + d * Math.sin(pitch), d * Math.cos(pitch));
+    const zp = Math.sin(Math.min(1, this.zoomPulse) * Math.PI) * 0.16;
+    this.placeCamera(this.fit.d * (1 - zp), this.fit.tz - zp * 18);
     if (this.shake > 0.2 && !this.reducedMotion) {
       this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.08;
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.08;
       this.shake *= 0.86;
     }
-    this.camera.lookAt(lookX, lookY, 0);
     this.renderer.render(this.scene, this.camera);
     this.drawOverlay(overlay, battle, dt);
   }
 
+  private fit = { d: 60, tz: 0 };
+  private fitFor = '';
+  private static readonly PITCH = (55 * Math.PI) / 180;
+
+  private placeCamera(d: number, tz: number): void {
+    const p = BattleScene3D.PITCH;
+    this.camera.position.set(0, d * Math.sin(p), tz + d * Math.cos(p));
+    this.camera.lookAt(0, 0, tz);
+    this.camera.updateMatrixWorld();
+  }
+
+  /** Finds the camera distance and target so the whole lane (hero to portal) fills the view. */
+  private fitCamera(): void {
+    this.fitFor = `${this.w}x${this.h}`;
+    const near = new THREE.Vector3(0, 0, 23.2);
+    const far = new THREE.Vector3(0, 0, -24.5);
+    const ndc = (v: THREE.Vector3) => v.clone().project(this.camera).y;
+    let lo = 15;
+    let hi = 220;
+    let tz = 0;
+    for (let i = 0; i < 28; i++) {
+      const d = (lo + hi) / 2;
+      // Put the hero end near the bottom of the view
+      let a = -30;
+      let b = 30;
+      for (let j = 0; j < 28; j++) {
+        tz = (a + b) / 2;
+        this.placeCamera(d, tz);
+        if (ndc(near) < -0.78) a = tz;
+        else b = tz;
+      }
+      this.placeCamera(d, tz);
+      if (ndc(far) > 0.7) lo = d;
+      else hi = d;
+    }
+    this.fit = { d: hi, tz };
+  }
+
   private project(p: THREE.Vector3): { x: number; y: number; ok: boolean } {
-    const v = this.tmp.copy(p).project(this.camera);
+    const v = this.world.localToWorld(this.tmp.copy(p)).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.w, y: ((1 - v.y) / 2) * this.h, ok: v.z < 1 };
   }
 

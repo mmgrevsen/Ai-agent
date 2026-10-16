@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { BuildingId } from '../../core/content/buildings';
 import { disposeTree, Kit } from './kit';
 import { MAP, PATROLS, PLOTS, ROADS, type Plot } from './layout';
-import { barrel, banner, buildPlot, C, cannon, catapult, crate, flag, soldierMesh, torch, tree, type Animator, type BuiltPlot, type PlotInfo } from './models';
+import { heroRig, humanoid } from '../battle3d/units3d';
+import { barrel, banner, buildPlot, C, cannon, catapult, crate, flag, torch, tree, type Animator, type BuiltPlot, type PlotInfo } from './models';
 
 /**
  * Isometric-style 3D view of the player's base, rendered with three.js. Everything is generated
@@ -61,6 +62,8 @@ function signTexture(text: string): THREE.CanvasTexture {
 
 interface Walker {
   mesh: THREE.Object3D;
+  legs: THREE.Object3D[];
+  arms: THREE.Object3D[];
   path: [number, number][];
   lengths: number[];
   total: number;
@@ -342,7 +345,10 @@ export class BaseScene {
     this.walkerGroup.clear();
     this.walkers = [];
     const palette = colors.length ? colors : [C.blue, C.red, C.leaf];
-    const add = (mesh: THREE.Object3D, pathIdx: number, offset: number, speed: number) => {
+    const add = (rig: { root: THREE.Object3D; legs: THREE.Object3D[]; armR: THREE.Object3D | null; armL: THREE.Object3D | null }, pathIdx: number, offset: number, speed: number) => {
+      const mesh = rig.root;
+      mesh.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = true) : undefined));
+      const arms = [rig.armR, rig.armL].filter((a): a is THREE.Object3D => !!a);
       const raw = PATROLS[pathIdx % PATROLS.length]!;
       const path = [...raw, raw[0]!];
       const lengths: number[] = [];
@@ -353,13 +359,16 @@ export class BaseScene {
         total += l;
       }
       this.walkerGroup.add(mesh);
-      this.walkers.push({ mesh, path, lengths, total, offset: offset * total, speed });
+      this.walkers.push({ mesh, legs: rig.legs, arms, path, lengths, total, offset: offset * total, speed });
     };
     // The hero: bigger, gold armour and a purple cape
-    add(soldierMesh(C.gold, C.gold, 1.45, C.purple), 1, 0.1, 1.6);
+    const hero = heroRig(C.purple, 'goldsword');
+    hero.root.scale.setScalar(1.05);
+    add(hero, 1, 0.1, 1.6);
     for (let i = 0; i < count; i++) {
-      const m = soldierMesh(palette[i % palette.length]!, i % 3 === 0 ? C.iron : C.steel, 1.05);
-      add(m, i, ((i * 0.37) % 1) + 0.05, 1.8 + (i % 3) * 0.25);
+      const r = humanoid({ body: palette[i % palette.length]!, legs: '#4a4f5c', skin: '#f6c9a0', head: 'helm', headColor: i % 3 === 0 ? '#8c96a3' : '#cfd6df', weapon: i % 2 ? 'sword' : 'axe', shield: i % 2 ? 'round' : null, mood: 'brave', mustache: i % 4 === 1 ? '#7a4a1f' : undefined });
+      r.root.scale.setScalar(0.85);
+      add(r, i, ((i * 0.37) % 1) + 0.05, 1.8 + (i % 3) * 0.25);
     }
     this.placeWalkers();
   }
@@ -375,6 +384,9 @@ export class BaseScene {
           const f = l > 0 ? Math.min(1, d / l) : 0;
           w.mesh.position.set(x0 + (x1 - x0) * f, 0.05 + (this.reducedMotion ? 0 : Math.abs(Math.sin(this.time * 9 + w.offset)) * 0.08), z0 + (z1 - z0) * f);
           w.mesh.rotation.y = Math.atan2(x1 - x0, z1 - z0);
+          const swing = this.reducedMotion ? 0 : Math.sin(this.time * 9 + w.offset);
+          w.legs.forEach((l, j) => (l.rotation.x = (j ? -swing : swing) * 0.6));
+          w.arms.forEach((a, j) => (a.rotation.x = (j ? swing : -swing) * 0.4));
           break;
         }
         d -= l;

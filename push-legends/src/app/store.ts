@@ -616,6 +616,7 @@ export class GameStore {
   updateSettings(patch: Partial<Settings>): void {
     this.update((s) => {
       Object.assign(s.settings, patch);
+      if (patch.graphics) s.settings.graphicsChosen = true;
     });
     this.applySettings();
   }
