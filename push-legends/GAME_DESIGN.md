@@ -133,7 +133,7 @@ setup always produces the same result, so balance can be simulated and tested.
 - **Lane:** 1D positions; ground units block ground units; flying enemies dive past tanks to the back line.
 - **Valor:** max 10, starts at 5, +0.5/s. Cards cost 2-7.
 - **Hand:** 4 cards cycle through the 8-card deck (played card goes to the back of the queue).
-- **Auto-deploy** (idle combat, on by default): scores the hand (anti-air if fliers and none deployed, a tank if none, healer if allies are hurt, splash against big groups) and deploys the best affordable card when enemies are close.
+- **Auto-deploy** (optional, off by default; the AUTO ON/OFF button in battle, the pre-battle panel or Settings): meant for idle play or for doing push-ups hands-free. Tapping a card yourself switches it off for the rest of the battle (and remembers the choice), so it never spends the valor you are saving for a card you picked. It scores the hand (anti-air if fliers and none deployed, a tank if none, healer if allies are hurt, splash against big groups) and deploys the best affordable card when enemies are close.
 - **Push-up strikes:** see §3 - every verified rep deals damage directly.
 - **Legend Strike:** charges on its own in 50 s (push-ups do not charge it). Hits enemies near the frontline (and any boss) for 9× hero damage, stuns, and **interrupts** every boss telegraph.
 - **Damage:** `damage × buffs × (1 − resistance[type]) × armor`, where armor applies fully to physical and 30% to other types. Types: physical, fire, frost, lightning, holy. Worlds and bosses have resistances and weaknesses.

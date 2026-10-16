@@ -35,7 +35,12 @@ function heroHasGoldSword(game: GameState): boolean {
 
 export function BattleScreen({ setup, context }: { setup: BattleSetup; context: BattleContext }) {
   const { game } = useGame();
-  const battle = useMemo(() => new Battle(setup), [setup]);
+  const battle = useMemo(() => {
+    const b = new Battle(setup);
+    // Debug builds (?debug=1) expose the running battle for automated UI checks.
+    if (new URLSearchParams(window.location.search).has('debug')) (window as unknown as { pushLegendsBattle: Battle }).pushLegendsBattle = b;
+    return b;
+  }, [setup]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scene3dHostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -202,8 +207,19 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     return () => cancelAnimationFrame(raf);
   }, [useCam, settings.showSkeleton, tracker.landmarksRef]);
 
+  const setAuto = (on: boolean) => {
+    battle.autoDeploy = on;
+    store.updateSettings({ autoDeploy: on });
+    setTick((n) => n + 1);
+  };
+
   const deploy = (slot: number) => {
     sound.unlock();
+    // Tapping a card means the player wants to choose: auto-deploy stops spending valor for them.
+    if (battle.autoDeploy) {
+      setAuto(false);
+      store.toast('You are in control: auto-deploy is off. Tap AUTO to turn it back on.', 'info');
+    }
     if (battle.deploy(slot)) {
       sound.play('deploy');
       haptic('light');
@@ -246,6 +262,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     else if (battle.special >= 1 && !game.tutorial.tipSpecial) tip = 'Your Legend Strike is charged - tap the golden button!';
     else if (battle.time < 25) tip = 'Your army fights on its own. With the camera on, every push-up is a sword strike! Buy better swords in the Armory to hit harder.';
   } else if (casting && battle.special >= 1 && !game.tutorial.tipInterrupt) tip = 'The boss is winding up! Legend Strike now to INTERRUPT it.';
+  else if (useCam && !battle.autoDeploy && battle.time < 12) tip = 'Doing push-ups? Turn AUTO on and your army deploys cards by itself.';
 
   return (
     <div className="battle">
@@ -397,8 +414,8 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
               </span>
             </button>
             <div className="row" style={{ gap: 4 }}>
-              <button className={`mini-toggle ${battle.autoDeploy ? 'on' : ''}`} onClick={() => (battle.autoDeploy = !battle.autoDeploy)} aria-pressed={battle.autoDeploy} aria-label="Auto-deploy">
-                AUTO
+              <button className={`mini-toggle auto ${battle.autoDeploy ? 'on' : ''}`} onClick={() => setAuto(!battle.autoDeploy)} aria-pressed={battle.autoDeploy} aria-label={`Auto-deploy ${battle.autoDeploy ? 'on' : 'off'}`}>
+                AUTO <b>{battle.autoDeploy ? 'ON' : 'OFF'}</b>
               </button>
               <button className="mini-toggle" onClick={() => setSpeed(speed === 1 ? 2 : 1)} aria-label="Battle speed">
                 {speed}x

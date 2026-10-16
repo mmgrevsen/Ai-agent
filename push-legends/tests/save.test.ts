@@ -29,6 +29,15 @@ describe('save system', () => {
     expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.graphics).toBe('smooth');
   });
 
+  it('auto-deploy: off by default, old saves switch off until the player chooses', () => {
+    const s = createInitialState(NOW, 1);
+    expect(s.settings.autoDeploy).toBe(false);
+    s.settings.autoDeploy = true;
+    expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.autoDeploy).toBe(false);
+    s.settings.autoDeployChosen = true;
+    expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.autoDeploy).toBe(true);
+  });
+
   it('save manager persists and reloads', () => {
     const storage = new MemoryStorage();
     const m = new SaveManager(storage);

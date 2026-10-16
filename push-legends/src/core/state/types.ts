@@ -124,6 +124,8 @@ export interface Settings {
   showSkeleton: boolean;
   calibration: Partial<Record<ExerciseMode, Calibration>>;
   autoDeploy: boolean;
+  /** True once the player switched auto-deploy themselves (otherwise the default, off, applies). */
+  autoDeployChosen: boolean;
   cameraPrivacyAccepted: boolean;
 }
 

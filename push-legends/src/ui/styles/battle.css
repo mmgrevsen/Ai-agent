@@ -468,3 +468,9 @@
   position: absolute;
   inset: 0;
 }
+
+.mini-toggle.auto b {
+  font-weight: normal;
+  opacity: 0.85;
+  margin-left: 2px;
+}

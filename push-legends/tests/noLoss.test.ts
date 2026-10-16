@@ -149,6 +149,7 @@ describe('NO-LOSS RULE: losing never removes permanent progress', () => {
 
   it('losing a dungeon room ends the run but keeps rewards from cleared rooms', () => {
     const s = richState(11);
+    s.settings.autoDeploy = true;
     s.buildings.castle.level = 3;
     startDungeon(s, NOW, 1234);
     const first = availableNodes(s.dungeon!)[0]!;

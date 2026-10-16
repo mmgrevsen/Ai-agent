@@ -13,7 +13,15 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): detailed base and battle polish
+## Latest change (2026-10-16): you choose your own cards
+
+Fixed: players could only pick their first card, because auto-deploy (then on by default) spent
+valor the moment it was available. Auto-deploy is now off by default (existing saves are switched
+off until the player turns it on themselves), tapping a card switches it off for the battle and
+saves the choice, and the button reads AUTO ON / AUTO OFF. With the camera on, a tip suggests
+turning AUTO on for hands-free play. Covered by a save test and a browser check.
+
+## Earlier change (2026-10-16): detailed base and battle polish
 
 The base was rebuilt: all 9 buildings are now assembled from architectural pieces (stone blocks,
 shingled roofs, timber frames, arched doors and windows, chimneys, cloth banners) with 5 visible
@@ -111,7 +119,7 @@ BattleRenderer (Canvas 2D, procedural sprites)
 | Check | Command | Result |
 | --- | --- | --- |
 | Type check (strict) | `npm run typecheck` | Pass, 0 errors |
-| Unit + invariant + simulation tests | `npm test` | **106 passed / 106** (7 files: exercise 22, no-loss 8, combat 21, systems 31, save + social codes 15, simulation 6, armory 3) |
+| Unit + invariant + simulation tests | `npm test` | **107 passed / 107** (7 files: exercise 22, no-loss 8, combat 21, systems 31, save + social codes 16, simulation 6, armory 3) |
 | Production build | `npm run build` | Pass (main bundle 522 kB / 159 kB gzip; 3D base with three.js loaded lazily, 599 kB / 155 kB gzip; MediaPipe loaded lazily, 154 kB) |
 | 3D battle, headless Chromium (SwiftShader WebGL) | Playwright scripts | Pass: first battle, boss stages in all 5 worlds with simulated reps, Pixel 256 and Smooth modes, single-file Mac build from `file://`; no console errors. Frame rate on real phones not yet measured. |
 | 3D base, headless Chromium (SwiftShader WebGL) | Playwright script | Pass: fresh and mid-game bases render, labels follow buildings, wheel zoom, tapping the 3D castle opens its panel, single-file Mac build renders it from `file://`; no console errors. Real-GPU frame rate on phones not yet measured. |

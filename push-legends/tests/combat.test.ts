@@ -29,6 +29,7 @@ describe('combat engine', () => {
 
   it('wins a first stage with the starter deck on auto-deploy', () => {
     const s = createInitialState(NOW, 1);
+    s.settings.autoDeploy = true;
     const r = new Battle(campaignSetup(s, 0, 'normal')).runToEnd();
     expect(r.outcome).toBe('victory');
     expect(r.goldEarned).toBeGreaterThan(0);
@@ -218,6 +219,7 @@ describe('combat engine', () => {
 
   it('endless mode never ends in victory; it completes when the hero falls', () => {
     const s = createInitialState(NOW, 1);
+    s.settings.autoDeploy = true;
     const setup = endlessSetup(s, 99);
     const r = new Battle(setup).runToEnd(1200);
     expect(r.outcome).toBe('complete');
