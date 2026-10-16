@@ -52,6 +52,10 @@ export class Battle {
   warCries = 0;
   cardsDeployed = 0;
   reps = { full: 0, knee: 0, simulated: 0, repUnits: 0 };
+  /** Total damage dealt by push-up strikes this battle. */
+  repDamage = 0;
+  bankedStrikes = 0;
+  private nextBankedStrikeAt = 0;
   reachedBoss = false;
   bossIds: string[] = [];
   bossesKilled = 0;
@@ -225,7 +229,7 @@ export class Battle {
     const rally = this.setup.modifiers.includes('rally') ? 2 : 0;
     const gained = (EX.valorPerRep + rally) * mult * power;
     this.valor = Math.min(C.maxValor, this.valor + gained);
-    this.special = Math.min(1, this.special + EX.specialChargePerRep * mult * power * this.setup.hero.specialCharge);
+    this.pushupStrike(mult);
     this.warCryProgress += mult;
     if (this.warCryProgress >= EX.warCryReps) {
       this.warCryProgress -= EX.warCryReps;
@@ -241,6 +245,42 @@ export class Battle {
     else this.reps.knee++;
     if (verified) this.reps.repUnits += mult;
     this.events.push({ type: 'rep', kind, verified, valor: gained });
+  }
+
+  /** Damage a full push-up deals right now (before resistances). Better swords raise hero damage. */
+  get pushupDamage(): number {
+    return this.setup.hero.damage * EX.repStrikeDamage * this.setup.hero.repPower * this.allyDamageMult();
+  }
+
+  /**
+   * A push-up makes the hero strike the enemy closest to the gate, with splash around it. If no enemy
+   * is on the field the strike is saved and released when the next wave arrives, so no rep is wasted.
+   */
+  private pushupStrike(mult: number): void {
+    const target = this.enemies.reduce<Unit | null>((b, e) => (!b || e.x < b.x ? e : b), null);
+    if (!target) {
+      this.bankedStrikes = Math.min(EX.maxBankedStrikes, this.bankedStrikes + mult);
+      return;
+    }
+    const h = this.setup.hero;
+    let dmg = this.pushupDamage * mult;
+    if (target.bossTier > 0) dmg *= h.bossDamage;
+    const dealt = this.applyDamage(target, dmg, 'physical', this.hero, false, true);
+    for (const e of this.enemies) {
+      if (e.id !== target.id && Math.abs(e.x - target.x) <= EX.repStrikeSplashRadius) this.applyDamage(e, dmg * EX.repStrikeSplash, 'physical', this.hero, false);
+    }
+    this.applyHeroEffects(target, dmg, dealt);
+    this.hero.lastAttackAt = this.time;
+    this.repDamage += dmg;
+    this.events.push({ type: 'pushStrike', x: target.x, flying: target.flying, amount: dmg });
+  }
+
+  private releaseBankedStrike(): void {
+    if (this.bankedStrikes <= 0 || this.enemies.length === 0 || this.time < this.nextBankedStrikeAt) return;
+    const mult = Math.min(1, this.bankedStrikes);
+    this.bankedStrikes -= mult;
+    this.nextBankedStrikeAt = this.time + 0.35;
+    this.pushupStrike(mult);
   }
 
   retreat(): void {
@@ -278,6 +318,7 @@ export class Battle {
       xpEarned: Math.floor(this.xpEarned),
       duration: this.time,
       reps: { ...this.reps },
+      repDamage: Math.floor(this.repDamage),
       specialsUsed: this.specialsUsed,
       interrupts: this.interrupts,
       warCries: this.warCries,
@@ -297,6 +338,7 @@ export class Battle {
     this.special = Math.min(1, this.special + (dt / C.specialPassiveChargeSec) * this.setup.hero.specialCharge);
 
     this.updateWaves();
+    this.releaseBankedStrike();
     if (this.autoDeploy) this.runAutoDeploy();
     this.updatePet(dt);
 
@@ -816,15 +858,19 @@ export class Battle {
       this.events.push({ type: 'splash', x: (u.x + target.x) / 2, radius: Math.abs(target.x - u.x) / 2 + 3, damageType: 'frost' });
     }
 
-    if (u.kind === 'hero') {
-      for (const eff of this.setup.hero.effects) {
-        if (eff.kind === 'burn') {
-          target.burnDps = Math.max(target.burnDps, (u.damage * eff.fraction) / 3);
-          target.burnUntil = this.time + 3;
-        } else if (eff.kind === 'slow') this.applySlow(target, eff.amount, eff.sec);
-        else if (eff.kind === 'chain') this.chain(u, target, dmg, eff.jumps, 0.7, 10);
-        else if (eff.kind === 'lifesteal') this.heal(u, dealt * eff.fraction);
-      }
+    if (u.kind === 'hero') this.applyHeroEffects(target, dmg, dealt);
+  }
+
+  /** Weapon effects (burn, slow, chain, lifesteal) apply to normal hero hits and push-up strikes. */
+  private applyHeroEffects(target: Unit, dmg: number, dealt: number): void {
+    const hero = this.hero;
+    for (const eff of this.setup.hero.effects) {
+      if (eff.kind === 'burn') {
+        target.burnDps = Math.max(target.burnDps, (dmg * eff.fraction) / 3);
+        target.burnUntil = this.time + 3;
+      } else if (eff.kind === 'slow') this.applySlow(target, eff.amount, eff.sec);
+      else if (eff.kind === 'chain') this.chain(hero, target, dmg, eff.jumps, 0.7, 10);
+      else if (eff.kind === 'lifesteal') this.heal(hero, dealt * eff.fraction);
     }
   }
 

@@ -294,6 +294,7 @@ function progressLines(result: BattleResult): string[] {
   if (result.interrupts) lines.push(`Boss attacks interrupted: ${result.interrupts}`);
   const reps = result.reps.full + result.reps.knee;
   if (reps) lines.push(`Verified push-ups: ${result.reps.full} full, ${result.reps.knee} knee`);
+  if (result.repDamage > 0) lines.push(`Push-up strike damage: ${Math.round(result.repDamage).toLocaleString('en-US')}`);
   if (result.reps.simulated) lines.push(`Simulated reps (developer mode): ${result.reps.simulated}`);
   return lines;
 }

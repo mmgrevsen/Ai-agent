@@ -80,7 +80,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
                 <Icon name="camera" size={40} />
                 <h2>Why the camera?</h2>
               </div>
-              <p className="small">Push Legends counts real push-ups by watching your body position with your front camera. Each good rep powers your army with valor, charges your Legend Strike and builds War Cries.</p>
+              <p className="small">Push Legends counts real push-ups by watching your body position with your front camera. Every good rep makes your hero swing their sword at the nearest enemy - buy better swords with gold to hit harder. Reps also add valor and build War Cries.</p>
               <div className="notice info small">
                 <b>Your privacy:</b> everything runs on this device. Video is never uploaded, recorded or saved. Only body-point positions of the current frame are used, then thrown away.
               </div>

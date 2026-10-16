@@ -6,6 +6,7 @@ import { PETS, getPet } from '../../core/content/pets';
 import { checkItemUpgrade, itemMaxLevel, itemStats } from '../../core/systems/equipment';
 import { computeHeroStats, powerRating, xpToNextLevel } from '../../core/systems/hero';
 import { petPassiveValue, petUpgradeCost } from '../../core/systems/pets';
+import { armoryOffers, pushupDamage, pushupDamageWithWeapon } from '../../core/systems/armory';
 import { BALANCE } from '../../core/config/balance';
 import { formatNumber } from '../../core/util';
 import { drawSprite } from '../art/units';
@@ -73,6 +74,12 @@ export function HeroScreen() {
             </span>
             <b>{formatNumber(stats.damage)}</b>
           </div>
+          <div className="stat-row" style={{ gridColumn: '1 / -1' }}>
+            <span className="row gold-text">
+              <Icon name="swords" size={16} /> Damage per push-up
+            </span>
+            <b className="gold-text">{formatNumber(pushupDamage(stats))}</b>
+          </div>
           <div className="stat-row">
             <span>Crit chance</span>
             <b>{Math.round(stats.critChance * 100)}%</b>
@@ -99,7 +106,9 @@ export function HeroScreen() {
           </div>
         </div>
         <p className="xsmall faint" style={{ margin: '8px 0 0' }}>
-          Special: <b className="gold-text">Legend Strike</b> - charges from push-ups (and slowly on its own), hits every nearby enemy for {BALANCE.combat.specialDamageMultiplier}× hero damage, stuns them, and interrupts boss attacks.
+          <b className="gold-text">Push-up strike:</b> every verified push-up makes your hero strike the nearest enemy for {BALANCE.exercise.repStrikeDamage}× hero damage (knee push-ups {Math.round(BALANCE.exercise.kneeRepMultiplier * 100)}%). Better swords raise hero damage, so every rep hits harder.
+          <br />
+          <b className="gold-text">Legend Strike:</b> charges on its own during battle, hits nearby enemies for {BALANCE.combat.specialDamageMultiplier}× hero damage, stuns them and interrupts boss attacks.
         </p>
       </div>
 
@@ -126,6 +135,7 @@ function GearView() {
   const items = game.items.filter((i) => slotFilter === 'all' || getItem(i.defId).slot === slotFilter);
   return (
     <div className="stack-m">
+      <Armory />
       <div className="slot-grid">
         {EQUIP_SLOTS.map((slot) => {
           const item = game.items.find((i) => i.uid === game.hero.equipped[slot]);
@@ -185,6 +195,57 @@ function GearView() {
               </div>
               {up.ok && <span className="upgrade-arrow" style={{ position: 'static' }}>↑</span>}
             </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Armory() {
+  const { game } = useGame();
+  const offers = armoryOffers(game);
+  const current = pushupDamage(computeHeroStats(game));
+  return (
+    <div className="panel gold">
+      <div className="section-title">
+        <h2>Armory</h2>
+        <span className="chip gold">
+          <Icon name="swords" size={12} /> {formatNumber(current)} per push-up
+        </span>
+      </div>
+      <p className="xsmall dim" style={{ margin: '0 0 10px' }}>
+        Spend gold on better swords. A stronger sword raises your hero's damage, so every push-up hits harder. Old swords are kept.
+      </p>
+      <div className="col">
+        {offers.map((o) => {
+          const def = getItem(o.defId);
+          return (
+            <div key={o.defId} className={`item-row rarity-${def.rarity}`} style={{ cursor: 'default', opacity: o.unlocked ? 1 : 0.55 }}>
+              <div className="item-icon">
+                <ItemArt defId={def.id} size={40} />
+              </div>
+              <div className="grow">
+                <div className="display">{def.name}</div>
+                <div className="xsmall dim">
+                  +{def.stats.heroDamage} hero damage{def.effectText ? ` · ${def.effectText}` : ''}
+                </div>
+                <div className="xsmall gold-text">
+                  {formatNumber(o.pushupDamageWith)} per push-up {o.pushupDamageWith > current && !o.owned ? `(+${formatNumber(o.pushupDamageWith - current)})` : ''}
+                </div>
+              </div>
+              {o.owned ? (
+                <span className="chip green">Owned</span>
+              ) : !o.unlocked ? (
+                <span className="chip">
+                  <Icon name="lock" size={12} /> Stage {Math.floor(o.unlockStage / 10) + 1}-{(o.unlockStage % 10) + 1}
+                </span>
+              ) : (
+                <button className="btn gold small" disabled={!o.affordable} onClick={() => store.buySword(o.defId)}>
+                  <Icon name="gold" size={14} /> {formatNumber(o.price)}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
@@ -318,6 +379,12 @@ export function ItemModal({ uid }: { uid: string }) {
             ))}
           </tbody>
         </table>
+        {def.slot === 'weapon' && (
+          <div className="stat-row">
+            <span className="gold-text">Damage per push-up with this weapon</span>
+            <b className="gold-text">{formatNumber(pushupDamageWithWeapon(game, item.defId, item.level, item.stars))}</b>
+          </div>
+        )}
         {def.effectText && <div className="panel dark small gold-text">{def.effectText}</div>}
         <div className="xsmall faint">Duplicates of this item add a star (+{Math.round(BALANCE.equipment.starBonus * 100)}% stats each). Items are never destroyed.</div>
         <div className="row">

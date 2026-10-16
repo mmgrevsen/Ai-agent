@@ -40,6 +40,8 @@ interface Projectile {
   born: number;
   life: number;
   ally: boolean;
+  /** Push-up sword strike: drawn as a big golden crescent. */
+  strike?: boolean;
 }
 
 interface Ring {
@@ -234,6 +236,14 @@ export class BattleRenderer {
           this.showBanner(e.phaseName, e.message, '#ff8a3d', 2);
           this.shakeBy(6);
           break;
+        case 'pushStrike': {
+          const toY = e.flying ? this.groundY - 52 * this.unitScale - 20 : this.groundY - 24 * this.unitScale;
+          this.projectiles.push({ fromX: this.sx(BALANCE.combat.heroX) + 10, fromY: this.groundY - 40 * this.unitScale, toX: this.sx(e.x), toY, type: 'physical', born: this.time, life: 0.18, ally: true, strike: true });
+          this.rings.push({ x: this.sx(e.x), y: toY + 10, radius: (BALANCE.exercise.repStrikeSplashRadius / 104) * this.w + 8, color: '#ffd23f', born: this.time + 0.18, life: 0.35 });
+          this.shakeBy(3);
+          this.cb.onSound('crit');
+          break;
+        }
         case 'rep':
           for (let i = 0; i < 6; i++) this.particles.push({ x: this.sx(BALANCE.combat.heroX), y: this.groundY - 40, vx: (Math.random() - 0.5) * 50, vy: -60 - Math.random() * 40, color: e.verified ? '#ffe066' : '#c7aaff', size: 3, born: this.time, life: 0.8, gravity: -20 });
           break;
@@ -325,7 +335,20 @@ export class BattleRenderer {
       const k = (t - p.born) / p.life;
       const x = p.fromX + (p.toX - p.fromX) * k;
       const y = p.fromY + (p.toY - p.fromY) * k - Math.sin(k * Math.PI) * 14;
-      if (p.type === 'physical') {
+      if (p.strike) {
+        // Golden crescent slash flying from the hero to the target.
+        const r = 16 * this.unitScale;
+        glow(ctx, x, y, r * 1.8, '#ffd23f', 0.8);
+        ctx.strokeStyle = '#fff3b0';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(x - r * 0.4, y, r, -Math.PI / 2.4, Math.PI / 2.4);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffb000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else if (p.type === 'physical') {
         const ang = Math.atan2(p.toY - p.fromY, p.toX - p.fromX);
         line(ctx, x - Math.cos(ang) * 9, y - Math.sin(ang) * 9, x, y, p.ally ? '#fdf2d0' : '#e0b0ff', 2);
       } else {

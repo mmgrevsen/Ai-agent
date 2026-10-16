@@ -3,6 +3,8 @@ import { store, useGame } from '../../app/store';
 import { CHEST_NAMES } from '../../core/systems/chests';
 import { getCard } from '../../core/content/cards';
 import { getPet } from '../../core/content/pets';
+import { getItem } from '../../core/content/equipment';
+import { nextAffordableSword } from '../../core/systems/armory';
 import { DAILY_QUESTS } from '../../core/content/quests';
 import { BOSS_STAGE, getWorld, MINI_BOSS_STAGE, STAGES_PER_WORLD, WORLD_COUNT } from '../../core/content/worlds';
 import { checkBuildingUpgrade, activeUpgrades, mineCapacity, mineStored } from '../../core/systems/buildings';
@@ -44,6 +46,7 @@ export function HomeScreen() {
   const firstClearCards = cardUnlockedAtStage(selected).filter((id) => !game.cards[id]);
   const petUnlock = PET_UNLOCKS[selected];
   const dailyOpen = game.quests.daily.filter((q) => !q.claimed);
+  const sword = nextAffordableSword(game);
 
   const selectStage = (idx: number) => {
     store.update((s) => {
@@ -190,8 +193,15 @@ export function HomeScreen() {
       )}
 
       {/* Nudges */}
-      {(upgradable > 0 || (idleBuilders > 0 && affordableBuilding)) && (
+      {(upgradable > 0 || (idleBuilders > 0 && affordableBuilding) || sword) && (
         <div className="col">
+          {sword && (
+            <button className="list-item tile nudge" onClick={() => store.setTab('hero')}>
+              <span className="nudge-icon gold"><Icon name="swords" size={18} /></span>
+              <span className="grow">New sword in the Armory: {getItem(sword.defId).name} ({formatNumber(sword.pushupDamageWith)} damage per push-up)</span>
+              <span className="chip gold">Buy</span>
+            </button>
+          )}
           {upgradable > 0 && (
             <button className="list-item tile nudge" onClick={() => store.setTab('cards')}>
               <span className="nudge-icon green"><Icon name="up" size={18} /></span>

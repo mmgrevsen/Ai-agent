@@ -95,6 +95,7 @@ describe('NO-LOSS RULE: losing never removes permanent progress', () => {
         xpEarned: rng.int(0, 200),
         duration: rng.range(1, 200),
         reps: { full: rng.int(0, 20), knee: rng.int(0, 20), simulated: rng.int(0, 5), repUnits: rng.int(0, 30) },
+        repDamage: rng.int(0, 5000),
         specialsUsed: rng.int(0, 5),
         interrupts: rng.int(0, 2),
         warCries: rng.int(0, 3),

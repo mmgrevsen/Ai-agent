@@ -1,6 +1,7 @@
 # Push Legends
 
-A fantasy idle RPG where **real push-ups, counted by your phone camera, power your army**.
+A fantasy idle RPG where **every real push-up, counted by your phone camera, is a sword strike**.
+Earn gold, buy better swords in the Armory, and every push-up hits harder.
 Build a deck, upgrade heroes, gear and pets, grow a base that earns while you are away, and beat
 multi-phase bosses. Losing a battle never costs you anything.
 

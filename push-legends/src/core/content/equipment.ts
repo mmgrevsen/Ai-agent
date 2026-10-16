@@ -53,6 +53,8 @@ export interface ItemDef {
   effectText?: string;
   description: string;
   palette: Palette;
+  /** Swords sold in the Armory for gold, unlocked once this global stage index has been reached. */
+  armoryStage?: number;
 }
 
 const steel: Palette = { primary: '#bdc3c7', secondary: '#7f8c8d', accent: '#ecf0f1' };
@@ -60,14 +62,17 @@ const steel: Palette = { primary: '#bdc3c7', secondary: '#7f8c8d', accent: '#ecf
 export const ITEMS: readonly ItemDef[] = [
   // Weapons
   { id: 'recruit_blade', name: "Recruit's Blade", slot: 'weapon', rarity: 'common', kind: 'Sword', stats: { heroDamage: 8 }, description: 'Every legend starts somewhere.', palette: steel },
+  { id: 'iron_longsword', name: 'Iron Longsword', slot: 'weapon', rarity: 'common', kind: 'Sword', stats: { heroDamage: 18 }, description: 'Honest steel. Every push-up lands a little harder.', palette: { primary: '#d5d8dc', secondary: '#5d6d7e', accent: '#ffffff' }, armoryStage: 3 },
   { id: 'woodcutter_axe', name: 'Woodcutter Axe', slot: 'weapon', rarity: 'common', kind: 'Axe', stats: { heroDamage: 10, critChance: 0.04 }, description: 'Heavy, honest, and surprisingly sharp.', palette: { primary: '#a04000', secondary: '#7f8c8d', accent: '#f5cba7' } },
   { id: 'prospector_pick', name: "Prospector's Pick", slot: 'weapon', rarity: 'common', kind: 'Hammer', stats: { heroDamage: 6, goldBonus: 0.08 }, description: 'Finds a little extra gold in every fight.', palette: { primary: '#7e5109', secondary: '#f1c40f', accent: '#fcf3cf' } },
-  { id: 'frostbite_saber', name: 'Frostbite Saber', slot: 'weapon', rarity: 'rare', kind: 'Sword', stats: { heroDamage: 14 }, effect: { kind: 'slow', amount: 0.3, sec: 1.5 }, effectText: 'Hero strikes slow enemies by 30%.', description: 'Rimed steel that bites with cold.', palette: { primary: '#aed6f1', secondary: '#2874a6', accent: '#ffffff' } },
+  { id: 'frostbite_saber', name: 'Frostbite Saber', slot: 'weapon', rarity: 'rare', kind: 'Sword', stats: { heroDamage: 26 }, effect: { kind: 'slow', amount: 0.3, sec: 1.5 }, effectText: 'Hero strikes (including push-up strikes) slow enemies by 30%.', description: 'Rimed steel that bites with cold.', palette: { primary: '#aed6f1', secondary: '#2874a6', accent: '#ffffff' }, armoryStage: 8 },
   { id: 'thunder_spear', name: 'Thunder Spear', slot: 'weapon', rarity: 'rare', kind: 'Spear', stats: { heroDamage: 12, repPower: 0.15 }, description: 'Hums louder with every push-up.', palette: { primary: '#5b2c6f', secondary: '#f7dc6f', accent: '#fdfefe' } },
-  { id: 'emberbrand', name: 'Emberbrand', slot: 'weapon', rarity: 'epic', kind: 'Sword', stats: { heroDamage: 20, armyDamage: 0.05 }, effect: { kind: 'burn', fraction: 0.4 }, effectText: 'Hero strikes burn for 40% extra damage over time.', description: 'Forged in the heart of a volcano.', palette: { primary: '#c0392b', secondary: '#f39c12', accent: '#fdebd0' } },
+  { id: 'emberbrand', name: 'Emberbrand', slot: 'weapon', rarity: 'epic', kind: 'Sword', stats: { heroDamage: 38, armyDamage: 0.05 }, effect: { kind: 'burn', fraction: 0.4 }, effectText: 'Hero strikes burn for 40% extra damage over time.', description: 'Forged in the heart of a volcano.', palette: { primary: '#c0392b', secondary: '#f39c12', accent: '#fdebd0' }, armoryStage: 15 },
+  { id: 'oathkeeper', name: 'Oathkeeper', slot: 'weapon', rarity: 'epic', kind: 'Sword', stats: { heroDamage: 52, critChance: 0.05 }, description: 'Sworn to never let a rep go to waste.', palette: { primary: '#5dade2', secondary: '#d4ac0d', accent: '#ebf5fb' }, armoryStage: 22 },
   { id: 'titanbreaker', name: 'Titanbreaker Maul', slot: 'weapon', rarity: 'epic', kind: 'Hammer', stats: { heroDamage: 24, bossDamage: 0.2 }, description: 'Made for one purpose: toppling giants.', palette: { primary: '#566573', secondary: '#a04000', accent: '#d5dbdb' } },
-  { id: 'stormcaller', name: 'Stormcaller Greatsword', slot: 'weapon', rarity: 'legendary', kind: 'Greatsword', stats: { heroDamage: 30, repPower: 0.3 }, effect: { kind: 'chain', jumps: 2 }, effectText: 'Hero strikes arc to 2 extra enemies.', description: 'Lightning answers every rep.', palette: { primary: '#2e86c1', secondary: '#f7dc6f', accent: '#ebf5fb' } },
-  { id: 'dawnbreaker', name: 'Dawnbreaker', slot: 'weapon', rarity: 'mythic', kind: 'Sword', stats: { heroDamage: 38, armyDamage: 0.15, specialCharge: 0.2 }, effect: { kind: 'lifesteal', fraction: 0.15 }, effectText: 'Hero heals for 15% of damage dealt.', description: 'The first light of a new legend.', palette: { primary: '#f4d03f', secondary: '#fdfefe', accent: '#f39c12' } },
+  { id: 'stormcaller', name: 'Stormcaller Greatsword', slot: 'weapon', rarity: 'legendary', kind: 'Greatsword', stats: { heroDamage: 68, repPower: 0.15 }, effect: { kind: 'chain', jumps: 2 }, effectText: 'Hero strikes arc to 2 extra enemies.', description: 'Lightning answers every rep.', palette: { primary: '#2e86c1', secondary: '#f7dc6f', accent: '#ebf5fb' }, armoryStage: 29 },
+  { id: 'sunforged', name: 'Sunforged Blade', slot: 'weapon', rarity: 'legendary', kind: 'Sword', stats: { heroDamage: 88, bossDamage: 0.15 }, description: 'Hammered at dawn on a mountain peak.', palette: { primary: '#f5b041', secondary: '#ba4a00', accent: '#fef9e7' }, armoryStage: 36 },
+  { id: 'dawnbreaker', name: 'Dawnbreaker', slot: 'weapon', rarity: 'mythic', kind: 'Sword', stats: { heroDamage: 115, armyDamage: 0.15, specialCharge: 0.2 }, effect: { kind: 'lifesteal', fraction: 0.15 }, effectText: 'Hero heals for 15% of damage dealt.', description: 'The first light of a new legend.', palette: { primary: '#f4d03f', secondary: '#fdfefe', accent: '#f39c12' }, armoryStage: 43 },
   // Helmets
   { id: 'leather_cap', name: 'Leather Cap', slot: 'helmet', rarity: 'common', kind: 'Helmet', stats: { heroHp: 60 }, description: 'Better than nothing. Much better.', palette: { primary: '#935116', secondary: '#6e2c00', accent: '#f5cba7' } },
   { id: 'iron_helm', name: 'Iron Helm', slot: 'helmet', rarity: 'rare', kind: 'Helmet', stats: { heroHp: 120, armyHp: 0.04 }, description: 'Inspires the troops to stand firm.', palette: steel },
@@ -100,3 +105,6 @@ export function getItem(id: string): ItemDef {
 }
 
 export const STARTER_ITEMS = ['recruit_blade', 'leather_cap'];
+
+/** Swords in the Armory, cheapest first. */
+export const ARMORY_SWORDS: readonly ItemDef[] = ITEMS.filter((i) => i.armoryStage !== undefined).sort((a, b) => a.armoryStage! - b.armoryStage!);

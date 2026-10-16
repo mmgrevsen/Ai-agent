@@ -39,10 +39,11 @@ from the checkpoint.
 1. Pick a stage on the world map (5 worlds × 10 stages; stage 5 = mini-boss, stage 10 = world boss).
 2. The army fights automatically in a side-scrolling lane. Enemies walk in from a portal on the right.
 3. The player deploys cards from a 4-card hand (8-card deck) using **valor** (regenerates over time).
-4. Real push-ups add valor, charge the **Legend Strike** and build up **War Cries**.
-5. Waves → elites → bosses with telegraphed attacks and multiple phases.
-6. Rewards: gold per kill, stage-clear bonus (×3 on first clear), hero XP, ore, card fragments, chests, gear, pets.
-7. Spend on cards, gear, pets and buildings. Base and army keep producing while away.
+4. Every real push-up is a **sword strike**: the hero hits the enemy closest to the gate. Reps also add valor and build **War Cries**.
+5. Gold buys better swords in the **Armory**, which raise hero damage and therefore damage per push-up.
+6. Waves → elites → bosses with telegraphed attacks and multiple phases.
+7. Rewards: gold per kill, stage-clear bonus (×3 on first clear), hero XP, ore, card fragments, chests, gear, pets.
+8. Spend on swords, cards, gear, pets and buildings. Base and army keep producing while away.
 
 The first launch goes straight from a one-screen intro into stage 1-1 (no camera needed), with
 contextual tips instead of a tutorial wall.
@@ -90,9 +91,29 @@ frame's landmark points are used. Calibration saves two angles.
 
 | Effect per verified rep (× rep multiplier × push-up power) | Value |
 | --- | --- |
+| **Push-up strike** | Hero hits the enemy closest to the gate for `4 × hero damage` (bosses also × boss damage), 40% splash within 6 units; weapon effects (burn, slow, chain, lifesteal) apply |
 | Valor | +1.5 |
-| Legend Strike charge | +12.5% (8 full reps = full charge) |
 | War Cry progress | +1 (10 → +40% army damage for 10 s) |
+
+Push-ups no longer charge the Legend Strike; it charges on its own over 50 s. Reps done while no
+enemy is on the field are saved (up to 5) and released when the next wave arrives.
+
+**Armory (swords for gold):** damage per push-up = `hero damage × 4 × push-up power`, and hero damage
+= `(26 + weapon damage) × 1.05^(level−1)`, so a better sword directly means harder push-ups. The
+Armory sells a sword ladder unlocked by campaign progress, priced at 240 seconds of the reference gold
+rate at the unlock stage (`armoryPriceSeconds`). Bought swords auto-equip if stronger; old swords are
+kept and can still be upgraded at the Blacksmith (which also raises push-up damage).
+
+| Sword | Hero damage | Unlocks at stage |
+| --- | --- | --- |
+| Recruit's Blade | +8 | start |
+| Iron Longsword | +18 | 1-4 |
+| Frostbite Saber | +26, slows | 1-9 |
+| Emberbrand | +38, burns | 2-6 |
+| Oathkeeper | +52, +5% crit | 3-3 |
+| Stormcaller Greatsword | +68, chains | 3-10 |
+| Sunforged Blade | +88, +15% boss damage | 4-7 |
+| Dawnbreaker | +115, lifesteal | 5-4 |
 | Direct gold | 6 s of the current stage gold rate (Training Grounds +6%/level) |
 | Hero XP | +3 |
 
@@ -113,7 +134,8 @@ setup always produces the same result, so balance can be simulated and tested.
 - **Valor:** max 10, starts at 5, +0.5/s. Cards cost 2-7.
 - **Hand:** 4 cards cycle through the 8-card deck (played card goes to the back of the queue).
 - **Auto-deploy** (idle combat, on by default): scores the hand (anti-air if fliers and none deployed, a tank if none, healer if allies are hurt, splash against big groups) and deploys the best affordable card when enemies are close.
-- **Legend Strike:** charges from reps (and passively in 50 s so non-exercisers can use it). Hits enemies near the frontline (and any boss) for 9× hero damage, stuns, and **interrupts** every boss telegraph.
+- **Push-up strikes:** see §3 - every verified rep deals damage directly.
+- **Legend Strike:** charges on its own in 50 s (push-ups do not charge it). Hits enemies near the frontline (and any boss) for 9× hero damage, stuns, and **interrupts** every boss telegraph.
 - **Damage:** `damage × buffs × (1 − resistance[type]) × armor`, where armor applies fully to physical and 30% to other types. Types: physical, fire, frost, lightning, holy. Worlds and bosses have resistances and weaknesses.
 - **Enemies:** normal, ranged, fast, armored, flying; elites (×3.2 HP, ×1.6 damage, ×5 gold) and mini-bosses / bosses.
 - **Bosses:** 3 phases (100% / 60% / 30% HP) with different abilities, attack speed, damage and resistances. Abilities are telegraphed on the ground (slam, breath, drain = lines; meteor, volley = circles; summon; shield). Meteors target army units, never the hero unless no units are deployed.
@@ -247,9 +269,9 @@ for heavy players, and gold stays bounded. Run `npm run simulate` for the report
 (40 simulated days):
 
 ```
-exerciser stages 50/50  W1:day 0.5  W2:day 1.3  W3:day 5.3  W4:day 8.5  W5:day 15.5
-idle      stages 50/50  W1:day 0.5  W2:day 1.3  W3:day 9.3  W4:day 12.7 W5:day 32.7
-casual    stages 49/50  W1:day 1.6  W2:day 3.3  W3:day 7.6  W4:day 17.3 W5:not yet
+exerciser stages 50/50  W1:day 0.5  W2:day 1.3  W3:day 4.7  W4:day 8.5  W5:day 12.5
+idle      stages 50/50  W1:day 0.5  W2:day 1.3  W3:day 6.7  W4:day 12.7 W5:day 19.3
+casual    stages 50/50  W1:day 1.6  W2:day 3.3  W3:day 9.3  W4:day 16.3 W5:day 37.3
 ```
 
 Known balance notes: the final boss (Nyxara) needs a near-maxed army on Normal, so the last stage is

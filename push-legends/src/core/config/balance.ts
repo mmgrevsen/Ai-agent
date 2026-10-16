@@ -11,8 +11,16 @@ export const BALANCE = {
     kneeRepMultiplier: 0.5,
     /** Battle valor (deploy energy) granted per rep, before multipliers. */
     valorPerRep: 1.5,
-    /** Fraction of the hero special charged per full rep (8 reps = full charge). */
-    specialChargePerRep: 0.125,
+    /**
+     * Each verified push-up makes the hero strike the enemy closest to the gate for this many times
+     * hero damage (× push-up power). Better swords raise hero damage, so they raise push-up damage.
+     */
+    repStrikeDamage: 4,
+    /** Nearby enemies take this fraction of a push-up strike as splash damage. */
+    repStrikeSplash: 0.4,
+    repStrikeSplashRadius: 6,
+    /** Push-ups done while no enemy is on the field are saved (up to this many) and released when the next wave arrives. */
+    maxBankedStrikes: 5,
     /** Reps inside one battle needed to trigger a War Cry (army-wide damage boost). */
     warCryReps: 10,
     warCryDurationSec: 10,
@@ -129,6 +137,8 @@ export const BALANCE = {
     starBonus: 0.15,
     /** Ore granted for a duplicate item once it is at max stars (never destroys an item). */
     surplusDuplicateOre: { common: 6, rare: 12, epic: 25, legendary: 60, mythic: 100 },
+    /** Armory sword price = this many seconds of the reference gold rate at the sword's unlock stage. */
+    armoryPriceSeconds: 240,
   },
 
   pets: {

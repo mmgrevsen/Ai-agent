@@ -40,7 +40,7 @@ export function IntroScreen() {
           LEGENDS
         </div>
         <p className="center dim" style={{ margin: 0 }}>
-          Lead an army of heroes. Every real push-up powers your troops. Rest days are welcome - your realm keeps growing while you're away, and losing a battle never costs you anything.
+          Lead an army of heroes. Every real push-up is a sword strike - earn gold, forge better swords, hit harder. Rest days are welcome - your realm keeps growing while you're away, and losing a battle never costs you anything.
         </p>
         <button className="btn gold big block pulse" onClick={begin}>
           <Icon name="swords" size={22} /> Begin your legend

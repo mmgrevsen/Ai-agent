@@ -7,6 +7,7 @@ import type { GameState } from '../state/types';
 import { campaignSetup } from '../systems/battleSetup';
 import { checkBuildingUpgrade, collectMine, completeBuildingUpgrades, startBuildingUpgrade } from '../systems/buildings';
 import { checkCardUpgrade, suggestDeck, upgradeCard } from '../systems/cards';
+import { buySword, nextAffordableSword } from '../systems/armory';
 import { buyChest, chestPrice, openPendingChest } from '../systems/chests';
 import { buyOffer, dailyOffers } from '../systems/shop';
 import { checkItemUpgrade, equippedItems, upgradeItem } from '../systems/equipment';
@@ -55,6 +56,9 @@ function spend(state: GameState, now: number): number {
   state.quests.daily.forEach((_, i) => claimQuest(state, 'daily', i));
   state.quests.weekly.forEach((_, i) => claimQuest(state, 'weekly', i));
   for (const a of claimableAchievements(state)) claimAchievement(state, a.def.id);
+
+  // A new sword from the Armory is the biggest single upgrade (hero damage and push-up damage).
+  for (let o = nextAffordableSword(state); o; o = nextAffordableSword(state)) buySword(state, o.defId);
 
   // Buildings first (they compound), then cards, then gear, then pets.
   const priority: BuildingId[] = ['castle', 'barracks', 'gold_mine', 'training_grounds', 'academy', 'blacksmith', 'treasury', 'pet_sanctuary', 'guild_hall'];

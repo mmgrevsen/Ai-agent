@@ -171,6 +171,7 @@ export type BattleEvent =
   | { type: 'special'; x0: number; x1: number; hits: number }
   | { type: 'warCry' }
   | { type: 'rep'; kind: 'full' | 'knee'; verified: boolean; valor: number }
+  | { type: 'pushStrike'; x: number; flying: boolean; amount: number }
   | { type: 'splash'; x: number; radius: number; damageType: DamageType }
   | { type: 'chain'; points: { x: number; flying: boolean }[] }
   | { type: 'rebirth'; unitId: number; x: number }
@@ -214,6 +215,8 @@ export interface BattleResult {
   xpEarned: number;
   duration: number;
   reps: { full: number; knee: number; simulated: number; repUnits: number };
+  /** Damage dealt by push-up strikes. */
+  repDamage: number;
   specialsUsed: number;
   interrupts: number;
   warCries: number;

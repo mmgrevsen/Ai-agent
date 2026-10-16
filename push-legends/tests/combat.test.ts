@@ -73,16 +73,57 @@ describe('combat engine', () => {
     expect(b.reps).toMatchObject({ full: 1, knee: 1, simulated: 0 });
   });
 
-  it('reps charge the Legend Strike and trigger War Cry every 10 full reps', () => {
+  it('push-ups trigger a War Cry every 10 full reps and do not charge the Legend Strike', () => {
     const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'normal', elite: false })]));
     b.special = 0;
-    for (let i = 0; i < 8; i++) b.registerRep('full', true);
-    expect(b.special).toBeGreaterThanOrEqual(1);
-    b.registerRep('full', true);
+    for (let i = 0; i < 9; i++) b.registerRep('full', true);
+    expect(b.special).toBe(0);
     expect(b.warCryActive).toBe(false);
     b.registerRep('full', true);
     expect(b.warCryActive).toBe(true);
     expect(b.warCries).toBe(1);
+  });
+
+  const waitForEnemy = (b: Battle) => {
+    for (let i = 0; i < 200 && b.enemies.length === 0; i++) b.step(0.05);
+  };
+
+  it('each push-up strikes the enemy closest to the gate for hero damage × repStrikeDamage', () => {
+    const setup = setupWith([wave({ kind: 'enemy', role: 'armored', elite: true }, { kind: 'enemy', role: 'armored', elite: true })], []);
+    const b = new Battle(setup);
+    waitForEnemy(b);
+    const target = b.enemies.reduce((a, e) => (e.x < a.x ? e : a));
+    const before = target.hp;
+    b.registerRep('full', true);
+    const expected = setup.hero.damage * BALANCE.exercise.repStrikeDamage * setup.hero.repPower * (1 - target.armor) * (1 - (target.resist.physical ?? 0));
+    expect(before - target.hp).toBeCloseTo(expected, 3);
+    expect(b.repDamage).toBeGreaterThan(0);
+    expect(b.drainEvents().some((e) => e.type === 'pushStrike')).toBe(true);
+  });
+
+  it('a stronger sword (more hero damage) means more damage per push-up; knee reps deal the configured fraction', () => {
+    const base = setupWith([wave({ kind: 'enemy', role: 'armored', elite: true })], []);
+    const hit = (heroDamage: number, kind: 'full' | 'knee') => {
+      const b = new Battle({ ...base, hero: { ...base.hero, damage: heroDamage } });
+      waitForEnemy(b);
+      const e = b.enemies[0]!;
+      const before = e.hp;
+      b.registerRep(kind, true);
+      return before - e.hp;
+    };
+    expect(hit(80, 'full')).toBeCloseTo(hit(40, 'full') * 2, 3);
+    expect(hit(40, 'knee')).toBeCloseTo(hit(40, 'full') * BALANCE.exercise.kneeRepMultiplier, 3);
+  });
+
+  it('push-ups done between waves are saved and released when enemies arrive', () => {
+    const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'armored', elite: true })], []));
+    b.registerRep('full', true);
+    b.registerRep('full', true);
+    expect(b.bankedStrikes).toBe(2);
+    expect(b.repDamage).toBe(0);
+    for (let i = 0; i < 200 && b.bankedStrikes > 0; i++) b.step(0.05);
+    expect(b.bankedStrikes).toBe(0);
+    expect(b.repDamage).toBeGreaterThan(0);
   });
 
   it('knee push-ups need twice as many reps for a War Cry', () => {

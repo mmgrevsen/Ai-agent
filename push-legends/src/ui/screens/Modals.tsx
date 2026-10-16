@@ -15,6 +15,8 @@ import { weeklyModifiers } from '../../core/systems/battleSetup';
 import { BATTLE_MODIFIERS } from '../../core/combat/types';
 import { formatDuration, formatNumber } from '../../core/util';
 import { cameraSupported } from '../../platform/pose';
+import { pushupDamage } from '../../core/systems/armory';
+import { computeHeroStats } from '../../core/systems/hero';
 import { CardArt, ItemArt, ModalShell, PetArt, RewardList, Segmented } from '../components/common';
 import { Icon } from '../components/Icon';
 import { BuildingModal } from './BaseScreen';
@@ -111,7 +113,7 @@ function PreBattleModal({ context }: { context: BattleContext }) {
           />
           <span className="xsmall faint">
             {mode === 'full'
-              ? `Each verified push-up: +${BALANCE.exercise.valorPerRep} valor, charges your Legend Strike, builds War Cry. 100% rewards.`
+              ? `Each verified push-up is a sword strike for ${formatNumber(pushupDamage(computeHeroStats(game)))} damage (+${BALANCE.exercise.valorPerRep} valor, builds War Cry). Better swords hit harder.`
               : mode === 'knee'
                 ? `Knee push-ups give ${Math.round(BALANCE.exercise.kneeRepMultiplier * 100)}% of the full push-up effect and rewards.`
                 : 'Play without exercise - your army fights and progresses on its own.'}

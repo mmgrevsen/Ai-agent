@@ -172,12 +172,13 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   const warCryReps = BALANCE.exercise.warCryReps;
   const out = tracker.output;
   const repsDone = battle.reps.full + battle.reps.knee + battle.reps.simulated;
+  const perRep = Math.round(battle.pushupDamage * (exerciseKind === 'knee' ? BALANCE.exercise.kneeRepMultiplier : 1));
 
   let tip: string | null = null;
   if (firstBattle) {
     if (!game.tutorial.tipDeploy) tip = 'Tap a card to send troops into battle! Valor (pink) refills over time.';
     else if (battle.special >= 1 && !game.tutorial.tipSpecial) tip = 'Your Legend Strike is charged - tap the golden button!';
-    else if (battle.time < 25) tip = 'Your army fights on its own. Push-ups (with the camera on) add valor and charge your Legend Strike.';
+    else if (battle.time < 25) tip = 'Your army fights on its own. With the camera on, every push-up is a sword strike! Buy better swords in the Armory to hit harder.';
   } else if (casting && battle.special >= 1 && !game.tutorial.tipInterrupt) tip = 'The boss is winding up! Legend Strike now to INTERRUPT it.';
 
   return (
@@ -260,11 +261,12 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
               <span className="display" key={repFlash}>
                 <span className={repFlash ? 'rep-pop' : ''}>{repsDone}</span> <span className="small dim">reps {exerciseKind === 'knee' ? '(knee)' : ''}</span>
               </span>
-              <span className="small dim">
-                War Cry {Math.floor(battle.warCryProgress)}/{warCryReps}
+              <span className="small gold-text" title="Damage per push-up (better swords hit harder)">
+                <Icon name="swords" size={14} /> {formatNumber(perRep)}/rep
+                {battle.bankedStrikes > 0 && <span className="dim"> · {Math.ceil(battle.bankedStrikes)} saved</span>}
               </span>
             </div>
-            <Bar value={battle.warCryProgress} max={warCryReps} tone="purple" />
+            <Bar value={battle.warCryProgress} max={warCryReps} tone="purple" label={`War Cry ${Math.floor(battle.warCryProgress)}/${warCryReps}`} />
             <div className="xsmall dim feedback-line">
               {useCam
                 ? tracker.status === 'running'

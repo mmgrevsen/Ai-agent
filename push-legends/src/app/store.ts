@@ -3,7 +3,8 @@ import type { Difficulty } from '../core/config/balance';
 import type { BuildingId } from '../core/content/buildings';
 import { getBuilding } from '../core/content/buildings';
 import { getCard } from '../core/content/cards';
-import type { EquipSlot } from '../core/content/equipment';
+import { getItem, type EquipSlot } from '../core/content/equipment';
+import { buySword } from '../core/systems/armory';
 import type { ChestKind } from '../core/content/quests';
 import type { BattleResult, BattleSetup } from '../core/combat/types';
 import { hashString, Rng } from '../core/rng';
@@ -368,6 +369,18 @@ export class GameStore {
       if (ok) applyQuestEvent(s, { type: 'itemUpgraded', amount: 1 });
     });
     sound.play(ok ? 'upgrade' : 'error');
+  }
+
+  buySword(defId: string): void {
+    let ok = false;
+    this.update((s) => {
+      ok = buySword(s, defId);
+    });
+    if (ok) {
+      sound.play('upgrade');
+      haptic('success');
+      this.toast(`${getItem(defId).name} forged! Your push-ups hit harder now.`, 'good');
+    } else sound.play('error');
   }
 
   setPet(id: string | null): void {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BUILDINGS } from '../core/content/buildings';
 import { activeUpgrades, checkBuildingUpgrade } from '../core/systems/buildings';
 import { upgradeableCards } from '../core/systems/cards';
+import { nextAffordableSword } from '../core/systems/armory';
 import { claimableAchievements } from '../core/systems/quests';
 import { sound } from '../platform/audio';
 import { BattleScreen } from '../ui/battle/BattleScreen';
@@ -84,6 +85,7 @@ export function App() {
     base: activeUpgrades(game).length < 2 && BUILDINGS.some((b) => checkBuildingUpgrade(game, b.id).ok) ? 1 : 0,
     quests: [...game.quests.daily, ...game.quests.weekly].filter((q) => !q.claimed && q.progress >= q.target).length + claimableAchievements(game).length,
     home: game.pendingChests.length,
+    hero: nextAffordableSword(game) ? 1 : 0,
   };
 
   return (
