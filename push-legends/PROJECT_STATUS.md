@@ -13,7 +13,23 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): cel shading, outlines, bloom and sculpted models
+## Latest change (2026-10-16): detailed base and battle polish
+
+The base was rebuilt: all 9 buildings are now assembled from architectural pieces (stone blocks,
+shingled roofs, timber frames, arched doors and windows, chimneys, cloth banners) with 5 visible
+tiers and more animation, and the town around them gained stone block walls, a moat with a
+bridge, cobblestone roads, grass and flowers, a fountain, market stalls, lanterns, clouds and
+birds. Base and battle now share one render pipeline with multisampled anti-aliasing (the bloom
+pass had switched it off), bloom and a colour grade. The battle gained a stone gatehouse, banner
+poles, slash arcs, sparks, walking dust and deploy runes. Sculpting tools were moved to
+`src/ui/base3d/sculpt.ts` so characters and buildings share them.
+
+Performance safeguards: the battle now simulates up to half a second per frame in small steps, so
+a slow frame no longer puts the battle in slow motion (the headless software renderer here runs at
+about 1.5 fps, and the first battle still finishes in about 80 seconds), and the 3D views render
+at most at 1.5x pixel density (MSAA keeps edges clean).
+
+## Earlier change (2026-10-16): cel shading, outlines, bloom and sculpted models
 
 New rendering style for the battle (and cel shading for the base): toon shading with rim light,
 ink outlines, bloom on glowing materials and soft unit shadows. All battle models were rebuilt

@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import type { WorldDef } from '../../core/content/types';
 import { Kit } from '../base3d/kit';
-import { flag, tree } from '../base3d/models';
+import { barrel, BUILD_MAT, crate, flag, merlons, stoneBox, tower, tree } from '../base3d/models';
+import { bakeGroundAO } from '../base3d/render';
+import { K, shapeFrom, star } from '../base3d/sculpt';
+import { addOutlines } from '../base3d/style';
 import { glowMaterial, toonMaterial } from '../base3d/style';
 
 /** The 3D battlefield for one world: ground, lane, scenery, both bases and ambient particles. */
@@ -159,11 +162,14 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   } else if (idx === 2) {
     // Volcano in the distance
     props.cone(28, 26, 10, -0.5, -110, '#2b1b17', 9);
-    addGlowBox(new THREE.CylinderGeometry(4, 6, 1.2, 9), '#ff7a2a', 10, 25.6, -110);
+    props.add(new THREE.CylinderGeometry(4, 6, 1.2, 9), '#ff7a2a', 10, 26.2, -110);
     for (const [x, z] of back) {
       if (rand() < 0.6) props.rock(1 + rand() * 1.6, x, 0, z, rand() < 0.5 ? '#2c2c2c' : '#46302a', rand() * 3, 0.9);
       else {
-        const pool = addGlowBox(new THREE.CircleGeometry(1 + rand() * 1.5, 7), '#ff6a1a', x, 0.05, z);
+        const pr = 1 + rand() * 1.5;
+        props.add(new THREE.CircleGeometry(pr * 1.15, 9), '#3a201a', x, 0.03, z, -Math.PI / 2, 0, 0);
+        props.add(new THREE.CircleGeometry(pr, 9), '#e8561a', x, 0.05, z, -Math.PI / 2, 0, 0);
+        const pool = addGlowBox(new THREE.CircleGeometry(pr * 0.45, 9), '#ffb347', x, 0.07, z);
         pool.rotation.x = -Math.PI / 2;
       }
     }
@@ -215,28 +221,30 @@ export function buildBattlefield(world: WorldDef): Battlefield {
   group.add(k.build(false));
   group.add(props.build(true));
 
-  // Ally gatehouse behind the hero and the enemy portal at the far end
-  const keep = new Kit();
+  // Ally gatehouse behind the hero (built facing +z, then turned to face the camera at local -x)
   const kx = toX(-3.5);
+  const gk = new K();
+  const grand = seeded(77);
+  for (const x of [-5.6, 5.6]) tower(gk, grand, x, 0, 2.0, 6.4, 0, '#7b4fd0', '#f5c542');
+  stoneBox(gk, grand, 7.4, 4.8, 2.6, 0, 0, 0.2, '#ddd5c7');
+  merlons(gk, 7.4, 2.6, 0, 4.8, 0.2, '#ddd5c7', false);
+  gk.add(new THREE.TorusGeometry(1.75, 0.3, 6, 16, Math.PI), '#b3a999', 0, 2.3, 1.55, 0, 0, 0);
+  gk.rbox(3.2, 2.3, 0.15, 0.05, 0, 1.15, 1.48, '#2a1e16');
+  gk.add(new THREE.CircleGeometry(1.6, 16, 0, Math.PI), '#2a1e16', 0, 2.3, 1.56, 0, 0, 0);
+  for (let i = -3; i <= 3; i++) gk.rbox(0.12, 1.4, 0.12, 0.03, i * 0.45, 3.0, 1.62, '#4d535c');
+  gk.rbox(3.2, 0.12, 0.13, 0.03, 0, 2.4, 1.62, '#4d535c');
+  for (const x of [-2.6, 2.6]) gk.cloth(1.0, 2.0, x, 4.3, 1.55, '#7b4fd0', 2, 0.04, 0.1).plate(star(0.25, 0.11), 0.03, 0.01, x, 3.3, 1.68, '#f5c542');
+  gk.plate(shapeFrom([[-0.6, 0.5], [0.6, 0.5], [0.6, -0.1], [0, -0.6], [-0.6, -0.1]]), 0.08, 0.03, 0, 3.75, 1.6, '#3f72dc').plate(star(0.32, 0.14), 0.04, 0.02, 0, 3.75, 1.68, '#f5c542');
+  const gateMesh = gk.build(true, BUILD_MAT);
+  bakeGroundAO(gateMesh, 3, 0.3);
+  addOutlines(gateMesh, 0.04, () => true);
+  gateMesh.rotation.y = -Math.PI / 2;
+  gateMesh.position.set(kx, 0, 0);
+  group.add(gateMesh);
   for (const z of [-5.6, 5.6]) {
-    keep.cyl(2, 2.2, 6.5, kx, 0, z, '#e3ddd3', 14);
-    keep.cyl(2.35, 2.35, 0.5, kx, 6.5, z, '#cfc7b8', 14);
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      keep.box(0.6, 0.7, 0.6, kx + Math.cos(a) * 2.05, 7, z + Math.sin(a) * 2.05, '#e3ddd3');
-    }
-    keep.cone(2.4, 3.2, kx, 7.6, z, '#7b4fd0', 14);
-    keep.box(0.5, 1.2, 0.1, kx + 2.05, 3.5, z, '#3b2a55');
-  }
-  keep.box(2.6, 4.6, 7.2, kx - 0.4, 0, 0, '#d8d2c6');
-  keep.crenels(7.2, kx + 0.6, 4.6, 0, '#d8d2c6', true, 0.6, 0.5);
-  keep.box(0.2, 3, 3.2, kx + 0.92, 0, 0, '#5b3a1e');
-  keep.box(0.25, 0.3, 3.6, kx + 0.95, 3, 0, '#f5c542');
-  group.add(keep.build(true));
-  for (const z of [-5.6, 5.6]) {
-    flag(group, kx, 12.2, z, anim, 2.4, 1.4);
+    flag(group, kx, 11.9, z, anim, 2.4, 1.4);
     const pole = new Kit();
-    pole.cyl(0.08, 0.08, 1.8, kx, 10.8, z, '#f7f4ee', 6);
+    pole.cyl(0.08, 0.08, 2.2, kx, 10.5, z, '#f7f4ee', 6);
     group.add(pole.build(false));
   }
 
@@ -297,6 +305,38 @@ export function buildBattlefield(world: WorldDef): Battlefield {
     }
     a.needsUpdate = true;
   });
+
+  // Banners on poles along the arena edges and supplies by the gatehouse
+  const deco = new K();
+  const bannerHex = ['#7b4fd0', '#3f72dc', '#c0392b', '#5d6670', '#8e44ad'][idx] ?? '#7b4fd0';
+  // One banner model (cloth facing +z), placed facing the camera (local -x) along both edges
+  const bk = new K();
+  bk.tube(0.1, 0.13, 5.2, 0, 2.6, 0, '#4a3a2e', 0, 0, 0, 7);
+  bk.ball(0.2, 0, 5.3, 0, '#f5c542');
+  bk.tube(0.05, 0.05, 1.5, 0, 4.75, 0.1, '#4a3a2e', 0, 0, Math.PI / 2, 5);
+  bk.cloth(1.3, 2.3, 0, 4.7, 0.14, bannerHex, 2, 0.05, 0.12);
+  bk.rbox(1.32, 0.1, 0.06, 0.02, 0, 4.3, 0.18, '#f5c542');
+  bk.plate(star(0.32, 0.14), 0.03, 0.01, 0, 3.35, 0.22, '#f5c542');
+  bk.tube(0.3, 0.36, 0.3, 0, 0.15, 0, '#8a8278', 0, 0, 0, 10);
+  const bannerMesh = bk.build(true, BUILD_MAT);
+  addOutlines(bannerMesh, 0.035, () => true);
+  for (const x of [-21, -9, 3, 15]) {
+    for (const z of [-12.4, 12.4]) {
+      const m = bannerMesh.clone();
+      m.position.set(x, 0, z);
+      m.rotation.y = -Math.PI / 2;
+      group.add(m);
+    }
+  }
+  const kx2 = toX(-1.5);
+  for (const z of [-8.5, 8.5]) {
+    barrel(deco, kx2, z);
+    barrel(deco, kx2 + 1.1, z + (z < 0 ? -0.3 : 0.3), 0.85);
+    crate(deco, kx2 - 0.4, z + (z < 0 ? 1.2 : -1.2), 0.9, 0.3);
+  }
+  const decoMesh = deco.build(true, BUILD_MAT);
+  addOutlines(decoMesh, 0.035, () => true);
+  group.add(decoMesh);
 
   // Lanterns along the road (they glow and bloom)
   const posts = new Kit();

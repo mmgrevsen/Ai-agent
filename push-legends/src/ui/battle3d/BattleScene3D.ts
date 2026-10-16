@@ -9,10 +9,7 @@ import { formatNumber } from '../../core/util';
 import { rr, type Ctx } from '../art/draw';
 import { disposeTree } from '../base3d/kit';
 import { addOutlines, glowColor, glowMaterial } from '../base3d/style';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { createPipeline, type Pipeline } from '../base3d/render';
 import { buildBattlefield, FLY_Y, toX, toZ, type Battlefield } from './battlefield3d';
 import { bossRig, cardRig, enemyRig, heroRig, type Rig } from './units3d';
 
@@ -54,6 +51,7 @@ interface UnitView {
   baseY: number;
   facing: number;
   seed: number;
+  lastDust: number;
 }
 
 interface Corpse {
@@ -80,7 +78,8 @@ interface Fx {
   born: number;
   life: number;
   grow: number;
-  kind: 'ring' | 'bolt' | 'column' | 'sweep';
+  kind: 'ring' | 'bolt' | 'column' | 'sweep' | 'slash' | 'spark' | 'rune';
+  spin?: number;
   x0?: number;
   x1?: number;
 }
@@ -109,8 +108,7 @@ export class BattleScene3D {
   private readonly scene = new THREE.Scene();
   /** Everything in battle-lane coordinates; rotated so the lane runs up the screen. */
   private readonly world = new THREE.Group();
-  private readonly composer: EffectComposer;
-  private readonly bloom: UnrealBloomPass;
+  private readonly pipeline: Pipeline;
   private readonly blobGeo = new THREE.CircleGeometry(1, 20);
   private readonly blobMat: THREE.MeshBasicMaterial;
   private readonly camera = new THREE.PerspectiveCamera(27, 1, 0.5, 600);
@@ -150,6 +148,32 @@ export class BattleScene3D {
     plane: new THREE.PlaneGeometry(1, 1),
     meteor: new THREE.IcosahedronGeometry(1.1, 0),
     bubble: new THREE.IcosahedronGeometry(1, 1),
+    slash: new THREE.TorusGeometry(1, 0.09, 4, 18, Math.PI * 0.85),
+    spark: (() => {
+      const sh = new THREE.Shape();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const r = i % 2 ? 0.28 : 1;
+        if (i === 0) sh.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else sh.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      sh.closePath();
+      return new THREE.ShapeGeometry(sh);
+    })(),
+    rune: (() => {
+      const sh = new THREE.Shape();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        const r = i % 2 ? 0.42 : 0.9;
+        if (i === 0) sh.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else sh.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      sh.closePath();
+      const hole = new THREE.Path();
+      hole.absarc(0, 0, 0.3, 0, Math.PI * 2, true);
+      sh.holes.push(hole);
+      return new THREE.ShapeGeometry(sh);
+    })(),
   };
   private readonly mats = {
     arrowAlly: new THREE.MeshBasicMaterial({ color: '#fdf2d0' }),
@@ -217,11 +241,7 @@ export class BattleScene3D {
     this.blobMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), transparent: true, depthWrite: false });
     this.blobMat.userData.shared = true;
 
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 2.3);
-    this.composer.addPass(this.bloom);
-    this.composer.addPass(new OutputPass());
+    this.pipeline = createPipeline(this.renderer, this.scene, this.camera, { msaa: !opts.pixel, bloom: { strength: 0.5, radius: 0.45, threshold: 2.3 } });
 
     const aura = COSMETIC_BY_ID.get(opts.aura);
     if (aura && aura.color !== 'transparent') {
@@ -242,11 +262,11 @@ export class BattleScene3D {
   resize(w: number, h: number): void {
     this.w = Math.max(1, w);
     this.h = Math.max(1, h);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // MSAA keeps edges clean, so 1.5x density is plenty and saves a lot of GPU work on phones
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
     this.renderer.setPixelRatio(this.opts.pixel ? Math.min(dpr, PIXEL_HEIGHT / this.h) : dpr);
     this.renderer.setSize(this.w, this.h, false);
-    this.composer.setPixelRatio(this.renderer.getPixelRatio());
-    this.composer.setSize(this.w, this.h);
+    this.pipeline.setSize(this.w, this.h, this.renderer.getPixelRatio());
     this.camera.aspect = this.w / this.h;
     this.camera.updateProjectionMatrix();
   }
@@ -348,6 +368,39 @@ export class BattleScene3D {
     this.fx.push({ mesh: m, born: this.time, life, grow: width, kind: 'column' });
   }
 
+  private additive(color: string, opacity = 0.95): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({ color: glowColor(color, 3), transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  }
+
+  /** Sword-swipe arc at a melee impact. */
+  private slash(at: THREE.Vector3, color: string): void {
+    if (this.reducedMotion) return;
+    const m = new THREE.Mesh(this.geo.slash, this.additive(color, 0.9));
+    m.position.copy(at);
+    this.world.add(m);
+    m.lookAt(this.camera.position);
+    m.rotateZ(Math.random() * Math.PI * 2);
+    this.fx.push({ mesh: m, born: this.time, life: 0.2, grow: 1.4, kind: 'slash' });
+  }
+
+  /** Star-shaped impact spark. */
+  private spark(at: THREE.Vector3, color: string, size = 1): void {
+    const m = new THREE.Mesh(this.geo.spark, this.additive(color));
+    m.position.copy(at);
+    this.world.add(m);
+    m.lookAt(this.camera.position);
+    this.fx.push({ mesh: m, born: this.time, life: 0.28, grow: size, kind: 'spark', spin: (Math.random() - 0.5) * 8 });
+  }
+
+  /** Rotating summoning rune on the ground. */
+  private rune(x: number, z: number, color: string): void {
+    const m = new THREE.Mesh(this.geo.rune, this.additive(color, 0.8));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.14, z);
+    this.world.add(m);
+    this.fx.push({ mesh: m, born: this.time, life: 0.75, grow: 3.2, kind: 'rune', spin: 2.5 });
+  }
+
   private boltLine(points: THREE.Vector3[], color: string): void {
     const pts: THREE.Vector3[] = [];
     for (let i = 0; i < points.length; i++) {
@@ -401,7 +454,11 @@ export class BattleScene3D {
           const src = byId(e.sourceId);
           const dst = byId(e.targetId);
           if (!e.ranged) {
-            if (dst) this.burst(this.midOf(dst, e.toX), '#ffffff', 3, 4, 0.18, 0.25, -10, 1);
+            if (dst) {
+              const at = this.midOf(dst, e.toX);
+              this.burst(at, '#ffffff', 4, 4, 0.18, 0.25, -10, 1);
+              this.slash(at, src?.side === 'ally' ? '#fff3c4' : '#ffb0c8');
+            }
             break;
           }
           const from = this.midOf(src, e.fromX, e.fromFlying);
@@ -416,7 +473,10 @@ export class BattleScene3D {
           pos.x += (Math.random() - 0.5) * 0.8;
           if (this.texts.length < 60)
             this.texts.push({ pos, text: formatNumber(e.amount), color: e.crit ? '#ffd23f' : e.side === 'ally' ? '#ff8098' : TYPE_COLOR[e.damageType], size: e.crit ? 19 : 13, born: this.time, life: 0.8 });
-          if (e.crit && u) this.burst(this.midOf(u, e.x), '#ffd23f', 6, 6, 0.22, 0.35, -8, 2);
+          if (e.crit && u) {
+            this.burst(this.midOf(u, e.x), '#ffd23f', 6, 6, 0.22, 0.35, -8, 2);
+            this.spark(this.midOf(u, e.x), '#ffd23f', 1.3);
+          }
           this.cb.onSound(e.crit ? 'crit' : 'hit');
           break;
         }
@@ -467,6 +527,7 @@ export class BattleScene3D {
         case 'deploy': {
           const x = toX(e.x);
           this.ring(x, 0, 0.12, 2.6, '#c7aaff', 0.45);
+          this.rune(x, 0, '#c7aaff');
           this.column(x, '#b98eff', 0.35, 9, 1.6);
           break;
         }
@@ -573,7 +634,7 @@ export class BattleScene3D {
     const br = (rig.kind === 'quad' ? 1.0 : rig.kind === 'flyer' ? 0.7 : 0.62) * scale * (rig.height > 3 ? 1.5 : 1);
     blob.scale.set(br, br * 0.8, 1);
     this.world.add(blob);
-    return { rig, blob, scale, baseY: 0, facing, seed: (u.id * 0.61803) % 1 };
+    return { rig, blob, scale, baseY: 0, facing, seed: (u.id * 0.61803) % 1, lastDust: 0 };
   }
 
   private addEliteMark(rig: Rig): void {
@@ -626,6 +687,10 @@ export class BattleScene3D {
 
     // Bob, breathing and squash
     const walk = moving ? t * (u.kind === 'enemy' && u.role === 'fast' ? 16 : 10) : 0;
+    if (moving && !u.flying && rig.kind !== 'float' && !this.reducedMotion && this.time - v.lastDust > 0.32) {
+      v.lastDust = this.time + Math.random() * 0.1;
+      this.burst(new THREE.Vector3(pos.x - dir * 0.4, 0.15, pos.z + (Math.random() - 0.5) * 0.6), '#cbb894', 2, 1.2, 0.22, 0.45, -2, 0.6);
+    }
     let bob = 0;
     if (rig.kind === 'flyer') bob = Math.sin(t * 3) * 0.25;
     else if (rig.kind === 'float') bob = 0.3 + Math.sin(t * 1.5) * 0.3;
@@ -841,6 +906,19 @@ export class BattleScene3D {
         f.mesh.position.set(x, 8, 0.5);
         m.opacity = 0.85 * (1 - k * 0.5);
         if (!this.reducedMotion) this.burst(new THREE.Vector3(x, Math.random() * 8, (Math.random() - 0.5) * 4), '#ffe9a0', 2, 3, 0.3, 0.5, 2, 1);
+      } else if (f.kind === 'slash') {
+        f.mesh.scale.setScalar(f.grow * (0.5 + k * 0.7));
+        f.mesh.rotateZ(0.12);
+        m.opacity = 0.9 * (1 - k * k);
+      } else if (f.kind === 'spark') {
+        const pop = k < 0.3 ? k / 0.3 : 1 - (k - 0.3) / 0.7;
+        f.mesh.scale.setScalar(Math.max(0.01, f.grow * (0.3 + pop)));
+        f.mesh.rotateZ((f.spin ?? 0) * 0.016);
+        m.opacity = Math.min(1, pop * 1.4);
+      } else if (f.kind === 'rune') {
+        f.mesh.scale.setScalar(f.grow * (0.6 + Math.min(1, k * 3) * 0.4));
+        f.mesh.rotation.z += (f.spin ?? 0) * 0.016;
+        m.opacity = 0.8 * (k < 0.7 ? 1 : (1 - k) / 0.3);
       } else {
         m.opacity = 1 - k;
       }
@@ -876,7 +954,7 @@ export class BattleScene3D {
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.08;
       this.shake *= 0.86;
     }
-    this.composer.render();
+    this.pipeline.render();
     this.drawOverlay(overlay, battle, dt);
   }
 
@@ -1019,6 +1097,7 @@ export class BattleScene3D {
     disposeTree(this.scene);
     this.particles.dispose();
     this.field.sky.dispose();
+    this.pipeline.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
     void this.host;

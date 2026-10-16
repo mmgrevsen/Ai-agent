@@ -132,10 +132,17 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     });
     resize3d.observe(stage);
     const loop = (now: number) => {
-      const realDt = Math.min(0.1, (now - last) / 1000);
+      // Up to half a second of game time per frame, simulated in small steps, so a slow frame
+      // never turns the battle into slow motion (and the engine always gets small time steps).
+      const frameDt = Math.min(0.5, (now - last) / 1000);
+      const realDt = Math.min(0.1, frameDt);
       last = now;
-      const dt = pausedRef.current ? 0 : realDt * speedRef.current;
-      if (dt > 0) battle.step(dt);
+      let remaining = pausedRef.current ? 0 : frameDt * speedRef.current;
+      while (remaining > 1e-6 && !battle.isOver) {
+        const step = Math.min(0.1, remaining);
+        battle.step(step);
+        remaining -= step;
+      }
       const events = battle.drainEvents();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const view = scene3d ?? renderer;

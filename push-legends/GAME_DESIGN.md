@@ -171,7 +171,10 @@ combat engine is unchanged; the 3D scene only reads its state and events.
 - Effects: arrows, spell orbs and lobbed bombs, a golden crescent per push-up strike with a
   shockwave, splash rings, chain lightning, meteor telegraphs with falling meteors, the Legend
   Strike sweep, rebirth pillars, a war-cry ground glow, camera shake and a camera push-in when a
-  boss arrives. Damage numbers, health bars and banners are drawn on a 2D overlay.
+  boss arrives, sword-slash arcs on melee hits, star sparks on critical hits, dust under walking
+  feet and a spinning rune when a card is deployed. The arena has banner poles along both edges,
+  supplies and a stone gatehouse with towers, an arch and a portcullis behind the hero. Damage
+  numbers, health bars and banners are drawn on a 2D overlay.
 - **Graphics setting** (Settings → Graphics): "Smooth" (default) renders the detailed cartoon 3D at
   full resolution with soft lighting and tone mapping; "Pixel 256" renders the 3D battle and base
   at 256 pixels height with hard pixel edges for a pixel-art look. Players who never picked a style
@@ -282,21 +285,38 @@ quest rewards; online guilds planned). Buildings are drawn procedurally and grow
 
 **3D base view** (`src/ui/base3d/`, three.js, all geometry generated in code, no external models):
 
-- A walled fortress seen from an isometric-style camera: stone walls with battlements and towers,
-  a gatehouse with a "PUSH LEGENDS" sign, wooden stakes, siege engines, roads, a plaza with a
-  flagpole and a well, and trees and rocks outside. Drag to pan, pinch or scroll to zoom, tap a
-  building (or its floating label) to open its upgrade panel.
-- Each of the 9 buildings has its own fenced plot. Unbuilt plots show a building site (or a padlock
-  stone with the required Castle level); upgrading plots get scaffolding and a swinging crane.
-- Visuals step through 5 tiers spread over each building's level range: the castle gains towers,
-  an upper keep and gold trim; the mine shows gold piles that grow as gold accumulates and an
-  animated cart; the barracks adds tents and a watchtower; the training grounds show more soldiers
-  doing animated push-ups; the blacksmith's forge smokes; the pet sanctuary shows your owned pets.
+- A walled fortress town seen from an isometric-style camera: stone walls built from staggered
+  blocks with a walkway and merlons, round towers with block rings, corbels, arrow slits and
+  shingle-ring roofs, a gatehouse with an arch, portcullis, cloth banners and a "PUSH LEGENDS"
+  sign, a moat with stone banks, sparkles and a wooden bridge, cobblestone roads, a lawn with
+  instanced grass tufts and flowers, a fountain with animated water jets, market stalls, lantern
+  posts, catapults and cannons, trees and rocks outside, drifting clouds and circling birds.
+- Rendering matches the battle: cel shading with rim light, ink outlines, soft shadows, baked
+  ground ambient occlusion, bloom on glowing materials (windows, forge, gold, magic, lanterns) and
+  a light colour grade, through a shared pipeline (`render.ts`) with multisampled anti-aliasing.
+- Each of the 9 buildings is assembled from architectural pieces (`models.ts`): stone block walls,
+  shingled gable and cone roofs, timber frames, arched plank doors, framed arched windows,
+  chimneys and cloth banners. Visuals step through 5 tiers spread over each building's level
+  range. Castle: keep, gatehouse with portcullis and crest, 2 → 4 towers, an upper keep, a tall
+  rear tower and gold trims. Gold Mine: faceted rock hill with glowing gold veins, timber-framed
+  entrance, rails and an animated cart, gold piles that grow with stored gold, lanterns, a hoist
+  with a turning wheel and a second entrance. Academy: block-built wizard tower with a balcony,
+  glowing windows and a floating orb with orbiting rings, a timber library, lectern, telescope
+  and a floating crystal. Barracks: timber hall, striped tents, a weapon rack, training dummy,
+  watchtower and a patrolling guard. Training Grounds: fenced yard, hurdles, climbing frame,
+  weights, a scoreboard, soldiers doing animated push-ups on mats and a pacing drill sergeant.
+  Blacksmith: stone workshop with an awning, smoking chimneys, a forge with glowing coals and
+  flames, bellows, anvil, sword rack, quench barrel, ore and a spinning grindstone. Treasury:
+  marble temple with columns, pediment, golden door, a golden dome, coin piles and glowing chests.
+  Guild Hall: timber hall with a steep roof, shield emblem, banners and a bell tower. Pet
+  Sanctuary: picket fence, pond with lily pads, kennel, flower beds, a fountain and the player's
+  pets (sculpted fox, moth, pebble golem, pup and hatchling) wandering around.
+- Unbuilt plots show a roped-off site with a signpost (or a padlocked stone plinth with chains and
+  the required Castle level); upgrading plots get scaffolding, materials and a swinging crane.
 - Soldiers in your deck's colours (more with higher Barracks level) and the hero patrol the roads.
 - Upgrading one building never changes another: each plot is rebuilt only from its own state.
-- Performance: each building is merged into one mesh (one draw call); three.js is loaded only when
-  the Base tab opens; rendering pauses while the app is hidden; reduced motion stops the animation.
-  Devices without WebGL get the earlier 2D painted scene.
+- three.js is loaded only when the Base tab opens; rendering pauses while the app is hidden;
+  reduced motion stops the animation. Devices without WebGL get the earlier 2D painted scene.
 
 ---
 
