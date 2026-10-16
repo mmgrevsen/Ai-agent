@@ -98,7 +98,7 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
       showSkeleton: true,
       calibration: {},
       autoDeploy: false,
-      autoDeployChosen: false,
+      autoDeployOptIn: false,
       cameraPrivacyAccepted: false,
     },
     social: { friends: [], blocked: [], challenges: [] },

@@ -59,6 +59,11 @@ export const BALANCE = {
     miniBossGoldMult: 20,
     bossGoldMult: 50,
     maxAlliesOnField: 14,
+    /** Drag-to-place: cards can be dropped from just in front of the hero up to this far up the lane... */
+    deployMinX: 10,
+    deployMaxX: 52,
+    /** ...but never closer than this to the nearest enemy (no dropping troops behind enemy lines). */
+    deployEnemyGap: 4,
   },
 
   difficulty: {

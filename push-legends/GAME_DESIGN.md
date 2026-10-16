@@ -38,7 +38,7 @@ from the checkpoint.
 
 1. Pick a stage on the world map (5 worlds × 10 stages; stage 5 = mini-boss, stage 10 = world boss).
 2. The army fights automatically in a side-scrolling lane. Enemies walk in from a portal on the right.
-3. The player deploys cards from a 4-card hand (8-card deck) using **valor** (regenerates over time).
+3. The player drags cards from a 4-card hand (8-card deck) onto the field, placing the troops where they want, using **valor** (regenerates over time). A quick tap sends them out of the gate instead.
 4. Every real push-up is a **sword strike**: the hero hits the enemy closest to the gate. Reps also add valor and build **War Cries**.
 5. Gold buys better swords in the **Armory**, which raise hero damage and therefore damage per push-up.
 6. Waves → elites → bosses with telegraphed attacks and multiple phases.
@@ -133,7 +133,17 @@ setup always produces the same result, so balance can be simulated and tested.
 - **Lane:** 1D positions; ground units block ground units; flying enemies dive past tanks to the back line.
 - **Valor:** max 10, starts at 5, +0.5/s. Cards cost 2-7.
 - **Hand:** 4 cards cycle through the 8-card deck (played card goes to the back of the queue).
-- **Auto-deploy** (optional, off by default; the AUTO ON/OFF button in battle, the pre-battle panel or Settings): meant for idle play or for doing push-ups hands-free. Tapping a card yourself switches it off for the rest of the battle (and remembers the choice), so it never spends the valor you are saving for a card you picked. It scores the hand (anti-air if fliers and none deployed, a tank if none, healer if allies are hurt, splash against big groups) and deploys the best affordable card when enemies are close.
+- **Drag to place:** drag a card onto the field and drop it. While dragging, the allowed deploy zone
+  lights up blue (from the gate up to the middle of the field, `deployMinX`-`deployMaxX`, and never
+  closer than `deployEnemyGap` to the nearest enemy), the rest of the lane is tinted red, and a
+  see-through preview of the troop follows the pointer. Drops outside the zone are moved to its
+  nearest point; the lane position (left/right) is kept. Squads stand in a small formation around
+  the drop point. Without enough valor the marker turns red and says how much is missing, and the
+  drop does nothing. Releasing over the hand cancels. A quick tap deploys at the gate as before.
+- **Auto-deploy** (optional, off by default): meant for idle play or for doing push-ups hands-free.
+  The AUTO button in battle affects that battle only; "Start battles with auto-deploy on" in
+  Settings or the pre-battle panel is the only persistent switch. Playing a card yourself (tap or
+  drag) switches it off for the rest of the battle, so it never spends the valor you are saving. It scores the hand (anti-air if fliers and none deployed, a tank if none, healer if allies are hurt, splash against big groups) and deploys the best affordable card when enemies are close.
 - **Push-up strikes:** see §3 - every verified rep deals damage directly.
 - **Legend Strike:** charges on its own in 50 s (push-ups do not charge it). Hits enemies near the frontline (and any boss) for 9× hero damage, stuns, and **interrupts** every boss telegraph.
 - **Damage:** `damage × buffs × (1 − resistance[type]) × armor`, where armor applies fully to physical and 30% to other types. Types: physical, fire, frost, lightning, holy. Worlds and bosses have resistances and weaknesses.

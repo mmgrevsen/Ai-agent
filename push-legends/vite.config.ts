@@ -6,8 +6,11 @@ export default defineConfig(({ mode }) => {
   // double-clicked on a Mac/PC. Code is not split, and large public assets are left out
   // (the pose model is fetched from the CDN when the camera is used).
   const single = mode === 'single';
+  // Visible build stamp (Settings and pause menu), e.g. "2026-10-16 15:52 UTC"
+  const stamp = `${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`;
   return {
     plugins: [react()],
+    define: { __BUILD__: JSON.stringify(stamp) },
     // Relative base so the build works inside Capacitor's WebView and from file servers.
     base: './',
     publicDir: single ? false : 'public',

@@ -149,7 +149,7 @@ function PreBattleModal({ context }: { context: BattleContext }) {
         )}
 
         <div className="spread small">
-          <span className="dim">Auto-deploy cards</span>
+          <span className="dim">Start with auto-deploy</span>
           <button className={`switch ${s.autoDeploy ? 'on' : ''}`} role="switch" aria-checked={s.autoDeploy} aria-label="Auto-deploy" onClick={() => store.updateSettings({ autoDeploy: !s.autoDeploy })} />
         </div>
         <div className="row wrap">

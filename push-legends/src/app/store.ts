@@ -617,7 +617,7 @@ export class GameStore {
     this.update((s) => {
       Object.assign(s.settings, patch);
       if (patch.graphics) s.settings.graphicsChosen = true;
-      if (patch.autoDeploy !== undefined) s.settings.autoDeployChosen = true;
+      if (patch.autoDeploy !== undefined) s.settings.autoDeployOptIn = patch.autoDeploy;
     });
     this.applySettings();
   }

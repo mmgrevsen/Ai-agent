@@ -42,7 +42,7 @@ export function cardUnlockedAtStage(stageIdx: number): string[] {
 export interface Suggestion {
   title: string;
   text: string;
-  action: 'cards' | 'base' | 'hero' | 'retry_story' | 'autodeploy' | 'retry_boss' | 'none';
+  action: 'cards' | 'base' | 'hero' | 'retry_story' | 'retry_boss' | 'none';
 }
 
 export interface BattleSummary {
@@ -326,7 +326,7 @@ export function buildSuggestions(state: GameState, result: BattleResult): Sugges
     out.push({ title: 'Perfect timing', text: 'When the ground glows red, unleash your Legend Strike to interrupt the boss attack.', action: 'none' });
   }
   if (a.timeWithFullValor > 15) {
-    out.push({ title: 'Spend your valor', text: `Your valor sat full for ${Math.round(a.timeWithFullValor)}s. Deploy cards sooner or turn on Auto-deploy.`, action: 'autodeploy' });
+    out.push({ title: 'Spend your valor', text: `Your valor sat full for ${Math.round(a.timeWithFullValor)}s. Drag cards onto the field as soon as you can afford them (or tap AUTO in battle).`, action: 'none' });
   }
   const up = upgradeableCards(state);
   if (up.length) out.push({ title: 'Upgrade ready', text: `You can upgrade ${up.map((id) => getCard(id).name).slice(0, 2).join(' and ')} right now.`, action: 'cards' });

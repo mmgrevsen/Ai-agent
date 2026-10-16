@@ -29,12 +29,19 @@ describe('save system', () => {
     expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.graphics).toBe('smooth');
   });
 
-  it('auto-deploy: off by default, old saves switch off until the player chooses', () => {
+  it('auto-deploy: off by default, old saves switch off until the player opts in', () => {
     const s = createInitialState(NOW, 1);
     expect(s.settings.autoDeploy).toBe(false);
     s.settings.autoDeploy = true;
     expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.autoDeploy).toBe(false);
-    s.settings.autoDeployChosen = true;
+    // Saves from the previous build, where the in-battle AUTO button stored the choice
+    const old = JSON.parse(JSON.stringify(s));
+    old.settings.autoDeployChosen = true;
+    delete old.settings.autoDeployOptIn;
+    const migrated = sanitizeState(old, NOW).settings;
+    expect(migrated.autoDeploy).toBe(false);
+    expect('autoDeployChosen' in migrated).toBe(false);
+    s.settings.autoDeployOptIn = true;
     expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.autoDeploy).toBe(true);
   });
 

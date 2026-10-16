@@ -307,10 +307,50 @@
   border: 0;
   border-radius: 12px;
   background: linear-gradient(160deg, var(--rar), color-mix(in srgb, var(--rar) 35%, #120b30));
-  cursor: pointer;
+  cursor: grab;
   overflow: hidden;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
-  transition: transform 0.1s;
+  transition: transform 0.1s, opacity 0.1s;
+  /* Cards are dragged onto the field: no scrolling, text selection or long-press menu */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.hand-card.dragging {
+  opacity: 0.35;
+  transform: scale(0.92);
+}
+
+/* The card following the pointer while it is dragged; it shrinks over the field so the troop preview shows */
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  width: 64px;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+
+.drag-ghost:empty {
+  display: none;
+}
+
+.drag-ghost canvas {
+  display: block;
+  width: 64px !important;
+  height: auto !important;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.drag-ghost.over {
+  opacity: 0.85;
 }
 
 .hand-card canvas {

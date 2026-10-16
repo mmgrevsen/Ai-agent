@@ -10,7 +10,8 @@ import { rr, type Ctx } from '../art/draw';
 import { disposeTree } from '../base3d/kit';
 import { addOutlines, glowColor, glowMaterial } from '../base3d/style';
 import { createPipeline, type Pipeline } from '../base3d/render';
-import { buildBattlefield, FLY_Y, toX, toZ, type Battlefield } from './battlefield3d';
+import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } from '../battle/placement';
+import { buildBattlefield, FLY_Y, toX, toZ, XS, type Battlefield } from './battlefield3d';
 import { bossRig, cardRig, enemyRig, heroRig, type Rig } from './units3d';
 
 /**
@@ -103,7 +104,8 @@ interface Banner {
 
 const MAX_PARTICLES = 420;
 
-export class BattleScene3D {
+
+export class BattleScene3D implements PlacementView {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   /** Everything in battle-lane coordinates; rotated so the lane runs up the screen. */
@@ -185,6 +187,21 @@ export class BattleScene3D {
   };
   reducedMotion: boolean;
   private readonly opts: Scene3DOptions;
+  // Drag-to-place preview: deploy zone, the blocked part of the lane, a drop marker and ghost troops
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private readonly ndc = new THREE.Vector2();
+  private placement: PlacementPreview | null = null;
+  private place: {
+    root: THREE.Group;
+    zone: THREE.Mesh;
+    blocked: THREE.Mesh;
+    edge: THREE.Mesh;
+    ring: THREE.Mesh;
+    disc: THREE.Mesh;
+    ghosts: THREE.Group;
+    ghostKey: string;
+  } | null = null;
 
   constructor(
     private readonly host: HTMLElement,
@@ -275,6 +292,128 @@ export class BattleScene3D {
     this.banners.push({ title, subtitle, color, born: this.time, life });
   }
 
+  // --- Drag-to-place -----------------------------------------------------------------------------
+
+  screenToLane(px: number, py: number): { x: number; lane: number } | null {
+    this.ndc.set((px / this.w) * 2 - 1, 1 - (py / this.h) * 2);
+    this.raycaster.setFromCamera(this.ndc, this.camera);
+    const hit = this.raycaster.ray.intersectPlane(this.groundPlane, new THREE.Vector3());
+    if (!hit) return null;
+    this.world.updateMatrixWorld();
+    const local = this.world.worldToLocal(hit);
+    return { x: local.x / XS + 54, lane: local.z / toZ(1) };
+  }
+
+  setPlacement(p: PlacementPreview | null): void {
+    this.placement = p;
+    if (!p) {
+      if (this.place) this.place.root.visible = false;
+      return;
+    }
+    const pl = this.place ?? this.buildPlacement();
+    pl.root.visible = true;
+    const key = `${p.cardId}x${p.count}`;
+    if (pl.ghostKey !== key) {
+      for (const g of [...pl.ghosts.children]) {
+        pl.ghosts.remove(g);
+        disposeTree(g);
+      }
+      for (const off of squadOffsets(Math.min(p.count, 4))) {
+        const ghost = this.ghostRig(p.cardId);
+        ghost.userData.off = off;
+        pl.ghosts.add(ghost);
+      }
+      pl.ghostKey = key;
+    }
+  }
+
+  private buildPlacement(): NonNullable<BattleScene3D['place']> {
+    const flat = (color: string, opacity: number, order: number) => {
+      const m = new THREE.Mesh(this.geo.plane, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
+      m.rotation.x = -Math.PI / 2;
+      m.renderOrder = order;
+      return m;
+    };
+    const root = new THREE.Group();
+    const zone = flat('#9fe8ff', 0.24, 3);
+    const blocked = flat('#ff3355', 0.26, 3);
+    const edge = flat('#ffffff', 0.85, 4);
+    const ring = new THREE.Mesh(this.geo.ring, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.renderOrder = 5;
+    const disc = new THREE.Mesh(this.geo.disc, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.28, depthWrite: false }));
+    disc.rotation.x = -Math.PI / 2;
+    disc.renderOrder = 5;
+    const ghosts = new THREE.Group();
+    root.add(zone, blocked, edge, ring, disc, ghosts);
+    root.visible = false;
+    this.world.add(root);
+    this.place = { root, zone, blocked, edge, ring, disc, ghosts, ghostKey: '' };
+    return this.place;
+  }
+
+  /** A see-through copy of a card's troop model, used as the drop preview. */
+  private ghostRig(cardId: string): THREE.Group {
+    const rig = cardRig(cardId);
+    const copies = new Map<THREE.Material, THREE.Material>();
+    rig.root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const src = mesh.material as THREE.Material;
+      let c = copies.get(src);
+      if (!c) {
+        c = src.clone();
+        delete c.userData.shared;
+        c.transparent = true;
+        c.opacity = 0.55;
+        c.depthWrite = false;
+        copies.set(src, c);
+      }
+      mesh.material = c;
+      mesh.castShadow = false;
+      mesh.renderOrder = 6;
+    });
+    rig.root.scale.setScalar(UNIT_SCALE);
+    rig.root.rotation.y = Math.PI / 2;
+    return rig.root;
+  }
+
+  private updatePlacement(t: number): void {
+    const p = this.placement;
+    const pl = this.place;
+    if (!p || !pl) return;
+    const half = toZ(1.12) * 2;
+    const x0 = toX(p.minX - 2);
+    const x1 = toX(p.maxX);
+    const end = toX(BALANCE.combat.enemySpawnX + 4);
+    pl.zone.position.set((x0 + x1) / 2, 0.16, 0);
+    pl.zone.scale.set(Math.max(0.01, x1 - x0), half, 1);
+    pl.blocked.position.set((x1 + end) / 2, 0.16, 0);
+    pl.blocked.scale.set(Math.max(0.01, end - x1), half, 1);
+    pl.edge.position.set(x1, 0.18, 0);
+    pl.edge.scale.set(0.22, half, 1);
+    (pl.edge.material as THREE.MeshBasicMaterial).opacity = 0.55 + 0.35 * Math.sin(t * 6);
+    const color = p.ok ? '#ffffff' : '#ff5c7a';
+    const mx = toX(p.x);
+    const mz = toZ(p.lane);
+    const pulse = 1 + Math.sin(t * 7) * 0.06;
+    pl.ring.position.set(mx, 0.2, mz);
+    pl.ring.scale.setScalar(1.9 * pulse);
+    (pl.ring.material as THREE.MeshBasicMaterial).color.set(color);
+    pl.disc.position.set(mx, 0.19, mz);
+    pl.disc.scale.setScalar(1.6);
+    (pl.disc.material as THREE.MeshBasicMaterial).color.set(color);
+    const lift = (p.flying ? FLY_Y : 0.35) + Math.sin(t * 4) * 0.18;
+    for (const g of pl.ghosts.children) {
+      const off = g.userData.off as { dx: number; dl: number };
+      g.position.set(toX(p.x + off.dx), lift, toZ(Math.max(-1, Math.min(1, p.lane + off.dl))));
+      g.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) (mesh.material as THREE.Material).opacity = p.ok ? 0.55 : 0.3;
+      });
+    }
+  }
+
   // --- Mapping helpers ---------------------------------------------------------------------------
 
   private unitPos(u: Unit, out = new THREE.Vector3()): THREE.Vector3 {
@@ -360,9 +499,11 @@ export class BattleScene3D {
     this.fx.push({ mesh: m, born: this.time + delay, life, grow: radius, kind: 'ring' });
   }
 
-  private column(x: number, color: string, life: number, height = 12, width = 2.2): void {
+  private column(x: number, color: string, life: number, height = 12, width = 2.2, z = 0): void {
     const m = new THREE.Mesh(this.geo.plane, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    m.position.set(x, height / 2, 0.5);
+    // Facing the camera (the lane group is rotated a quarter turn)
+    m.rotation.y = Math.PI / 2;
+    m.position.set(x, height / 2, z);
     m.scale.set(width, height, 1);
     this.world.add(m);
     this.fx.push({ mesh: m, born: this.time, life, grow: width, kind: 'column' });
@@ -526,9 +667,11 @@ export class BattleScene3D {
         }
         case 'deploy': {
           const x = toX(e.x);
-          this.ring(x, 0, 0.12, 2.6, '#c7aaff', 0.45);
-          this.rune(x, 0, '#c7aaff');
-          this.column(x, '#b98eff', 0.35, 9, 1.6);
+          const z = toZ(e.lane);
+          this.ring(x, z, 0.12, 2.6, '#c7aaff', 0.45);
+          this.rune(x, z, '#c7aaff');
+          this.column(x, '#b98eff', 0.35, 9, 1.6, z);
+          this.burst(new THREE.Vector3(x, 0.6, z), '#e3d0ff', 10, 6, 0.26, 0.5, -10, 5);
           break;
         }
         case 'telegraph':
@@ -548,7 +691,9 @@ export class BattleScene3D {
           break;
         case 'special': {
           const m = new THREE.Mesh(this.geo.plane, new THREE.MeshBasicMaterial({ color: '#fff0a0', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-          m.scale.set(3.5, 16, 1);
+          // A wall of light across the road that sweeps up the lane
+          m.rotation.y = Math.PI / 2;
+          m.scale.set(12, 16, 1);
           this.world.add(m);
           this.fx.push({ mesh: m, born: this.time, life: 0.55, grow: 0, kind: 'sweep', x0: toX(e.x0), x1: toX(e.x1) });
           this.flash = 0.8;
@@ -903,7 +1048,7 @@ export class BattleScene3D {
         m.opacity = 0.8 * (1 - k);
       } else if (f.kind === 'sweep') {
         const x = (f.x0 ?? 0) + ((f.x1 ?? 0) - (f.x0 ?? 0)) * k;
-        f.mesh.position.set(x, 8, 0.5);
+        f.mesh.position.set(x, 8, 0);
         m.opacity = 0.85 * (1 - k * 0.5);
         if (!this.reducedMotion) this.burst(new THREE.Vector3(x, Math.random() * 8, (Math.random() - 0.5) * 4), '#ffe9a0', 2, 3, 0.3, 0.5, 2, 1);
       } else if (f.kind === 'slash') {
@@ -937,6 +1082,7 @@ export class BattleScene3D {
     this.updateProjectiles();
     this.updateFx();
     this.updateParticles(dt);
+    this.updatePlacement(t);
     if (this.heroAura) {
       this.heroAura.rotation.z = t;
       this.heroAura.scale.setScalar(2.2 + Math.sin(t * 3) * 0.15);
@@ -1057,6 +1203,12 @@ export class BattleScene3D {
       ctx.fillText(f.text, s.x, y);
     }
     ctx.globalAlpha = 1;
+    // Why a dragged card cannot be dropped right now
+    const pl = this.placement;
+    if (pl && !pl.ok && pl.reason) {
+      const s = this.project(new THREE.Vector3(toX(pl.x), (pl.flying ? FLY_Y : 0) + 4.2, toZ(pl.lane)));
+      if (s.ok) dropLabel(ctx, pl.reason, s.x, s.y);
+    }
     // Flash
     if (this.flash > 0) {
       ctx.fillStyle = `rgba(255,250,220,${this.flash * 0.5})`;

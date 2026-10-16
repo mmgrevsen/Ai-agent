@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { store, useGame } from '../../app/store';
 import { OverlayHeader, Segmented, Switch } from '../components/common';
 import { Icon } from '../components/Icon';
+import { BUILD_STAMP } from '../../app/buildInfo';
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -114,7 +115,7 @@ export function SettingsScreen() {
               Reset calibration
             </button>
           )}
-          <Row label="Auto-deploy cards in battle">
+          <Row label="Start battles with auto-deploy on">
             <Switch on={s.autoDeploy} onChange={(v) => set({ autoDeploy: v })} label="Auto-deploy" />
           </Row>
         </div>
@@ -178,7 +179,7 @@ export function SettingsScreen() {
             </button>
           )}
         </div>
-        <p className="xsmall faint center">Push Legends v0.1 · offline build</p>
+        <p className="xsmall faint center">Push Legends v0.1 · build {BUILD_STAMP}</p>
       </div>
     </div>
   );

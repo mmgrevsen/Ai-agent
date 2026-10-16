@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { BUILD_STAMP } from '../../app/buildInfo';
 import { store, useGame, type BattleContext } from '../../app/store';
 import { BALANCE } from '../../core/config/balance';
 import { Battle } from '../../core/combat/engine';
@@ -13,6 +14,7 @@ import { haptic } from '../../platform/haptics';
 import { Bar, CardArt, ModalShell } from '../components/common';
 import { Icon } from '../components/Icon';
 import type { BattleScene3D as BattleScene3DType } from '../battle3d/BattleScene3D';
+import type { PlacementPreview, PlacementView } from './placement';
 import { BattleRenderer } from './renderer';
 import { drawSkeleton, useExerciseTracker } from './useExercise';
 import '../styles/battle.css';
@@ -24,6 +26,39 @@ function webglOk(): boolean {
   } catch {
     return false;
   }
+}
+
+/** A hand card being dragged towards the battlefield (positions are stage-relative CSS pixels). */
+interface CardDrag {
+  slot: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  px: number;
+  py: number;
+  dragging: boolean;
+  over: boolean;
+}
+
+/** Drop preview for the card being dragged, or null when it is not over the field. */
+function placementFor(battle: Battle, d: CardDrag | null, view: PlacementView): PlacementPreview | null {
+  if (!d || !d.dragging || !d.over || battle.isOver) return null;
+  const spec = battle.handCard(d.slot);
+  const raw = view.screenToLane(d.px, d.py);
+  if (!spec || !raw) return null;
+  const at = battle.clampDeploy(raw);
+  const afford = battle.canAfford(d.slot);
+  const room = battle.allies.length - 1 + spec.def.count <= BALANCE.combat.maxAlliesOnField;
+  const missing = Math.ceil(spec.def.cost - battle.valor - 1e-9);
+  return {
+    ...at,
+    ...battle.deployZone(),
+    ok: afford && room,
+    reason: !afford ? `Need ${missing} more valor` : !room ? 'Your army is full' : null,
+    cardId: spec.def.id,
+    count: spec.def.count,
+    flying: spec.def.flying,
+  };
 }
 
 function heroHasGoldSword(game: GameState): boolean {
@@ -45,6 +80,10 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   const scene3dHostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const skeletonRef = useRef<HTMLCanvasElement>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<CardDrag | null>(null);
+  const viewRef = useRef<PlacementView | null>(null);
+  const [dragSlot, setDragSlot] = useState<number | null>(null);
   const [, setTick] = useState(0);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -151,6 +190,8 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
       const events = battle.drainEvents();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const view = scene3d ?? renderer;
+      viewRef.current = view;
+      view.setPlacement(placementFor(battle, dragRef.current, view));
       if (scene3d) {
         scene3d.reducedMotion = renderer.reducedMotion;
         scene3d.ingest(battle, events);
@@ -207,26 +248,86 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     return () => cancelAnimationFrame(raf);
   }, [useCam, settings.showSkeleton, tracker.landmarksRef]);
 
+  // The AUTO button only affects this battle; "Start battles with auto-deploy" lives in Settings.
   const setAuto = (on: boolean) => {
     battle.autoDeploy = on;
-    store.updateSettings({ autoDeploy: on });
     setTick((n) => n + 1);
   };
 
-  const deploy = (slot: number) => {
+  const takeControl = () => {
+    // Playing a card yourself means you want to choose: auto-deploy stops spending valor for you.
+    if (!battle.autoDeploy) return;
+    setAuto(false);
+    store.toast('You are in control: auto-deploy is off for this battle.', 'info');
+  };
+
+  const deploy = (slot: number, at?: { x: number; lane: number }) => {
     sound.unlock();
-    // Tapping a card means the player wants to choose: auto-deploy stops spending valor for them.
-    if (battle.autoDeploy) {
-      setAuto(false);
-      store.toast('You are in control: auto-deploy is off. Tap AUTO to turn it back on.', 'info');
-    }
-    if (battle.deploy(slot)) {
+    takeControl();
+    if (battle.deploy(slot, at)) {
       sound.play('deploy');
       haptic('light');
       if (firstBattle) store.completeTutorial('tipDeploy');
     } else sound.play('error');
     setTick((n) => n + 1);
   };
+
+  // Drag a card onto the field to place it; a quick tap still sends the troops out of the gate.
+  const moveGhost = (clientX: number, clientY: number, over: boolean) => {
+    const g = ghostRef.current;
+    if (!g) return;
+    // Over the field the card shrinks and floats above the finger, so the drop marker stays visible
+    g.style.transform = over ? `translate(${clientX}px, ${clientY}px) translate(-50%, -100%) translateY(-38px) scale(0.5)` : `translate(${clientX}px, ${clientY}px) translate(-50%, -100%) translateY(30px) scale(1.05)`;
+    g.classList.toggle('over', over);
+  };
+
+  const onCardDown = (e: ReactPointerEvent<HTMLButtonElement>, slot: number) => {
+    if (ending || e.button !== 0) return;
+    sound.unlock();
+    takeControl();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { slot, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, px: 0, py: 0, dragging: false, over: false };
+  };
+
+  const onCardMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    const stage = stageRef.current;
+    if (!d || d.pointerId !== e.pointerId || !stage) return;
+    if (!d.dragging) {
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 10) return;
+      d.dragging = true;
+      setDragSlot(d.slot);
+    }
+    const r = stage.getBoundingClientRect();
+    d.px = e.clientX - r.left;
+    d.py = e.clientY - r.top;
+    d.over = d.px >= 0 && d.px <= r.width && d.py >= 0 && d.py <= r.height;
+    moveGhost(e.clientX, e.clientY, d.over);
+  };
+
+  const onCardUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDragSlot(null);
+    if (!d.dragging) {
+      deploy(d.slot);
+      return;
+    }
+    // Released back over the hand: nothing happens, the card stays.
+    if (!d.over) return;
+    const at = viewRef.current?.screenToLane(d.px, d.py);
+    if (at) deploy(d.slot, at);
+  };
+
+  const onCardCancel = () => {
+    dragRef.current = null;
+    setDragSlot(null);
+  };
+
+  useEffect(() => {
+    if (ending) onCardCancel();
+  }, [ending]);
 
   const special = () => {
     const wasCasting = battle.telegraphs.length > 0;
@@ -258,7 +359,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
 
   let tip: string | null = null;
   if (firstBattle) {
-    if (!game.tutorial.tipDeploy) tip = 'Tap a card to send troops into battle! Valor (pink) refills over time.';
+    if (!game.tutorial.tipDeploy) tip = 'Drag a card onto the field to place troops where you want - or tap it to send them from the gate. Valor (pink) refills over time.';
     else if (battle.special >= 1 && !game.tutorial.tipSpecial) tip = 'Your Legend Strike is charged - tap the golden button!';
     else if (battle.time < 25) tip = 'Your army fights on its own. With the camera on, every push-up is a sword strike! Buy better swords in the Armory to hit harder.';
   } else if (casting && battle.special >= 1 && !game.tutorial.tipInterrupt) tip = 'The boss is winding up! Legend Strike now to INTERRUPT it.';
@@ -364,7 +465,9 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
                       : tracker.error || 'Camera unavailable - playing without it.'
                 : exerciseKind
                   ? 'Turn on the camera in Settings to power up with push-ups.'
-                  : 'Idle battle: your army fights automatically.'}
+                  : battle.autoDeploy
+                    ? 'Auto-deploy is playing your cards. Tap AUTO to take over.'
+                    : 'Drag cards onto the field to place troops.'}
             </div>
           </div>
           {settings.devTools && (
@@ -389,7 +492,20 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
               const spec = setup.deck[idx]!;
               const affordable = valor >= spec.def.cost;
               return (
-                <button key={`${slot}-${idx}`} className={`hand-card rarity-${spec.def.rarity} ${affordable ? 'ready' : ''}`} onClick={() => deploy(slot)} disabled={ending} aria-label={`Deploy ${spec.def.name}, costs ${spec.def.cost} valor`}>
+                <button
+                  key={`${slot}-${idx}`}
+                  className={`hand-card rarity-${spec.def.rarity} ${affordable ? 'ready' : ''} ${dragSlot === slot ? 'dragging' : ''}`}
+                  onPointerDown={(e) => onCardDown(e, slot)}
+                  onPointerMove={onCardMove}
+                  onPointerUp={onCardUp}
+                  onPointerCancel={onCardCancel}
+                  onLostPointerCapture={(e) => dragRef.current?.pointerId === e.pointerId && onCardCancel()}
+                  // Pointer taps deploy on pointer-up; keyboard activation (detail 0) deploys here
+                  onClick={(e) => e.detail === 0 && deploy(slot)}
+                  onContextMenu={(e) => e.preventDefault()}
+                  disabled={ending}
+                  aria-label={`Deploy ${spec.def.name}, costs ${spec.def.cost} valor. Drag onto the field to choose where.`}
+                >
                   <CardArt cardId={spec.def.id} width={64} />
                   <span className="hand-cost">
                     <span>{spec.def.cost}</span>
@@ -425,6 +541,10 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
         </div>
       </div>
 
+      <div ref={ghostRef} className="drag-ghost" aria-hidden="true">
+        {dragSlot !== null && battle.hand[dragSlot] !== undefined && <CardArt cardId={setup.deck[battle.hand[dragSlot]!]!.def.id} width={64} />}
+      </div>
+
       {paused && !ending && (
         <ModalShell label="Paused" onClose={() => setPaused(false)}>
           <div className="stack-m center">
@@ -442,6 +562,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
             >
               Retreat (keep rewards)
             </button>
+            <p className="xsmall faint">Build {BUILD_STAMP}</p>
           </div>
         </ModalShell>
       )}

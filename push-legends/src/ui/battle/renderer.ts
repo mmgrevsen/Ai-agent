@@ -7,6 +7,7 @@ import { formatNumber } from '../../core/util';
 import { circle, glow, line, rgba, rr, type Ctx } from '../art/draw';
 import { drawBattleProps, drawWorldBackground } from '../art/scenery';
 import { drawSprite, spriteHeight, type SpriteKey } from '../art/units';
+import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } from './placement';
 
 interface FloatText {
   x: number;
@@ -82,7 +83,7 @@ export interface RendererCallbacks {
 }
 
 /** Draws a Battle each frame and turns its events into visual effects. Pure presentation. */
-export class BattleRenderer {
+export class BattleRenderer implements PlacementView {
   w = 360;
   h = 300;
   groundY = 220;
@@ -113,6 +114,49 @@ export class BattleRenderer {
     const left = 36;
     const right = 22;
     return left + (x / (BALANCE.combat.enemySpawnX + 2)) * (this.w - left - right);
+  }
+
+  private placement: PlacementPreview | null = null;
+
+  screenToLane(px: number, py: number): { x: number; lane: number } {
+    const left = 36;
+    const right = 22;
+    return { x: ((px - left) / Math.max(1, this.w - left - right)) * (BALANCE.combat.enemySpawnX + 2), lane: (py - this.groundY - 8) / (14 * this.unitScale) };
+  }
+
+  setPlacement(p: PlacementPreview | null): void {
+    this.placement = p;
+  }
+
+  private drawPlacement(ctx: Ctx, t: number): void {
+    const p = this.placement;
+    if (!p) return;
+    const top = this.groundY + 8 - 20 * this.unitScale;
+    const bottom = this.groundY + 8 + 20 * this.unitScale;
+    const x0 = this.sx(p.minX - 2);
+    const x1 = this.sx(p.maxX);
+    ctx.fillStyle = 'rgba(159,232,255,0.2)';
+    ctx.fillRect(x0, top, x1 - x0, bottom - top);
+    ctx.fillStyle = 'rgba(255,77,109,0.16)';
+    ctx.fillRect(x1, top, this.sx(BALANCE.combat.enemySpawnX + 2) - x1, bottom - top);
+    ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.35 * Math.sin(t * 6)})`;
+    ctx.fillRect(x1 - 1.5, top, 3, bottom - top);
+    const color = p.ok ? '#ffffff' : '#ff5c7a';
+    for (const off of squadOffsets(Math.min(p.count, 4))) {
+      const x = this.sx(p.x + off.dx);
+      const y = this.groundY + Math.max(-1, Math.min(1, p.lane + off.dl)) * 14 * this.unitScale + 8;
+      ctx.globalAlpha = p.ok ? 0.5 : 0.25;
+      drawSprite(ctx, { type: 'card', id: p.cardId }, x, p.flying ? y - 52 * this.unitScale : y, { t, facing: 1, attack: 0, hit: 0, scale: this.unitScale, moving: false, elite: false });
+      ctx.globalAlpha = 1;
+    }
+    const mx = this.sx(p.x);
+    const my = this.groundY + p.lane * 14 * this.unitScale + 8;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(mx, my, 16 * this.unitScale, 6 * this.unitScale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    if (!p.ok && p.reason) dropLabel(ctx, p.reason, mx, my - 70 * this.unitScale);
   }
 
   private unitY(u: Unit): number {
@@ -301,6 +345,8 @@ export class BattleRenderer {
         ctx.fill();
       }
     }
+
+    this.drawPlacement(ctx, t);
 
     // Units, sorted by depth.
     const units = battle.units.filter((u) => !u.dead).sort((a, b) => (a.flying === b.flying ? a.lane - b.lane : a.flying ? 1 : -1));

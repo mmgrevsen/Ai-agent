@@ -133,8 +133,9 @@ export function sanitizeState(raw: unknown, now: number, repaired: string[] = []
   // Graphics: unknown values fall back, and players who never chose get the current default.
   if (base.settings.graphics !== 'pixel' && base.settings.graphics !== 'smooth') base.settings.graphics = 'smooth';
   if (!base.settings.graphicsChosen) base.settings.graphics = 'smooth';
-  // Auto-deploy used to default to on, which spent valor before players could pick their own cards.
-  if (!base.settings.autoDeployChosen) base.settings.autoDeploy = false;
+  // Auto-deploy used to default to on (and the in-battle button used to save it), which spent valor
+  // before players could pick their own cards. It now stays off unless switched on in Settings.
+  if (!base.settings.autoDeployOptIn) base.settings.autoDeploy = false;
 
   // Keep the original friend code when present, otherwise generate a fresh one.
   if (!isObj(data.profile) || typeof data.profile.friendCode !== 'string') base.profile.friendCode = createInitialState(now).profile.friendCode;

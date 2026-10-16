@@ -15,3 +15,9 @@ Godt at vide
   og at du giver browseren lov til kameraet. Alt andet virker uden internet.
 - Vil du teste uden at lave push-ups: Settings -> Developer tools -> slå til.
   Så får du en "Sim rep"-knap i kampene.
+- Kamp: træk et kort op på banen og slip det, hvor tropperne skal stå (den blå
+  zone). Et hurtigt tryk sender dem ud fra porten i stedet. AUTO-knappen gælder
+  kun den kamp, du er i.
+- Har du hentet filen flere gange, gemmer Mac'en de nye som "PushLegends-1.html"
+  osv. Slet de gamle, så du ikke åbner en gammel version. Versionen står nederst
+  i Settings og i pause-menuen ("build ...").

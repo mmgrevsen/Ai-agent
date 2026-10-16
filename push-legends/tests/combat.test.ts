@@ -46,6 +46,47 @@ describe('combat engine', () => {
     expect(b.allies.filter((u) => u.kind === 'card')).toHaveLength(card.def.count);
   });
 
+  it('drops troops where the player places the card', () => {
+    const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'normal', elite: false })], ['oakshield_knight']));
+    b.valor = 10;
+    expect(b.handCard(0)!.def.count).toBe(1);
+    expect(b.deploy(0, { x: 30, lane: -0.6 })).toBe(true);
+    const u = b.allies.find((a) => a.kind === 'card')!;
+    expect(u.x).toBeCloseTo(30, 5);
+    expect(u.lane).toBeCloseTo(-0.6, 5);
+    const ev = b.drainEvents().find((e) => e.type === 'deploy');
+    expect(ev).toMatchObject({ type: 'deploy', x: 30, lane: -0.6 });
+  });
+
+  it('clamps drops into the deploy zone and never behind the nearest enemy', () => {
+    const C = BALANCE.combat;
+    const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'normal', elite: false })]));
+    expect(b.clampDeploy({ x: 0, lane: 3 })).toEqual({ x: C.deployMinX, lane: 1 });
+    expect(b.clampDeploy({ x: 999, lane: -3 })).toEqual({ x: C.deployMaxX, lane: -1 });
+    // Let the first enemy walk in, then the zone ends a little in front of it.
+    for (let i = 0; i < 400 && !b.enemies.some((e) => e.x < C.deployMaxX); i++) b.step(0.05);
+    const nearest = Math.min(...b.enemies.map((e) => e.x));
+    expect(nearest).toBeLessThan(C.deployMaxX);
+    expect(b.deployZone().maxX).toBeCloseTo(Math.max(C.deployMinX, nearest - C.deployEnemyGap), 5);
+    b.valor = 10;
+    expect(b.deploy(0, { x: 90, lane: 0 })).toBe(true);
+    expect(Math.max(...b.allies.filter((a) => a.kind === 'card').map((a) => a.x))).toBeLessThanOrEqual(nearest - C.deployEnemyGap + 1e-6);
+  });
+
+  it('a dropped squad keeps its formation inside the lane', () => {
+    const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'normal', elite: false })], ['thornbow_archer']));
+    b.valor = 10;
+    const count = b.handCard(0)!.def.count;
+    expect(b.deploy(0, { x: 20, lane: 1 })).toBe(true);
+    const squad = b.allies.filter((a) => a.kind === 'card');
+    expect(squad).toHaveLength(count);
+    for (const a of squad) {
+      expect(a.lane).toBeGreaterThanOrEqual(-1);
+      expect(a.lane).toBeLessThanOrEqual(1);
+      expect(Math.abs(a.x - 20)).toBeLessThanOrEqual(1.5);
+    }
+  });
+
   it('refuses to deploy without enough valor', () => {
     const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'normal', elite: false })], ['bastion_golem']));
     b.valor = 5;

@@ -13,7 +13,28 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): you choose your own cards
+## Latest change (2026-10-16): drag cards onto the field
+
+Cards can now be dragged onto the battlefield and dropped where you want the troops (CR-style
+placement, own visuals): blue deploy zone, red blocked part of the lane, a pulsing edge, a drop
+ring and a see-through troop preview in 3D (and the same in the 2D fallback). The engine takes an
+optional drop point (`Battle.deploy(slot, { x, lane })`), clamped by `deployZone()`. Tapping still
+deploys at the gate.
+
+Auto-deploy could still switch itself back on: the in-battle AUTO button and a "Spend your valor"
+tip on the defeat screen saved it as a setting. Now the AUTO button only affects the current
+battle, the defeat tip no longer turns anything on, and every save is reset to auto-deploy off once
+(only the Settings / pre-battle switch "Start battles with auto-deploy on" persists). Settings and
+the pause menu show a build stamp so it is easy to tell which file is open.
+
+Also fixed: the deploy and rebirth light columns and the Legend Strike sweep were planes seen
+edge-on after the lane was turned to run up the screen; they now face the camera.
+
+Verified: 110 unit tests (3 new for placement and clamping, migration test updated), typecheck, the
+browser smoke test, and Playwright drag checks in 3D and 2D (drop left/right, clamped drop far up
+the lane, release over the hand, tap, not enough valor).
+
+## Earlier change (2026-10-16): you choose your own cards
 
 Fixed: players could only pick their first card, because auto-deploy (then on by default) spent
 valor the moment it was available. Auto-deploy is now off by default (existing saves are switched

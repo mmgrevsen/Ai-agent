@@ -160,7 +160,7 @@ export type BattleEvent =
   | { type: 'attack'; sourceId: number; targetId: number; ranged: boolean; damageType: DamageType; fromX: number; toX: number; fromFlying: boolean; toFlying: boolean }
   | { type: 'death'; unitId: number; x: number; side: 'ally' | 'enemy'; gold: number; flying: boolean }
   | { type: 'spawn'; unitId: number; side: 'ally' | 'enemy' }
-  | { type: 'deploy'; cardId: string; x: number }
+  | { type: 'deploy'; cardId: string; x: number; lane: number }
   | { type: 'waveStart'; wave: number; total: number; boss: boolean }
   | { type: 'waveCleared'; wave: number }
   | { type: 'telegraph'; telegraph: Telegraph }

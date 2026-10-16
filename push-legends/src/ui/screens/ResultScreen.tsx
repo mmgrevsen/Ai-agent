@@ -34,10 +34,7 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
     if (s.action === 'cards') store.setTab('cards');
     else if (s.action === 'base') store.setTab('base');
     else if (s.action === 'hero') store.setTab('hero');
-    else if (s.action === 'autodeploy') {
-      store.updateSettings({ autoDeploy: true });
-      store.toast('Auto-deploy is on for your next battle.', 'good');
-    } else if (s.action === 'retry_story' && context.type === 'campaign') retry({ difficulty: 'story', startAtBoss: false });
+    else if (s.action === 'retry_story' && context.type === 'campaign') retry({ difficulty: 'story', startAtBoss: false });
     else if (s.action === 'retry_boss' && context.type === 'campaign') retry({ startAtBoss: true });
   };
 

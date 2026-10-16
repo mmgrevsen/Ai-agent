@@ -164,7 +164,31 @@ export class Battle {
     return this.result();
   }
 
-  deploy(slot: number): boolean {
+  /**
+   * Where a card may be dropped right now (lane x range): from just in front of the hero up to the
+   * middle of the field, and never past the nearest enemy.
+   */
+  deployZone(): { minX: number; maxX: number } {
+    const nearest = this.enemies.reduce((m, e) => Math.min(m, e.x), Infinity);
+    return { minX: C.deployMinX, maxX: Math.max(C.deployMinX, Math.min(C.deployMaxX, nearest - C.deployEnemyGap)) };
+  }
+
+  /** Clamps a requested drop point into the current deploy zone (lane -1..1). */
+  clampDeploy(at: { x: number; lane: number }): { x: number; lane: number } {
+    const z = this.deployZone();
+    return { x: Math.max(z.minX, Math.min(z.maxX, at.x)), lane: Math.max(-1, Math.min(1, at.lane)) };
+  }
+
+  canAfford(slot: number): boolean {
+    const idx = this.hand[slot];
+    return idx !== undefined && this.valor + 1e-9 >= this.setup.deck[idx]!.def.cost;
+  }
+
+  /**
+   * Plays the card in a hand slot. Without `at` the troops march out of the gate; with `at` they
+   * appear where the player dropped the card (clamped into the deploy zone).
+   */
+  deploy(slot: number, at?: { x: number; lane: number }): boolean {
     if (this.outcome) return false;
     const idx = this.hand[slot];
     if (idx === undefined) return false;
@@ -172,9 +196,10 @@ export class Battle {
     if (this.valor + 1e-9 < spec.def.cost) return false;
     if (this.allies.length - 1 + spec.def.count > C.maxAlliesOnField) return false;
     this.valor -= spec.def.cost;
-    for (let i = 0; i < spec.def.count; i++) this.spawnAlly(spec, idx, i);
+    const spot = at ? this.clampDeploy(at) : null;
+    for (let i = 0; i < spec.def.count; i++) this.spawnAlly(spec, idx, i, spot);
     this.cardsDeployed++;
-    this.events.push({ type: 'deploy', cardId: spec.def.id, x: C.allySpawnX });
+    this.events.push({ type: 'deploy', cardId: spec.def.id, x: spot?.x ?? C.allySpawnX, lane: spot?.lane ?? 0 });
     // Cycle: the played card goes to the back of the queue, the next card enters the hand.
     this.queue.push(idx);
     this.hand[slot] = this.queue.shift()!;
@@ -493,8 +518,11 @@ export class Battle {
     });
   }
 
-  private spawnAlly(spec: DeckCardSpec, cardIndex: number, n: number): void {
+  private spawnAlly(spec: DeckCardSpec, cardIndex: number, n: number, spot: { x: number; lane: number } | null = null): void {
     const d = spec.def;
+    // A dropped squad stands in a small formation around the drop point.
+    const spread = d.count > 1 ? (n - (d.count - 1) / 2) * 0.34 : 0;
+    const placed = spot ? { x: Math.max(C.heroX + 2, spot.x - (n % 2) * 1.4), lane: Math.max(-1, Math.min(1, spot.lane + spread)) } : null;
     const h = this.setup.hero;
     const glass = this.setup.modifiers.includes('glass_cannon') ? 1.5 : 1;
     const hp = spec.hp * h.armyHp * (1 + this.setup.restBuff);
@@ -504,7 +532,8 @@ export class Battle {
       defId: d.id,
       name: d.name,
       role: d.role,
-      x: C.allySpawnX - n * 2,
+      x: placed?.x ?? C.allySpawnX - n * 2,
+      ...(placed ? { lane: placed.lane } : {}),
       size: d.id === 'bastion_golem' ? 1.5 : d.id === 'aurora_drake' ? 1.6 : 1,
       hp,
       maxHp: hp,
