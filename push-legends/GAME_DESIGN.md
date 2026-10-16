@@ -141,6 +141,29 @@ setup always produces the same result, so balance can be simulated and tested.
 - **Bosses:** 3 phases (100% / 60% / 30% HP) with different abilities, attack speed, damage and resistances. Abilities are telegraphed on the ground (slam, breath, drain = lines; meteor, volley = circles; summon; shield). Meteors target army units, never the hero unless no units are deployed.
 - **Ending:** victory when all waves are cleared; "not yet" when the hero falls or time runs out (210 s, +120 s on boss stages). Endless and Blitz runs end as "complete".
 
+
+**3D battlefield** (`src/ui/battle3d/`, three.js, all models generated in code): the deterministic
+combat engine is unchanged; the 3D scene only reads its state and events.
+
+- Each world has its own battlefield: enchanted forest with glowing mushrooms, snowy pines and ice
+  spikes, a volcano with lava pools and cracks, a ruined fortress with graves and pillars, and a
+  crystal realm. Ambient particles (fireflies, snow, embers, dust, sparkles), the hero's keep with
+  a flag on the left and a swirling enemy portal on the right.
+- Every card, enemy role (tinted per world), mini-boss and boss has a voxel-style model rigged with
+  legs, arms, wings and capes. Animations: walking with leg swing and bobbing, melee swings with a
+  lunge, bow draws, spell casts, bomb throws, wing flaps, cape sway, hit flash and knockback,
+  freeze/burn/boss-cast tints, shield bubbles, stun wobble, allies dropping in from the sky with a
+  dust ring and squash on landing, enemies growing out of the portal, and deaths that topple and
+  burst into cube particles and gold.
+- Effects: arrows, spell orbs and lobbed bombs, a golden crescent per push-up strike with a
+  shockwave, splash rings, chain lightning, meteor telegraphs with falling meteors, the Legend
+  Strike sweep, rebirth pillars, a war-cry ground glow, camera shake and a camera push-in when a
+  boss arrives. Damage numbers, health bars and banners are drawn on a 2D overlay.
+- **Graphics setting** (Settings → Graphics): "Pixel 256" (default) renders the 3D battle and base at
+  256 pixels height with hard pixel edges for a pixel-art look; "Smooth" renders at full
+  resolution with anti-aliasing. Reduced motion stops idle animation, shake and most particles.
+- three.js is loaded only when needed; without WebGL the original 2D renderer is used.
+
 ### Worlds and bosses
 
 | World | Theme | Resists / weak | Mini-boss | Boss (signature mechanic) |

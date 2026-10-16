@@ -96,20 +96,22 @@ export class BaseScene {
   private readonly raycaster = new THREE.Raycaster();
   private readonly tmp = new THREE.Vector3();
   reducedMotion: boolean;
+  private readonly pixel: boolean;
 
   constructor(
     private readonly container: HTMLElement,
     private readonly callbacks: BaseSceneCallbacks,
-    opts: { reducedMotion: boolean },
+    opts: { reducedMotion: boolean; pixel?: boolean },
   ) {
     this.reducedMotion = opts.reducedMotion;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
+    this.pixel = !!opts.pixel;
+    this.renderer = new THREE.WebGLRenderer({ antialias: !this.pixel, powerPreference: 'low-power' });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     const canvas = this.renderer.domElement;
-    canvas.className = 'base3d-canvas';
+    canvas.className = `base3d-canvas${this.pixel ? ' pixel' : ''}`;
     canvas.style.touchAction = 'none';
     container.prepend(canvas);
 
@@ -409,6 +411,7 @@ export class BaseScene {
     if (w === this.width && h === this.height) return;
     this.width = w;
     this.height = h;
+    if (this.pixel) this.renderer.setPixelRatio(Math.min(2, 256 / h));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

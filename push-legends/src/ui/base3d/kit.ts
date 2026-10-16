@@ -5,7 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  * Low-poly model builder. Parts are added with a colour each and merged into ONE mesh with vertex
  * colours, so a whole building is a single draw call (important for phones).
  */
-const SHARED = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+export const SHARED = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 const color = new THREE.Color();
 const pos = new THREE.Vector3();
 const quat = new THREE.Quaternion();
@@ -120,11 +120,11 @@ export class Kit {
     return this;
   }
 
-  build(castShadow = true): THREE.Mesh {
+  build(castShadow = true, material: THREE.Material = SHARED): THREE.Mesh {
     const geo = this.geos.length ? mergeGeometries(this.geos, false) : new THREE.BufferGeometry();
     this.geos.forEach((g) => g.dispose());
     this.geos = [];
-    const mesh = new THREE.Mesh(geo ?? new THREE.BufferGeometry(), SHARED);
+    const mesh = new THREE.Mesh(geo ?? new THREE.BufferGeometry(), material);
     mesh.castShadow = castShadow;
     mesh.receiveShadow = true;
     return mesh;

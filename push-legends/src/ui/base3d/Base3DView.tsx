@@ -56,7 +56,7 @@ export default function Base3DView({ game, now, fallback }: { game: GameState; n
     if (!host || failed) return;
     let scene: BaseScene;
     try {
-      scene = new BaseScene(host, { onSelect: (id) => store.openModal({ kind: 'building', id }) }, { reducedMotion });
+      scene = new BaseScene(host, { onSelect: (id) => store.openModal({ kind: 'building', id }) }, { reducedMotion, pixel: game.settings.graphics !== 'smooth' });
     } catch {
       setFailed(true);
       return;
@@ -68,7 +68,7 @@ export default function Base3DView({ game, now, fallback }: { game: GameState; n
       sceneRef.current = null;
     };
     // The scene is created once; later changes go through update() below.
-  }, [failed]);
+  }, [failed, game.settings.graphics]);
 
   useEffect(() => {
     const scene = sceneRef.current;

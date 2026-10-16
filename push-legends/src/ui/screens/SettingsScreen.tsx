@@ -45,6 +45,20 @@ export function SettingsScreen() {
         </div>
 
         <div className="panel">
+          <h3>Graphics</h3>
+          <Row label="3D style" hint="Pixel renders the 3D battle and base at 256 px height for a crisp pixel-art look">
+            <Segmented
+              value={s.graphics === 'smooth' ? 'smooth' : 'pixel'}
+              options={[
+                { value: 'pixel', label: 'Pixel 256' },
+                { value: 'smooth', label: 'Smooth' },
+              ]}
+              onChange={(v) => set({ graphics: v })}
+            />
+          </Row>
+        </div>
+
+        <div className="panel">
           <h3>Accessibility</h3>
           <Row label="Reduced motion" hint="No screen shake, fewer particles and animations">
             <Switch on={s.reducedMotion} onChange={(v) => set({ reducedMotion: v })} label="Reduced motion" />

@@ -4,20 +4,40 @@ import { BALANCE } from '../../core/config/balance';
 import { Battle } from '../../core/combat/engine';
 import type { BattleSetup } from '../../core/combat/types';
 import { BATTLE_MODIFIERS } from '../../core/combat/types';
+import { ITEM_BY_ID } from '../../core/content/equipment';
+import type { GameState } from '../../core/state/types';
 import { FEEDBACK_TEXT } from '../../core/exercise/repCounter';
 import { formatNumber } from '../../core/util';
 import { sound } from '../../platform/audio';
 import { haptic } from '../../platform/haptics';
 import { Bar, CardArt, ModalShell } from '../components/common';
 import { Icon } from '../components/Icon';
+import type { BattleScene3D as BattleScene3DType } from '../battle3d/BattleScene3D';
 import { BattleRenderer } from './renderer';
 import { drawSkeleton, useExerciseTracker } from './useExercise';
 import '../styles/battle.css';
+
+function webglOk(): boolean {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') ?? c.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
+function heroHasGoldSword(game: GameState): boolean {
+  const uid = game.hero.equipped.weapon;
+  const item = uid ? game.items.find((i) => i.uid === uid) : undefined;
+  const def = item ? ITEM_BY_ID.get(item.defId) : undefined;
+  return !!def && def.rarity !== 'common' && def.rarity !== 'rare';
+}
 
 export function BattleScreen({ setup, context }: { setup: BattleSetup; context: BattleContext }) {
   const { game } = useGame();
   const battle = useMemo(() => new Battle(setup), [setup]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scene3dHostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const skeletonRef = useRef<HTMLCanvasElement>(null);
   const [, setTick] = useState(0);
@@ -83,17 +103,53 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     let raf = 0;
     let endTimer: number | null = null;
     const look = { cape: game.hero.cape, aura: game.hero.aura };
+    // The 3D scene loads lazily (three.js); the 2D renderer draws until it is ready or if WebGL is missing.
+    let scene3d: BattleScene3DType | null = null;
+    let disposed = false;
+    if (webglOk()) {
+      import('../battle3d/BattleScene3D')
+        .then(({ BattleScene3D }) => {
+          if (disposed) return;
+          const host = scene3dHostRef.current;
+          if (!host) return;
+          try {
+            scene3d = new BattleScene3D(
+              host,
+              { onSound: (id) => sound.play(id), onShake: (s) => s >= 8 && haptic('medium') },
+              { pixel: settings.graphics !== 'smooth', reducedMotion: settings.reducedMotion, world: setup.world, cape: game.hero.cape, aura: game.hero.aura, goldSword: heroHasGoldSword(game) },
+            );
+            const r = stage.getBoundingClientRect();
+            scene3d.resize(r.width, r.height);
+          } catch {
+            scene3d = null;
+          }
+        })
+        .catch(() => {});
+    }
+    const resize3d = new ResizeObserver(() => {
+      const r = stage.getBoundingClientRect();
+      scene3d?.resize(r.width, r.height);
+    });
+    resize3d.observe(stage);
     const loop = (now: number) => {
       const realDt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const dt = pausedRef.current ? 0 : realDt * speedRef.current;
       if (dt > 0) battle.step(dt);
-      renderer.ingest(battle, battle.drainEvents());
+      const events = battle.drainEvents();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      renderer.draw(ctx, battle, pausedRef.current ? 0 : realDt, look);
+      const view = scene3d ?? renderer;
+      if (scene3d) {
+        scene3d.reducedMotion = renderer.reducedMotion;
+        scene3d.ingest(battle, events);
+        scene3d.render(battle, pausedRef.current ? 0 : realDt, ctx);
+      } else {
+        renderer.ingest(battle, events);
+        renderer.draw(ctx, battle, pausedRef.current ? 0 : realDt, look);
+      }
       if (battle.isOver && endTimer === null) {
         const outcome = battle.outcome!;
-        renderer.showBanner(
+        view.showBanner(
           outcome === 'victory' ? 'VICTORY!' : outcome === 'complete' ? 'RUN COMPLETE' : outcome === 'retreat' ? 'REGROUPING' : outcome === 'timeout' ? "TIME'S UP" : 'REGROUPING',
           outcome === 'victory' ? 'The way forward is open' : 'All rewards earned are yours to keep',
           outcome === 'victory' || outcome === 'complete' ? '#ffc94a' : '#b9c7ff',
@@ -112,9 +168,12 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     document.addEventListener('visibilitychange', onVis);
     sound.setMusic(setup.waves.some((w) => w.isBossWave) ? 'boss' : 'battle');
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
       window.clearInterval(hud);
       ro.disconnect();
+      resize3d.disconnect();
+      scene3d?.dispose();
       document.removeEventListener('visibilitychange', onVis);
       if (endTimer !== null) window.clearTimeout(endTimer);
       sound.setMusic('home');
@@ -184,6 +243,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   return (
     <div className="battle">
       <div className="battle-stage" ref={stageRef}>
+        <div ref={scene3dHostRef} className="battle3d-host" aria-hidden="true" />
         <canvas ref={canvasRef} className="battle-canvas" />
         <div className="battle-top">
           <button className="hud-btn" onClick={() => setPaused(true)} aria-label="Pause">

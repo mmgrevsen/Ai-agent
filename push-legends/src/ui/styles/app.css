@@ -1086,3 +1086,9 @@ input[type='range'] {
     background: radial-gradient(circle at 50% 0%, #2a1b6b, #07041a 70%);
   }
 }
+
+/* 3D views rendered at low resolution keep hard pixel edges */
+canvas.pixel {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}

@@ -112,6 +112,8 @@ export interface Settings {
   sfxVolume: number;
   haptics: boolean;
   reducedMotion: boolean;
+  /** 3D views: 'pixel' renders at 256 px height with hard pixel edges, 'smooth' at full resolution. */
+  graphics: 'pixel' | 'smooth';
   largeText: boolean;
   devTools: boolean;
   exerciseMode: ExerciseMode;
