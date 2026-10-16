@@ -188,6 +188,14 @@ hints (missing tank / anti-air / splash), **Auto-build** (balanced deck), and sh
 
 ---
 
+**Card faces:** every card shows an original close-up character portrait drawn in code
+(`src/ui/art/portraits.ts`): a big expressive face with its own headgear, prop and themed
+background (forest, castle, lava, storm, aurora...). The frame colour and glow follow the rarity,
+the valor cost sits in a pink drop in the top-left corner, and the level is a small pill at the
+bottom with the fragment bar below the card. Portraits animate subtly (blinking, flames, sparks,
+snow) in the card detail view.
+
+
 ## 6. Hero, gear and pets
 
 - **Hero:** HP `(420 + gear) × 1.055^(level−1) × army health`, damage `(26 + gear) × 1.05^(level−1)`, max level 60. XP to level: `60 × 1.16^(level−1)`.

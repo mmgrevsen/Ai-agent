@@ -6,6 +6,7 @@ import type { Reward } from '../../core/content/quests';
 import type { Rarity } from '../../core/content/types';
 import { formatNumber } from '../../core/util';
 import type { Ctx } from '../art/draw';
+import { drawCardPortrait, hasPortrait } from '../art/portraits';
 import { drawBuilding, drawItemIcon, drawPet } from '../art/scenery';
 import { drawSprite, type SpriteKey } from '../art/units';
 import { Icon, type IconName } from './Icon';
@@ -80,6 +81,10 @@ export function CardArt({ cardId, width, animate = false }: { cardId: string; wi
       height={h}
       animate={animate}
       draw={(ctx, t) => {
+        if (hasPortrait(cardId)) {
+          drawCardPortrait(ctx, cardId, width, h, t);
+          return;
+        }
         const g = ctx.createRadialGradient(width / 2, h * 0.45, 4, width / 2, h * 0.45, width);
         g.addColorStop(0, def.palette.accent + '66');
         g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -221,28 +226,26 @@ export function CardTile({ cardId, level, fragments, need, inDeck, locked, canUp
   return (
     <button className="tile" onClick={onClick} aria-label={`${def.name}, ${RARITY_NAME[def.rarity]}${level ? `, level ${level}` : ''}${locked ? ', locked' : ''}`} style={{ width }}>
       <div className={`card rarity-${def.rarity} ${locked ? 'locked' : ''} ${inDeck ? 'in-deck' : ''}`}>
-        <div className="card-cost">{def.cost}</div>
+        <div className="card-cost" aria-hidden="true">
+          <span>{def.cost}</span>
+        </div>
         <span className="card-rarity-icon">{RARITY_SYMBOL[def.rarity]}</span>
         <div className="card-inner">
-          <CardArt cardId={cardId} width={width - 8} />
-          {level !== undefined && !locked && (
-            <div className="card-level">
-              Lv {level}
-              {need !== undefined && fragments !== undefined && level < 20 && (
-                <div style={{ marginTop: 2 }}>
-                  <Bar value={fragments} max={need} tone={fragments >= need ? 'green' : 'blue'} />
-                </div>
-              )}
-            </div>
-          )}
+          <CardArt cardId={cardId} width={width - 6} />
+          {level !== undefined && !locked && <div className="card-level">Lv {level}</div>}
           {locked && (
             <div className="card-level row center">
-              <Icon name="lock" size={12} /> Locked
+              <Icon name="lock" size={11} /> Locked
             </div>
           )}
         </div>
         {canUpgrade && <div className="upgrade-arrow">↑</div>}
       </div>
+      {level !== undefined && !locked && need !== undefined && fragments !== undefined && level < 20 && (
+        <div className="card-progress">
+          <Bar value={fragments} max={need} tone={fragments >= need ? 'green' : 'blue'} />
+        </div>
+      )}
       <div className="card-name">{def.name}</div>
     </button>
   );

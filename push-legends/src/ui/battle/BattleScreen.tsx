@@ -307,7 +307,9 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
               return (
                 <button key={`${slot}-${idx}`} className={`hand-card rarity-${spec.def.rarity} ${affordable ? 'ready' : ''}`} onClick={() => deploy(slot)} disabled={ending} aria-label={`Deploy ${spec.def.name}, costs ${spec.def.cost} valor`}>
                   <CardArt cardId={spec.def.id} width={64} />
-                  <span className="hand-cost">{spec.def.cost}</span>
+                  <span className="hand-cost">
+                    <span>{spec.def.cost}</span>
+                  </span>
                   {!affordable && <span className="hand-wait" style={{ height: `${(1 - valor / spec.def.cost) * 100}%` }} />}
                   <span className="hand-lv">Lv{spec.level}</span>
                 </button>

@@ -13,7 +13,13 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): 3D base
+## Latest change (2026-10-16): portrait card faces
+
+Cards now use big close-up character portraits (15 original characters drawn in code) filling the
+card, with rarity-coloured frames and glow, a pink valor drop in the corner and the level as a small
+pill, in the deck, collection, card details, battle hand and rewards. See GAME_DESIGN.md §5.
+
+## Earlier change (2026-10-16): 3D base
 
 The Base tab is now a 3D walled fortress (three.js, original low-poly models generated in code) with
 all 9 buildings on their own plots: Castle, Gold Mine, Academy, Barracks, Training Grounds, Treasury,
