@@ -1,9 +1,9 @@
 # Push Legends - Backend Integration Plan
 
-**Status:** the **friend server is implemented** (self-hosted, see FRIENDS_SERVER.md): device
-accounts, friend requests, online status, friends' showcases, blocking, duels sent to friends and a
+**Status:** the **server is implemented** (self-hosted, see FRIENDS_SERVER.md): username/password
+accounts (required at start), cloud saves, friend requests, online status, friends' showcases, blocking, duels sent to friends and a
 "for fun" ranking among friends. Everything below that is not part of it (sign-in with Apple/Google,
-cloud saves, verified leaderboards, guilds, co-op) is still **planned, not implemented** and labelled
+verified leaderboards, guilds, co-op) is still **planned, not implemented** and labelled
 "Planned" in the UI.
 
 What already works offline and is designed to carry over:

@@ -49,9 +49,25 @@ describe('save system', () => {
     const s = createInitialState(NOW, 1);
     const old = JSON.parse(JSON.stringify(s));
     delete old.social.online;
-    expect(sanitizeState(old, NOW).social.online).toEqual({ server: '', token: '' });
+    expect(sanitizeState(old, NOW).social.online).toEqual({ server: '', token: '', username: '' });
     old.social.online = { server: 42, token: 'abc' };
-    expect(sanitizeState(old, NOW).social.online).toEqual({ server: '', token: 'abc' });
+    expect(sanitizeState(old, NOW).social.online).toEqual({ server: '', token: 'abc', username: '' });
+  });
+
+  it('keeps tutorial flags and push-up calibration across a save and load', () => {
+    const s = createInitialState(NOW, 1);
+    s.tutorial.intro = true;
+    s.tutorial.firstBattle = true;
+    s.settings.calibration.full = { topAngle: 165, bottomAngle: 80, calibratedAt: NOW };
+    const back = sanitizeState(JSON.parse(JSON.stringify(s)), NOW);
+    expect(back.tutorial).toEqual({ intro: true, firstBattle: true });
+    expect(back.settings.calibration.full).toEqual({ topAngle: 165, bottomAngle: 80, calibratedAt: NOW });
+    const bad = JSON.parse(JSON.stringify(s));
+    bad.tutorial.intro = 'yes';
+    bad.settings.calibration.knee = { topAngle: 'x' };
+    const fixed = sanitizeState(bad, NOW);
+    expect(fixed.tutorial.intro).toBeUndefined();
+    expect(fixed.settings.calibration.knee).toBeUndefined();
   });
 
   it('save manager persists and reloads', () => {

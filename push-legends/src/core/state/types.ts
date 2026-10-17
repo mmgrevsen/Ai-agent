@@ -199,8 +199,11 @@ export interface GameState {
   streak: StreakState;
   settings: Settings;
   social: {
-    /** Connection to an optional friend server (empty strings = not connected). */
-    online: { server: string; token: string };
+    /**
+     * Login on the friend server. `token` empty = logged out (the game shows the login screen);
+     * `username` is the account that last used this device (it owns the local save).
+     */
+    online: { server: string; token: string; username: string };
     friends: LocalFriend[];
     blocked: string[];
     challenges: ChallengeRecord[];

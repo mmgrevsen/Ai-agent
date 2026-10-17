@@ -3,6 +3,7 @@ import { store, useGame } from '../../app/store';
 import { OverlayHeader, Segmented, Switch } from '../components/common';
 import { Icon } from '../components/Icon';
 import { BUILD_STAMP } from '../../app/buildInfo';
+import { logout } from '../../app/friends';
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -166,6 +167,19 @@ export function SettingsScreen() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="panel stack-m">
+          <h3>Account</h3>
+          <div className="small dim">
+            Logged in as <b>{game.social.online.username}</b> · {game.social.online.server}
+          </div>
+          <p className="xsmall faint" style={{ margin: 0 }}>
+            Your progress is backed up to your account every minute and when you leave the game, so you can log in on another device.
+          </p>
+          <button className="btn ghost block" onClick={() => void logout()}>
+            Log out
+          </button>
         </div>
 
         <div className="panel">

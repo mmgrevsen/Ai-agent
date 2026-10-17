@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { blockOnline, cancelRequest, connect, disconnect, respond, sendRequest, startPolling, unblockOnline, unfriend, useFriends } from '../../app/friends';
+import { blockOnline, cancelRequest, deleteServerAccount, logout, respond, sendRequest, startPolling, unblockOnline, unfriend, useFriends } from '../../app/friends';
 import { store, useGame } from '../../app/store';
 import { CARD_BY_ID, getCard } from '../../core/content/cards';
 import { decodeChallenge } from '../../core/social/codes';
@@ -313,37 +313,13 @@ function ago(t: number | null): string {
 function OnlineFriends() {
   const { game } = useGame();
   const f = useFriends();
-  const [address, setAddress] = useState(game.social.online.server || '');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const connected = !!game.social.online.token;
   const run = async (p: Promise<unknown>) => {
     setBusy(true);
     await p;
     setBusy(false);
   };
-
-  if (!connected) {
-    return (
-      <div className="panel stack-m">
-        <div className="spread">
-          <h3>Online friends</h3>
-          <span className="chip">Not connected</span>
-        </div>
-        <p className="small dim" style={{ margin: 0 }}>
-          Connect to a Push Legends friend server to send friend requests, see when friends are online, follow their progress and send them duels. Everyone who wants to be friends uses the same server. You can run one yourself (see FRIENDS_SERVER.md) or use one a friend runs.
-        </p>
-        <input className="field" placeholder="Server address, e.g. 192.168.1.20:8787" value={address} onChange={(e) => setAddress(e.target.value)} aria-label="Friend server address" />
-        <button className="btn green block" disabled={busy || f.status === 'connecting'} onClick={() => void run(connect(address))}>
-          {f.status === 'connecting' ? 'Connecting...' : 'Connect'}
-        </button>
-        {f.status === 'error' && <div className="notice small">{f.message}</div>}
-        <p className="xsmall faint" style={{ margin: 0 }}>
-          The server gets your hero name, friend code and the progress you choose to show (Profile tab). No camera data, no chat. Nothing on the server gives game rewards.
-        </p>
-      </div>
-    );
-  }
 
   const o = f.overview;
   const friends = [...(o?.friends ?? [])].sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
@@ -351,12 +327,12 @@ function OnlineFriends() {
     <div className="stack-m">
       <div className="panel stack-m">
         <div className="spread">
-          <h3>Online friends</h3>
+          <h3>Friends online</h3>
           <span className={`chip ${f.status === 'online' ? 'gold' : ''}`}>{f.status === 'online' ? 'Connected' : f.status === 'error' ? 'Connection problem' : 'Connecting...'}</span>
         </div>
         {f.status === 'error' && <div className="notice small">{f.message}</div>}
         <div className="xsmall faint">
-          {game.social.online.server} · your code <b>{game.profile.friendCode}</b>
+          Logged in as <b>{game.social.online.username}</b> on {game.social.online.server} · your code <b>{game.profile.friendCode}</b>
         </div>
         <div className="row">
           <input className="field grow" placeholder="Friend code (PL-XXXX-XXXX)" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Friend code to add" />
@@ -491,16 +467,16 @@ function OnlineFriends() {
       )}
 
       <div className="row" style={{ gap: 6 }}>
-        <button className="btn ghost small grow" onClick={() => void disconnect(false)}>
-          Disconnect this device
+        <button className="btn ghost small grow" onClick={() => void logout()}>
+          Log out
         </button>
         <button
           className="btn red small grow"
           onClick={() => {
-            if (window.confirm('Delete your account on this friend server? Your friends list there is removed. Your game progress stays on this device.')) void disconnect(true);
+            if (window.confirm('Delete your account? Your friends list and cloud save on the server are removed. The progress on this device stays.')) void deleteServerAccount();
           }}
         >
-          Delete server account
+          Delete account
         </button>
       </div>
     </div>

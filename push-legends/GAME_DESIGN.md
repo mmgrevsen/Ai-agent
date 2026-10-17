@@ -370,7 +370,13 @@ quest rewards; online guilds planned). Buildings are drawn procedurally and grow
 
 ---
 
-## 11b. Friends
+## 11b. Accounts and friends
+
+- **Login first:** the game opens on a login screen (create account / log in, server address).
+  A device stays logged in. Progress is saved locally as before and backed up to the account
+  (cloud save) every minute and when the game is hidden; logging in elsewhere brings it along, and
+  if two different progresses meet the player chooses (nothing is silently overwritten; the other
+  one is kept as a backup).
 
 - **Friend code** (`PL-XXXX-XXXX`) per player, shown on the Profile tab.
 - **Online friends** (optional, self-hosted friend server, see FRIENDS_SERVER.md): connect under

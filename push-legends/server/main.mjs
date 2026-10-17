@@ -20,6 +20,8 @@ const PORT = Number(arg('port', process.env.PORT ?? '8787'));
 const HOST = arg('host', process.env.HOST ?? '0.0.0.0');
 const DATA = resolve(arg('data', process.env.FRIENDS_DATA ?? 'friends-data.json'));
 const MAX_BODY = 32 * 1024;
+/** Cloud saves are bigger than every other request. */
+const MAX_SAVE_BODY = 1024 * 1024;
 
 function load() {
   if (!existsSync(DATA)) return emptyState();
@@ -57,12 +59,13 @@ const server = createServer((req, res) => {
     res.writeHead(204).end();
     return;
   }
+  const limit = (req.url ?? '').startsWith('/v1/save') ? MAX_SAVE_BODY : MAX_BODY;
   let size = 0;
   /** @type {Buffer[]} */
   const chunks = [];
   req.on('data', (c) => {
     size += c.length;
-    if (size > MAX_BODY) {
+    if (size > limit) {
       res.writeHead(413, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'too_large', message: 'Request too large.' }));
       req.destroy();
     } else chunks.push(c);

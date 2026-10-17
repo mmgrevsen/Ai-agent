@@ -13,7 +13,28 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-17): online friends
+## Latest change (2026-10-17): log in first, cloud saves
+
+The game now opens on a login screen: create an account (username + password) or log in before
+playing. The server (same `server/`, see FRIENDS_SERVER.md) got accounts with salted scrypt
+password hashes, multiple device sessions, a login lock-out after repeated wrong passwords, logout
+and a cloud save. Devices stay logged in; the save is uploaded every minute and when the game is
+hidden; logging in on a new device brings the progress along, and when account and device hold
+different progress the player picks one (the other is kept as a local backup). Log out from
+Settings → Account or the Friends tab.
+
+Also fixed (found by the login test): tutorial flags and push-up calibration were dropped every
+time a save was loaded, so the intro came back after a reload.
+
+Verified: 17 server tests (accounts, wrong passwords, lock-out, no plain-text secrets, anonymous
+upgrade, cloud save) and a save test (128 unit tests in total), typecheck, the smoke test (now
+signing up on its own server first), and a multi-device browser test: sign up, stay logged in after
+reload, log out, wrong password, log in on a second device with the cloud save, the save choice on a
+third device with a backup kept.
+
+**The game now needs a running server** (`npm run friends-server`) to get past the login screen.
+
+## Earlier change (2026-10-17): online friends
 
 A working friend system on a small self-hosted server (`server/`, zero dependencies, Node 18+;
 `npm run friends-server`, guide in FRIENDS_SERVER.md). In the game (Friends tab) players connect to

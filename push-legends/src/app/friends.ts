@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { decodeChallenge } from '../core/social/codes';
 import { powerRating } from '../core/systems/hero';
 import { FriendsApi, normalizeServerUrl, type FriendShowcase, type FriendsOverview } from '../platform/friendsApi';
+import type { GameState } from '../core/state/types';
 import { store } from './store';
 
 /**
@@ -56,44 +57,148 @@ function showcase(): FriendShowcase {
   };
 }
 
-/** Connects to a server: registers this device (keeping the friend code when it is free). */
-export async function connect(address: string): Promise<boolean> {
-  const base = normalizeServerUrl(address);
-  if (!base) {
-    set({ status: 'error', message: 'Enter the server address, e.g. 192.168.1.20:8787' });
-    return false;
+/** Default address on the login screen (a build can set VITE_FRIEND_SERVER). */
+export const DEFAULT_SERVER: string = (import.meta.env.VITE_FRIEND_SERVER as string | undefined) ?? 'localhost:8787';
+
+/** A save on the server and one on this device that both have progress: the player picks. */
+export interface SaveChoice {
+  cloud: { savedAt: number; stage: number; heroLevel: number; name: string };
+  local: { savedAt: number; stage: number; heroLevel: number; name: string };
+  data: string;
+}
+
+const hasProgress = (g: GameState) => g.progress.highestCleared >= 0 || g.hero.level > 1;
+const summary = (g: GameState, savedAt: number) => ({ savedAt, stage: g.progress.highestCleared + 1, heroLevel: g.hero.level, name: g.profile.name });
+const BACKUP_KEY = 'push-legends/replaced-save';
+
+/** Keeps the save that is about to be replaced, so a wrong choice can be undone from a backup. */
+function backupLocal(): void {
+  try {
+    localStorage.setItem(BACKUP_KEY, store.exportSave());
+  } catch {
+    /* storage unavailable */
   }
-  set({ status: 'connecting', message: '' });
-  const anon = new FriendsApi(base, '');
-  const health = await anon.health();
-  if (!health.ok || health.data.service !== 'push-legends-friends') {
-    set({ status: 'error', message: health.ok ? 'That address is not a Push Legends friend server.' : health.message });
-    return false;
-  }
-  const g = store.state;
-  const r = await anon.register(g.profile.name, g.profile.friendCode);
-  if (!r.ok) {
-    set({ status: 'error', message: r.message });
-    return false;
-  }
+}
+
+function adoptCloud(data: string, session: { token: string; username: string; server: string }): boolean {
+  backupLocal();
+  if (!store.importSave(data)) return false;
   store.update((s) => {
-    s.social.online = { server: base, token: r.data.token };
-    // The server reserves friend codes; if ours was taken it handed out a new one
-    s.profile.friendCode = r.data.code;
+    s.social.online = { server: session.server, token: session.token, username: session.username };
   });
-  store.toast(r.data.code === g.profile.friendCode ? 'Connected! Friends can now add you by your code.' : `Connected! Your friend code is now ${r.data.code}.`, 'good');
-  await refresh(true);
   return true;
 }
 
-/** Signs this device out of the server. Optionally deletes the account there first. */
-export async function disconnect(deleteAccount: boolean): Promise<void> {
-  const a = api();
-  if (a && deleteAccount) await a.deleteAccount();
+/**
+ * Logs in or creates an account. Returns a SaveChoice when both the server and this device hold
+ * progress for different players (or it is unclear which is newer); otherwise it is done.
+ */
+export async function authenticate(mode: 'login' | 'signup', address: string, username: string, password: string): Promise<{ ok: true; choice: SaveChoice | null } | { ok: false; message: string }> {
+  const base = normalizeServerUrl(address);
+  if (!base) return { ok: false, message: 'Enter the server address, e.g. 192.168.1.20:8787' };
+  const anon = new FriendsApi(base, '');
+  const health = await anon.health();
+  if (!health.ok) return { ok: false, message: health.message };
+  if (health.data.service !== 'push-legends-friends') return { ok: false, message: 'That address is not a Push Legends server.' };
+  const g = store.state;
+  const name = g.profile.name && g.profile.name !== 'Hero' ? g.profile.name : username;
+  const r = mode === 'signup' ? await anon.signup(username, password, name, g.profile.friendCode) : await anon.login(username, password);
+  if (!r.ok) return { ok: false, message: r.message };
+  const session = { token: r.data.token, username: r.data.username, server: base };
+  const api2 = new FriendsApi(base, r.data.token);
+  let choice: SaveChoice | null = null;
+  if (r.data.save) {
+    const cloud = await api2.getSave();
+    if (cloud.ok) {
+      const parsed = parseSave(cloud.data.data);
+      const sameOwner = g.social.online.username === r.data.username;
+      if (!parsed) {
+        /* unreadable cloud save: keep the local one (uploaded below) */
+      } else if (!hasProgress(g)) {
+        adoptCloud(cloud.data.data, session);
+      } else if (sameOwner) {
+        // Same player: the newer save wins (the older one stays as a backup)
+        if (cloud.data.savedAt > g.lastSeenAt) adoptCloud(cloud.data.data, session);
+      } else {
+        choice = { cloud: summary(parsed, cloud.data.savedAt), local: summary(g, g.lastSeenAt), data: cloud.data.data };
+      }
+    }
+  }
+  if (!choice) finishLogin(session, r.data.code, r.data.name);
+  else pendingSession = { ...session, code: r.data.code, name: r.data.name };
+  return { ok: true, choice };
+}
+
+let pendingSession: { token: string; username: string; server: string; code: string; name: string } | null = null;
+
+/** The player picked which save to keep after logging in. */
+export function chooseSave(useCloud: boolean, choice: SaveChoice): void {
+  const s = pendingSession;
+  if (!s) return;
+  pendingSession = null;
+  if (useCloud) adoptCloud(choice.data, s);
+  finishLogin(s, s.code, s.name);
+}
+
+function finishLogin(session: { token: string; username: string; server: string }, code: string, name: string): void {
   store.update((s) => {
-    s.social.online = { server: '', token: '' };
+    s.social.online = { server: session.server, token: session.token, username: session.username };
+    s.profile.friendCode = code;
+    if (!s.profile.name || s.profile.name === 'Hero') s.profile.name = name;
+  });
+  lastUploaded = '';
+  void uploadSave();
+  void refresh(true);
+}
+
+function parseSave(data: string): GameState | null {
+  try {
+    const env = JSON.parse(data) as { data?: GameState };
+    return env.data && typeof env.data === 'object' && env.data.progress && env.data.hero ? env.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Logs this device out (the progress stays on the device and in the cloud). */
+export async function logout(): Promise<void> {
+  await uploadSave();
+  const a = api();
+  if (a) await a.logout();
+  store.update((s) => {
+    s.social.online = { ...s.social.online, token: '' };
   });
   set({ status: 'off', message: '', overview: null });
+}
+
+/** Deletes the account on the server (friends and cloud save) and logs out. */
+export async function deleteServerAccount(): Promise<void> {
+  const a = api();
+  if (a) await a.deleteAccount();
+  store.update((s) => {
+    s.social.online = { ...s.social.online, token: '', username: '' };
+  });
+  set({ status: 'off', message: '', overview: null });
+}
+
+// --- Cloud save --------------------------------------------------------------------------------
+
+let lastUploaded = '';
+let uploading = false;
+/** Uploads the save when it changed since the last upload. */
+export async function uploadSave(): Promise<void> {
+  const a = api();
+  if (!a || uploading) return;
+  // Compare the state itself (the export carries a fresh timestamp every time)
+  const key = JSON.stringify(store.state);
+  if (key === lastUploaded) return;
+  uploading = true;
+  try {
+    const r = await a.putSave(store.exportSave(), store.state.lastSeenAt);
+    if (r.ok) lastUploaded = key;
+  } finally {
+    uploading = false;
+  }
 }
 
 let refreshing = false;
@@ -112,9 +217,9 @@ export async function refresh(pushProfile = false): Promise<void> {
       if (r.status === 401) {
         // The server no longer knows this device (reset or account deleted)
         store.update((s) => {
-          s.social.online = { server: '', token: '' };
+          s.social.online = { ...s.social.online, token: '' };
         });
-        set({ status: 'error', message: 'The friend server no longer knows this device. Connect again.', overview: null });
+        set({ status: 'error', message: 'Your login has expired. Please log in again.', overview: null });
       } else set({ status: 'error', message: r.message });
       return;
     }

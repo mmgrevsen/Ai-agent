@@ -1,23 +1,28 @@
 PUSH LEGENDS - spil det på din Mac
 ===================================
 
-1. Hent filen PushLegends.html (fx til mappen Overførsler).
-2. Dobbeltklik på den. Spillet åbner i din browser - ingen installation.
+Spillet starter med en login-skærm. Den kræver, at Push Legends-serveren kører.
+
+1. Start serveren (én gang hver gang du vil spille):
+   - Installer Node.js (nodejs.org, version 18 eller nyere), hvis du ikke har det.
+   - Åbn Terminal i mappen push-legends og skriv:  npm run friends-server
+   - Lad vinduet stå åbent. Der står "Push Legends friend server on http://localhost:8787".
+2. Dobbeltklik på PushLegends.html. Spillet åbner i din browser.
    Tip: Chrome giver den bedste oplevelse (også til kameraet).
-   Højreklik -> "Åbn med" -> Google Chrome, hvis Safari åbner den.
-3. Gør vinduet smalt (som en telefon), eller tryk Cmd+Alt+I i Chrome og vælg
-   telefonvisning, så ser det ud som på mobilen.
+3. Opret en konto (brugernavn + adgangskode), eller log ind.
+   Serveradressen er localhost:8787. Tryk "Change" for at skrive en anden.
+
+Spil med venner
+- På samme Wi-Fi: dine venner skriver din Macs IP-adresse, fx 192.168.1.20:8787,
+  som server (Systemindstillinger -> Wi-Fi -> Detaljer -> IP-adresse).
+- Venner andre steder: læg serveren hos en cloud-udbyder med https (se FRIENDS_SERVER.md).
+- Venner tilføjes med jeres venne-kode under profilknappen -> Friends.
 
 Godt at vide
-- Dine fremskridt gemmes i browseren. Åbner du filen i samme browser igen,
-  fortsætter du hvor du slap. (Settings -> Export save tager en sikkerhedskopi.)
-- Kameraet/push-up-tælling kræver internet første gang (pose-modellen hentes),
-  og at du giver browseren lov til kameraet. Alt andet virker uden internet.
-- Vil du teste uden at lave push-ups: Settings -> Developer tools -> slå til.
-  Så får du en "Sim rep"-knap i kampene.
-- Kamp: træk et kort op på banen og slip det, hvor tropperne skal stå (den blå
-  zone). Et hurtigt tryk sender dem ud fra porten i stedet. AUTO-knappen gælder
-  kun den kamp, du er i.
-- Har du hentet filen flere gange, gemmer Mac'en de nye som "PushLegends-1.html"
-  osv. Slet de gamle, så du ikke åbner en gammel version. Versionen står nederst
-  i Settings og i pause-menuen ("build ...").
+- Du forbliver logget ind. Dit spil gemmes i browseren og sikkerhedskopieres til din
+  konto hvert minut, så du kan logge ind på en anden enhed og fortsætte.
+- Kamera/push-up-tælling kræver internet første gang (pose-modellen hentes).
+- Kamp: træk et kort op på banen og slip det, hvor tropperne skal stå (den blå zone).
+  Et hurtigt tryk sender dem ud fra porten. AUTO-knappen gælder kun den kamp, du er i.
+- Har du hentet filen flere gange, hedder de nye "PushLegends-1.html" osv. Slet de gamle.
+  Versionen står nederst i Settings og i pause-menuen ("build ...").

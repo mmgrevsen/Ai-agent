@@ -233,6 +233,23 @@ export function sanitizeState(raw: unknown, now: number, repaired: string[] = []
   }
   base.achievements = achievements;
 
+  // Tutorial flags and push-up calibration are dynamic-key records too: the overlay above only keeps
+  // keys present in the defaults (none), so they are restored here.
+  const tutorial: GameState['tutorial'] = {};
+  if (isObj(data.tutorial)) {
+    for (const [k, v] of Object.entries(data.tutorial)) if (typeof v === 'boolean' && k.length <= 40) tutorial[k] = v;
+  }
+  base.tutorial = tutorial;
+  const calibration: GameState['settings']['calibration'] = {};
+  const savedCal = isObj(data.settings) && isObj(data.settings.calibration) ? data.settings.calibration : {};
+  for (const mode of ['full', 'knee'] as const) {
+    const c = savedCal[mode];
+    if (isObj(c) && typeof c.topAngle === 'number' && typeof c.bottomAngle === 'number' && Number.isFinite(c.topAngle) && Number.isFinite(c.bottomAngle)) {
+      calibration[mode] = { topAngle: c.topAngle, bottomAngle: c.bottomAngle, calibratedAt: nonNeg(c.calibratedAt) };
+    }
+  }
+  base.settings.calibration = calibration;
+
   base.progress.highestCleared = intIn(base.progress.highestCleared, -1, 10_000, -1);
   base.progress.selectedStage = intIn(base.progress.selectedStage, 0, base.progress.highestCleared + 1, 0);
   base.version = SAVE_VERSION;

@@ -1,8 +1,15 @@
-# Push Legends - Friend server
+# Push Legends - Server (login, cloud saves, friends)
 
-The game's online friends (friend requests, online status, friends' progress, duels sent to a
-friend, ranking among friends) run on a small server you host yourself. Everyone who wants to be
-friends connects their game to the **same** server. Everything else in the game works without it.
+**The game starts with a login screen**: players create an account (username + password) or log
+in before they can play. Accounts, cloud saves and online friends (friend requests, online status,
+friends' progress, duels sent to a friend, ranking among friends) run on a small server you host
+yourself. Everyone who wants to play together uses the **same** server.
+
+Once logged in, a device stays logged in (also when the server is briefly unreachable: the game is
+played and saved locally and backed up again when the server is back). The save is uploaded every
+minute while playing and when the game is put away. Logging in on another device brings the
+progress along; if both the account and the device hold different progress, the player chooses
+which to keep and the other is kept as a backup on the device (`push-legends/replaced-save`).
 
 The server is `server/main.mjs`: plain Node.js (18 or newer), no extra packages, data in one JSON
 file.
@@ -15,8 +22,10 @@ npm run friends-server          # = node server/main.mjs, port 8787, data in ./f
 # options: node server/main.mjs --port 8787 --data /path/to/friends-data.json --host 0.0.0.0
 ```
 
-In the game: profile button (top left) → **Friends** → **Online friends** → enter the server
-address → **Connect**. Share your friend code; friends add it and you accept the request.
+In the game: the login screen shows the server address (default `localhost:8787`, or a build-time
+`VITE_FRIEND_SERVER`); tap **Change** to enter another one, then create an account or log in.
+Friends: profile button (top left) → **Friends** → add a friend's code; they accept the request.
+Log out under Settings → Account or in the Friends tab.
 
 ## Who can reach it
 
@@ -35,7 +44,9 @@ server address.
 
 ## What it stores and what it does not
 
-- Per device: a random account id, the friend code, hero name, profile visibility, the showcase
+- Per account: username, password as a salted scrypt hash (never the password), up to 10 device
+  login tokens (SHA-256 hashes only), the latest cloud save (max 900 KB).
+- Per account (friends):  a random account id, the friend code, hero name, profile visibility, the showcase
   the player shares (hero level, power, stage, bosses, endless best, verified push-up counts,
   deck), last-seen time, friends, blocked codes. Only a SHA-256 hash of the login token is stored.
 - Pending friend requests and duel codes waiting to be picked up.
@@ -45,6 +56,10 @@ server address.
 Privacy setting (Profile tab): *Everything* / *Friends see my progress* show the showcase to
 friends; *Name and online status only* hides showcase and last-seen time. Non-friends see nothing,
 and there is no search: you can only find someone by their code.
+
+Login safety: 8 wrong passwords lock the account's login for 10 minutes; usernames are 3-20
+letters, digits, `.`, `_` or `-`; passwords at least 6 characters. Use an `https://` server
+outside your home network so passwords are not sent in plain text.
 
 Safety: blocking ends the friendship, removes requests and duels both ways, and the blocked
 player's new requests are silently dropped. Limits: 100 friends, 30 friend requests per day, 120
@@ -63,7 +78,11 @@ Verified global leaderboards still need the server-authoritative design in BACKE
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/v1/health` | Is this a friend server |
-| POST | `/v1/register` `{name, code}` | Create a device account (keeps the code if free) → `{token, code}` |
+| POST | `/v1/signup` `{username, password, name, code}` | Create an account (upgrades an anonymous device account sent as bearer) → session |
+| POST | `/v1/login` `{username, password}` | Log in → `{token, code, name, username, save: {savedAt} \| null}` |
+| POST | `/v1/logout` | Sign out this device |
+| GET / PUT | `/v1/save` `{data, savedAt}` | Cloud save |
+| POST | `/v1/register` `{name, code}` | Anonymous device account (older builds) → `{token, code}` |
 | GET | `/v1/me` | Friends, requests in/out, waiting duels, blocked |
 | PUT | `/v1/profile` `{name?, privacy?, showcase?}` | Update profile |
 | DELETE | `/v1/me` | Delete the account |

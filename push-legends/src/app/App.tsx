@@ -1,4 +1,5 @@
 import { useFriends } from './friends';
+import { LoginScreen } from '../ui/screens/LoginScreen';
 import { useEffect } from 'react';
 import { BUILDINGS } from '../core/content/buildings';
 import { activeUpgrades, checkBuildingUpgrade } from '../core/systems/buildings';
@@ -52,7 +53,13 @@ function OverlayView({ overlay }: { overlay: Overlay }) {
   }
 }
 
+/** Nothing is playable until the player is logged in. */
 export function App() {
+  const { game } = useGame();
+  return game.social.online.token ? <GameApp /> : <LoginScreen />;
+}
+
+function GameApp() {
   const { game, ui } = useGame();
   const friendsView = useFriends();
 

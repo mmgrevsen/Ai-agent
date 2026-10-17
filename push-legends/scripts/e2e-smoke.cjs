@@ -1,12 +1,24 @@
-// UI smoke test: plays the intro and first battle, visits every screen, and starts the camera
-// pipeline with Chromium's fake camera. Requires Playwright (not a project dependency):
+// UI smoke test: creates an account on a fresh friend server (started here), plays the intro and
+// first battle, visits every screen, and starts the camera pipeline with Chromium's fake camera.
+// Requires Playwright (not a project dependency):
 //   npm run build && npx vite preview --port 4173 &
 //   NODE_PATH=$(npm root -g) node scripts/e2e-smoke.cjs e2e-shots
 const { chromium } = require('playwright');
 const OUT = process.argv[2] ?? 'e2e-shots';
 const URL = process.env.E2E_URL ?? 'http://localhost:4173/';
 require('fs').mkdirSync(OUT, { recursive: true });
+const { spawn } = require('child_process');
+const os = require('os');
+const path = require('path');
+const PORT = 18700 + Math.floor(Math.random() * 200);
+const dataFile = path.join(os.tmpdir(), `pl-smoke-${PORT}.json`);
+const server = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'main.mjs'), '--port', String(PORT), '--host', '127.0.0.1', '--data', dataFile]);
+const stopServer = () => {
+  server.kill('SIGTERM');
+  require('fs').rmSync(dataFile, { force: true });
+};
 (async () => {
+  await new Promise((res) => server.stdout.on('data', (d) => String(d).includes('friend server') && res()));
   const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, permissions: ['camera'] });
   const page = await ctx.newPage();
@@ -16,6 +28,16 @@ require('fs').mkdirSync(OUT, { recursive: true });
   const shot = (n) => page.screenshot({ path: `${OUT}/${n}.png` });
   await page.goto(URL);
   await page.waitForTimeout(1200);
+  // Login screen first: create an account
+  await shot('00-login');
+  await page.getByRole('button', { name: 'Change' }).click();
+  await page.getByLabel('Server address').fill(`127.0.0.1:${PORT}`);
+  await page.getByLabel('Username').fill('smoketester');
+  await page.getByLabel('Password', { exact: true }).fill('secret123');
+  await page.getByLabel('Repeat password').fill('secret123');
+  await page.getByRole('button', { name: 'Create account' }).last().click();
+  await page.waitForSelector('text=Begin your legend', { timeout: 15000 });
+  await page.waitForTimeout(600);
   await shot('01-intro');
   await page.getByRole('button', { name: /Begin your legend/ }).click({ force: true });
   await page.waitForTimeout(3000);
@@ -27,8 +49,13 @@ require('fs').mkdirSync(OUT, { recursive: true });
     await page.waitForTimeout(1500);
   }
   await shot('03-battle-mid');
-  // wait for result
-  await page.waitForSelector('.result', { timeout: 120000 });
+  // Keep playing cards until the battle ends (slow software rendering stretches the battle)
+  for (let i = 0; i < 160 && !(await page.locator('.result').count()); i++) {
+    const cards = page.locator('.hand-card.ready');
+    if (await cards.count()) await cards.first().click({ force: true }).catch(() => {});
+    await page.waitForTimeout(1500);
+  }
+  await page.waitForSelector('.result', { timeout: 30000 });
   await page.waitForTimeout(800);
   await shot('04-result');
   await page.getByRole('button', { name: /^Back$/ }).click({ force: true });
@@ -99,4 +126,9 @@ require('fs').mkdirSync(OUT, { recursive: true });
   await shot('19-battle-camera');
   console.log('ERRORS:\n' + (errors.join('\n') || 'none'));
   await browser.close();
-})().catch((e) => { console.error('E2E FAILED', e); process.exit(1); });
+  stopServer();
+})().catch((e) => {
+  console.error('E2E FAILED', e);
+  stopServer();
+  process.exit(1);
+});

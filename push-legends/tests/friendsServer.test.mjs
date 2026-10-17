@@ -131,6 +131,81 @@ describe('friend service', () => {
   });
 });
 
+describe('accounts and cloud saves', () => {
+  const signup = (s, username, password = 'secret1', token) => call(s, 'POST', '/v1/signup', token, { username, password, name: username });
+
+  it('signs up, logs in on a second device and keeps both devices signed in', () => {
+    const s = svc();
+    const a = signup(s, 'Anna');
+    expect(a.status).toBe(200);
+    expect(a.body.username).toBe('anna');
+    expect(signup(s, 'ANNA').body.error).toBe('username_taken');
+    expect(signup(s, 'x').body.error).toBe('bad_username');
+    expect(signup(s, 'bob', '123').body.error).toBe('bad_password');
+    const second = call(s, 'POST', '/v1/login', undefined, { username: 'Anna', password: 'secret1' });
+    expect(second.status).toBe(200);
+    expect(second.body.code).toBe(a.body.code);
+    expect(call(s, 'GET', '/v1/me', a.body.token).status).toBe(200);
+    expect(call(s, 'GET', '/v1/me', second.body.token).status).toBe(200);
+    // Logging out one device leaves the other signed in
+    call(s, 'POST', '/v1/logout', second.body.token);
+    expect(call(s, 'GET', '/v1/me', second.body.token).status).toBe(401);
+    expect(call(s, 'GET', '/v1/me', a.body.token).status).toBe(200);
+  });
+
+  it('rejects wrong passwords and locks out after repeated failures', () => {
+    const s = svc();
+    signup(s, 'anna');
+    expect(call(s, 'POST', '/v1/login', undefined, { username: 'anna', password: 'nope' }).status).toBe(401);
+    expect(call(s, 'POST', '/v1/login', undefined, { username: 'nobody', password: 'x' }).status).toBe(401);
+    for (let i = 0; i < LIMITS.loginFailures; i++) call(s, 'POST', '/v1/login', undefined, { username: 'anna', password: 'nope' });
+    expect(call(s, 'POST', '/v1/login', undefined, { username: 'anna', password: 'secret1' }).body.error).toBe('locked');
+    clock += LIMITS.loginLockMs + 1000;
+    expect(call(s, 'POST', '/v1/login', undefined, { username: 'anna', password: 'secret1' }).status).toBe(200);
+  });
+
+  it('never stores the password or the token in plain text', () => {
+    const s = svc();
+    const a = signup(s, 'anna', 'hunter22');
+    const raw = JSON.stringify(s.state);
+    expect(raw).not.toContain('hunter22');
+    expect(raw).not.toContain(a.body.token);
+  });
+
+  it('upgrades an anonymous device account and keeps its friends', () => {
+    const s = svc();
+    const anon = reg(s, 'Ann');
+    const b = reg(s, 'Bo');
+    call(s, 'POST', '/v1/friends/requests', anon.token, { code: b.code });
+    call(s, 'POST', '/v1/friends/requests', b.token, { code: anon.code });
+    const up = signup(s, 'annie', 'secret1', anon.token);
+    expect(up.body.code).toBe(anon.code);
+    const login = call(s, 'POST', '/v1/login', undefined, { username: 'annie', password: 'secret1' });
+    expect(call(s, 'GET', '/v1/me', login.body.token).body.friends.map((f) => f.code)).toEqual([b.code]);
+  });
+
+  it('stores and returns the cloud save', () => {
+    const s = svc();
+    const a = signup(s, 'anna');
+    expect(call(s, 'GET', '/v1/save', a.body.token).status).toBe(404);
+    expect(call(s, 'PUT', '/v1/save', a.body.token, { data: '{"v":1}', savedAt: 123 }).status).toBe(200);
+    expect(call(s, 'GET', '/v1/save', a.body.token).body).toEqual({ data: '{"v":1}', savedAt: 123 });
+    expect(call(s, 'PUT', '/v1/save', a.body.token, { data: 'x'.repeat(LIMITS.saveBytes + 1) }).status).toBe(413);
+    const login = call(s, 'POST', '/v1/login', undefined, { username: 'anna', password: 'secret1' });
+    expect(login.body.save).toEqual({ savedAt: 123 });
+    // Real timestamps (ms since 1970) are kept as they are
+    call(s, 'PUT', '/v1/save', a.body.token, { data: '{"v":2}', savedAt: clock });
+    expect(call(s, 'GET', '/v1/save', a.body.token).body.savedAt).toBe(clock);
+  });
+
+  it('deleting the account frees the username', () => {
+    const s = svc();
+    const a = signup(s, 'anna');
+    call(s, 'DELETE', '/v1/me', a.body.token);
+    expect(signup(s, 'anna').status).toBe(200);
+  });
+});
+
 describe('friend server over HTTP', () => {
   const dir = mkdtempSync(join(tmpdir(), 'plfriends-'));
   let proc;

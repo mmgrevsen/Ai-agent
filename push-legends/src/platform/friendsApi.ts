@@ -47,6 +47,14 @@ export interface FriendsOverview {
   blocked: string[];
 }
 
+export interface Session {
+  token: string;
+  code: string;
+  name: string;
+  username: string;
+  save: { savedAt: number } | null;
+}
+
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; message: string; status: number };
 
 /** Accepts "192.168.1.20:8787", "localhost:8787" or a full URL; returns a URL without a trailing slash. */
@@ -93,6 +101,21 @@ export class FriendsApi {
   }
   register(name: string, code: string) {
     return this.call<{ token: string; code: string; name: string }>('POST', '/v1/register', { name, code });
+  }
+  signup(username: string, password: string, name: string, code: string) {
+    return this.call<Session>('POST', '/v1/signup', { username, password, name, code });
+  }
+  login(username: string, password: string) {
+    return this.call<Session>('POST', '/v1/login', { username, password });
+  }
+  logout() {
+    return this.call('POST', '/v1/logout');
+  }
+  getSave() {
+    return this.call<{ data: string; savedAt: number }>('GET', '/v1/save');
+  }
+  putSave(data: string, savedAt: number) {
+    return this.call<{ savedAt: number }>('PUT', '/v1/save', { data, savedAt });
   }
   overview() {
     return this.call<FriendsOverview>('GET', '/v1/me');
