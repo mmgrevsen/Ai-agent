@@ -227,21 +227,21 @@ weaknesses. Rarity is shown with a symbol and name as well as colour (● ◆ �
 
 | Card | Rarity | Role | Cost | Signature |
 | --- | --- | --- | --- | --- |
-| Thornbow Archers (×2) | Common | Ranged | 3 | +50% vs flying, shoots fliers first |
-| Oakshield Knight | Common | Tank | 3 | Taunts nearby enemies |
-| Field Medic | Common | Support | 2 | Heals the most injured ally |
-| Wolf Rider | Common | Melee | 3 | Very fast, 250% first hit |
-| Powder Bombardier | Common | Area | 2 | Splash, ×2 vs armored |
-| Ember Mage | Rare | Area | 4 | Fire splash + burn |
-| Hawkeye Ranger | Rare | Ranged | 4 | Targets elites/bosses, crits |
-| Dawn Paladin | Rare | Support | 4 | Heal aura + 15% damage aura |
-| Aegis Guardian | Rare | Tank | 5 | Periodic shields for nearby allies |
-| Bastion Golem | Epic | Tank | 6 | Heavy armor, ×2 vs bosses/elites |
-| Frost Witch | Epic | Area | 4 | Area slow |
-| Shade Assassin | Epic | Assassin | 3 | Leaps to weak targets, executes |
-| Storm Adept | Epic | Area | 5 | Chain lightning |
-| Phoenix Warden | Legendary | Area (flying) | 6 | Splash, rises again once |
-| Aurora Drake | Mythic | Area (flying) | 7 | Breath hits all in range, hastes the army |
+| Dread Rangers (×2) | Common | Ranged | 3 | +50% vs flying, shoots fliers first |
+| The Blackguard | Common | Tank | 3 | Taunts nearby enemies |
+| Plague Surgeon | Common | Support | 2 | Heals the most injured ally |
+| Warg Reaver | Common | Melee | 3 | Very fast, 250% first hit |
+| Blackpowder Sapper | Common | Area | 2 | Splash, ×2 vs armored |
+| The Ashen Herald | Rare | Area | 4 | Fire splash + burn |
+| Grave Marksman | Rare | Ranged | 4 | Targets elites/bosses, crits |
+| The Fallen Oath | Rare | Support | 4 | Heal aura + 15% damage aura |
+| The Bulwark | Rare | Tank | 5 | Periodic shields for nearby allies |
+| The Obsidian Colossus | Epic | Tank | 6 | Heavy armor, ×2 vs bosses/elites |
+| The Rime Widow | Epic | Area | 4 | Area slow |
+| The Red Reaper | Epic | Assassin | 3 | Leaps to weak targets, executes |
+| The Storm Heretic | Epic | Area | 5 | Chain lightning |
+| The Pyre Phoenix | Legendary | Area (flying) | 6 | Splash, rises again once |
+| The Void Wyrm | Mythic | Area (flying) | 7 | Breath hits all in range, hastes the army |
 
 **Progression:** stats ×1.115 per level (max 20). Level L → L+1 costs `25 × 1.4^(L−1)` gold (Academy
 discount up to 35%) and `fragmentsPerLevel[rarity] × L` fragments (common 4, rare 3, epic 2,
@@ -254,13 +254,34 @@ hints (missing tank / anti-air / splash), **Auto-build** (balanced deck), and sh
 
 ---
 
-**Card faces:** every card shows an original close-up character portrait drawn in code
-(`src/ui/art/portraits.ts`): a big expressive face with its own headgear, prop and themed
-background (forest, castle, lava, storm, aurora...). The frame colour and glow follow the rarity,
-the valor cost sits in a pink drop in the top-left corner, and the level is a small pill at the
-bottom with the fragment bar below the card. Portraits animate subtly (blinking, flames, sparks,
-snow) in the card detail view.
+**Card faces and units (dark art direction):** see section 5b.
 
+## 5b. Art direction: dark, dangerous, premium
+
+The card art and the battle units share one art bible, `src/ui/art/darkArt.ts`:
+
+- **Palette:** black, charcoal, gunmetal, dark steel, deep crimson, blood red, bone white and muted
+  gold, plus one accent per faction (ember, toxic green, frost, storm blue, void violet). Glow is
+  reserved for eyes, runes, fire and magic. Nothing is pure black: steel highlights, bone and cloth
+  accents and a coloured rim light keep every silhouette readable.
+- **Characters:** realistic proportions (about seven heads tall; giants larger), faces hidden by
+  visors, hoods, masks or skulls, worn and scarred materials, angular silhouettes. No chibi
+  proportions, big eyes, smiles, toy-like plastic or rainbow colours.
+- **Factions:** Iron Legion, Ashen Covenant, Gravewatch, Rimeborn, Stormbound, Red Hand, Hollow
+  Court and Feral Host (card background tones, rim light and glow colour).
+- **One model per unit:** every card has a 3D model (`src/ui/battle3d/dark/units/`, built from the
+  shared parts library `dark/parts.ts`). The battle uses that model, and the card portrait is
+  rendered from the same model by `battle3d/portrait.ts` (warm key light, faction rim light, fog,
+  embers, vignette), so a card always shows exactly the unit that is deployed. Portraits are baked
+  in the browser on first use and kept in memory (`art/cardPortraits.ts`).
+- **Card frame:** chamfered, forged-metal frame per rarity (common worn iron, rare blued steel, epic
+  oxidised violet steel, legendary muted gold with a double filigree line, mythic blood-red with a
+  slow pulse), a gothic crest on epic and up, a small dark blood gem for the valor cost, a compact
+  rarity rune (shape and colour) and a level plate. Names use Cinzel (SIL Open Font License,
+  `public/fonts/Cinzel-OFL.txt`). The frame colours are defined once in `RARITY_FRAME` and mirrored
+  as CSS variables; a test keeps them in sync.
+- **Without WebGL** a card shows its faction backdrop and a plain silhouette labelled
+  "PLACEHOLDER"; no other art is substituted.
 
 ## 6. Hero, gear and pets
 

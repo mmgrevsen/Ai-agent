@@ -16,7 +16,8 @@ import { cardUnlockedAtStage, PET_UNLOCKS } from '../../core/systems/progression
 import { BUILDINGS } from '../../core/content/buildings';
 import { formatDuration, formatNumber } from '../../core/util';
 import { drawWorldBackground } from '../art/scenery';
-import { drawSprite } from '../art/units';
+import { drawFigure } from '../art/cardPortraits';
+import { heroPortraitKey } from '../art/heroLook';
 import { ArtCanvas, Bar, useNow } from '../components/common';
 import { Icon } from '../components/Icon';
 import '../styles/screens.css';
@@ -65,8 +66,8 @@ export function HomeScreen() {
           className="world-banner-canvas"
           draw={(ctx, t) => {
             drawWorldBackground(ctx, w.index, 492, 150, 118, t, t * 6);
-            drawSprite(ctx, { type: 'boss', id: w.boss.id }, 335, 132, { t, facing: -1, attack: 0, hit: 0, scale: 0.75, moving: false });
-            drawSprite(ctx, { type: 'hero', cape: game.hero.cape, aura: game.hero.aura }, 70, 130, { t, facing: 1, attack: 0, hit: 0, scale: 1.1, moving: false });
+            drawFigure(ctx, `boss:${w.boss.id}`, 292, 2, 111, 148);
+            drawFigure(ctx, heroPortraitKey(game), 12, 2, 111, 148);
           }}
         />
         <div className="world-banner-text">

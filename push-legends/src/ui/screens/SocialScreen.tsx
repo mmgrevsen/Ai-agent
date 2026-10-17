@@ -110,7 +110,7 @@ function ProfileTab() {
         </div>
         <div className="row wrap" style={{ marginTop: 8 }}>
           {game.deck.map((id) => (
-            <div key={id} className={`card-detail-art rarity-${getCard(id).rarity}`} style={{ padding: 2, borderRadius: 10 }}>
+            <div key={id} className={`card-detail-art thumb rarity-${getCard(id).rarity}`}>
               <CardArt cardId={id} width={34} />
             </div>
           ))}
@@ -438,7 +438,7 @@ function OnlineFriends() {
               </div>
               <div className="row wrap" style={{ gap: 4 }}>
                 {fr.showcase.deck.filter((id) => CARD_BY_ID.has(id)).map((id, i) => (
-                  <div key={`${id}-${i}`} className={`card-detail-art rarity-${CARD_BY_ID.get(id)!.rarity}`} style={{ padding: 2, borderRadius: 8 }}>
+                  <div key={`${id}-${i}`} className={`card-detail-art thumb rarity-${CARD_BY_ID.get(id)!.rarity}`}>
                     <CardArt cardId={id} width={26} />
                   </div>
                 ))}

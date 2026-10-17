@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BuildingId } from '../../core/content/buildings';
-import { humanoid } from '../battle3d/units3d';
+import { baseGuard, baseSergeant, baseTrainee } from '../battle3d/dark/baseFolk';
 import { Kit } from './kit';
 import type { Plot } from './layout';
 import { bakeGroundAO } from './render';
@@ -440,8 +440,8 @@ function scaffolding(k: K, g: THREE.Group, plot: Plot, animators: Animator[]): v
 // --- Units for the base --------------------------------------------------------------------------
 
 /** A soldier lying in the push-up position (a full character rig rotated face-down). */
-function pushupSoldier(body: string, helmet: string): THREE.Group {
-  const rig = humanoid({ body, legs: '#4a4f5c', skin: '#f6c9a0', head: 'helm', headColor: helmet, weapon: 'none', mood: 'brave' });
+function pushupSoldier(cloth: string, i: number): THREE.Group {
+  const rig = baseTrainee(cloth, i);
   rig.root.rotation.x = Math.PI / 2;
   if (rig.armR) rig.armR.rotation.x = -Math.PI / 2;
   if (rig.armL) rig.armL.rotation.x = -Math.PI / 2;
@@ -848,7 +848,7 @@ const barracks: Builder = (k, g, plot, info, anim, rand) => {
   if (t >= 3) banner(k, -5.4, -0.4, C.purple, 3.6);
   if (t >= 4) for (const s of [-1, 1]) clothBanner(k, -1 + s * 2.6, 3.1, -0.9, C.red, 0.7, 1.4);
   // A guard in front of the hall
-  const guardRig = humanoid({ body: info.soldierColors[0] ?? C.blue, legs: '#4a4f5c', skin: '#f6c9a0', head: 'helm', headColor: '#cfd6df', weapon: 'sword', shield: 'round', mood: 'brave', mustache: '#7a4a1f' });
+  const guardRig = baseGuard(info.soldierColors[0] ?? '#5e0f14');
   addOutlines(guardRig.root, 0.02, (m) => m.material === guardRig.material);
   guardRig.root.scale.setScalar(0.9);
   guardRig.root.position.set(-2.4, 0.2, -0.2);
@@ -893,13 +893,13 @@ const trainingGrounds: Builder = (k, g, plot, info, anim, rand) => {
   }
   // Push-up squad on mats: more trainees with every tier
   const count = Math.min(6, 2 + t);
-  const colors = info.soldierColors.length ? info.soldierColors : [C.blue, C.red, C.leaf];
+  const colors = info.soldierColors.length ? info.soldierColors : ['#5e0f14', '#3e4349', '#3a2a20'];
   for (let i = 0; i < count; i++) {
     const row = Math.floor(i / 3);
     const x = -1.8 + (i % 3) * 1.8;
     const z = -0.6 + row * 2.4;
     k.rbox(0.9, 0.05, 2.2, 0.02, x, 0.2, z, i % 2 ? '#4f7fe0' : '#e0574f');
-    const m = pushupSoldier(colors[i % colors.length]!, i % 3 ? '#cfd6df' : '#8c96a3');
+    const m = pushupSoldier(colors[i % colors.length]!, i);
     m.position.set(x, 0.2, z);
     m.rotation.y = Math.PI;
     m.scale.setScalar(0.8);
@@ -912,7 +912,7 @@ const trainingGrounds: Builder = (k, g, plot, info, anim, rand) => {
     });
   }
   // Drill sergeant pacing in front
-  const sRig = humanoid({ body: C.purple, legs: '#3a3550', skin: '#e9a77a', head: 'hat', headColor: '#6b4f2a', weapon: 'none', mood: 'angry', mustache: '#3a2414', trim: C.gold });
+  const sRig = baseSergeant();
   addOutlines(sRig.root, 0.02, (m) => m.material === sRig.material);
   sRig.root.position.set(0, 0.2, 3.1);
   g.add(sRig.root);

@@ -320,7 +320,7 @@ export function buildSuggestions(state: GameState, result: BattleResult): Sugges
     out.push({ title: 'Add a frontline', text: `A tank${tanks.length ? ` like ${tanks[0]}` : ''} keeps enemies away from your damage dealers.`, action: 'cards' });
   }
   if (a.maxEnemiesAlive >= 8 && !a.deckHasSplash) {
-    out.push({ title: 'Break up the crowds', text: 'Large groups overwhelmed you. Area damage (Ember Mage, Bombardier, Frost Witch) clears swarms fast.', action: 'cards' });
+    out.push({ title: 'Break up the crowds', text: 'Large groups overwhelmed you. Area damage (the Ashen Herald, Blackpowder Sapper, the Rime Widow) clears swarms fast.', action: 'cards' });
   }
   if (a.killedByBoss && result.interrupts === 0) {
     out.push({ title: 'Perfect timing', text: 'When the ground glows red, unleash your Legend Strike to interrupt the boss attack.', action: 'none' });

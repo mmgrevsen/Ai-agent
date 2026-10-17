@@ -154,7 +154,7 @@ function PreBattleModal({ context }: { context: BattleContext }) {
         </div>
         <div className="row wrap">
           {game.deck.map((id) => (
-            <div key={id} className={`card-detail-art rarity-${getCard(id).rarity}`} style={{ padding: 2, borderRadius: 10 }}>
+            <div key={id} className={`card-detail-art thumb rarity-${getCard(id).rarity}`}>
               <CardArt cardId={id} width={34} />
             </div>
           ))}
@@ -250,8 +250,8 @@ function ChestModal({ result }: { result: ChestResult }) {
         <RewardList reward={{ gold: result.gold }} />
         <div className="row wrap center" style={{ gap: 12 }}>
           {result.fragments.map((f, i) => (
-            <div key={f.cardId} className="col loot-card" style={{ alignItems: 'center', width: 76, animationDelay: `${i * 0.12}s` }}>
-              <div className={`card-detail-art rarity-${getCard(f.cardId).rarity}`} style={{ padding: 3 }}>
+            <div key={f.cardId} className={`col loot-card loot-${getCard(f.cardId).rarity}`} style={{ alignItems: 'center', width: 76, animationDelay: `${i * 0.12}s` }}>
+              <div className={`card-detail-art mini rarity-${getCard(f.cardId).rarity}`}>
                 <CardArt cardId={f.cardId} width={60} />
               </div>
               <span className="display small">×{f.amount}</span>
@@ -297,7 +297,7 @@ function RoomModal({ modal }: { modal: Extract<Modal, { kind: 'room' }> }) {
             <div className="row center" style={{ gap: 10 }}>
               {o.options.map((id) => (
                 <button key={id} className="tile col" style={{ alignItems: 'center', color: 'var(--text)' }} onClick={() => store.pickShrine(id)}>
-                  <div className={`card-detail-art rarity-${getCard(id).rarity}`} style={{ padding: 3 }}>
+                  <div className={`card-detail-art mini rarity-${getCard(id).rarity}`}>
                     <CardArt cardId={id} width={70} />
                   </div>
                   <span className="xsmall">{getCard(id).name}</span>

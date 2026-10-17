@@ -1,7 +1,6 @@
 import { store } from '../../app/store';
 import { sound } from '../../platform/audio';
-import { drawWorldBackground } from '../art/scenery';
-import { drawSprite } from '../art/units';
+import { drawLineup } from '../art/cardPortraits';
 import { ArtCanvas } from '../components/common';
 import { Icon } from '../components/Icon';
 
@@ -22,15 +21,7 @@ export function IntroScreen() {
           height={760}
           fill
           animate
-          draw={(ctx, t, w, h) => {
-            const ground = h * 0.56;
-            const s = Math.min(w / 180, h / 350);
-            drawWorldBackground(ctx, 0, w, h, ground, t, t * 10);
-            drawSprite(ctx, { type: 'card', id: 'thornbow_archer' }, w * 0.13, ground + 30, { t: t + 2, facing: 1, attack: 0, hit: 0, scale: s * 0.62, moving: false });
-            drawSprite(ctx, { type: 'hero', cape: 'cape_crimson', aura: 'aura_ember' }, w * 0.3, ground + 14, { t, facing: 1, attack: t % 2.4 < 0.3 ? (t % 2.4) / 0.3 : 0, hit: 0, scale: s * 0.95, moving: false });
-            drawSprite(ctx, { type: 'card', id: 'oakshield_knight' }, w * 0.52, ground + 36, { t: t + 1, facing: 1, attack: 0, hit: 0, scale: s * 0.65, moving: true });
-            drawSprite(ctx, { type: 'boss', id: 'grovemaw' }, w * 0.84, ground + 6, { t, facing: -1, attack: 0, hit: 0, scale: s * 0.6, moving: false });
-          }}
+          draw={(ctx, _t, w, h) => drawLineup(ctx, ['full:thornbow_archer', 'hero:#5e0f14:sword', 'full:oakshield_knight'], w, h, h * 0.56)}
         />
       </div>
       <div className="intro-body stack-m">

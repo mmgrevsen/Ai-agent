@@ -8,11 +8,13 @@ import { BOSS_BY_ID, WORLDS } from '../../core/content/worlds';
 import { formatNumber } from '../../core/util';
 import { rr, type Ctx } from '../art/draw';
 import { disposeTree } from '../base3d/kit';
-import { addOutlines, glowColor, glowMaterial } from '../base3d/style';
+import { glowColor, glowMaterial } from '../base3d/style';
 import { createPipeline, skyEnvironment, type Pipeline } from '../base3d/render';
 import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } from '../battle/placement';
 import { buildBattlefield, FLY_Y, toX, toZ, XS, type Battlefield } from './battlefield3d';
-import { bossRig, cardRig, enemyRig, heroRig, type Rig } from './units3d';
+import { PAL } from '../art/darkArt';
+import { bossUnit, buildHero, CARD_UNITS, enemyUnit } from './dark/units';
+import type { Rig } from './rig';
 
 /**
  * 3D battle presentation (three.js). Reads the deterministic Battle state each frame and turns its
@@ -44,6 +46,11 @@ const TYPE_COLOR: Record<DamageType, string> = {
 
 const PIXEL_HEIGHT = 256;
 const UNIT_SCALE = 3.5;
+
+/** The battle model for a card (the same model its card portrait is rendered from). */
+function cardUnit(cardId: string): Rig {
+  return (CARD_UNITS[cardId] ?? CARD_UNITS.oakshield_knight!).build();
+}
 
 interface UnitView {
   rig: Rig;
@@ -405,7 +412,7 @@ export class BattleScene3D implements PlacementView {
 
   /** A see-through copy of a card's troop model, used as the drop preview. */
   private ghostRig(cardId: string): THREE.Group {
-    const rig = cardRig(cardId);
+    const rig = cardUnit(cardId);
     const copies = new Map<THREE.Material, THREE.Material>();
     rig.root.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -424,7 +431,7 @@ export class BattleScene3D implements PlacementView {
       mesh.castShadow = false;
       mesh.renderOrder = 6;
     });
-    rig.root.scale.setScalar(UNIT_SCALE);
+    rig.root.scale.setScalar(UNIT_SCALE * (rig.presence ?? 1));
     rig.root.rotation.y = Math.PI / 2;
     return rig.root;
   }
@@ -820,16 +827,20 @@ export class BattleScene3D implements PlacementView {
     let scale = UNIT_SCALE;
     if (u.kind === 'hero') {
       const cape = COSMETIC_BY_ID.get(this.opts.cape)?.color ?? '#c0392b';
-      rig = heroRig(cape, this.opts.goldSword ? 'goldsword' : 'sword');
+      rig = buildHero(cape, this.opts.goldSword ? 'goldsword' : 'sword');
       scale *= 1.18;
-    } else if (u.kind === 'card') rig = cardRig(u.defId);
-    else if (u.kind === 'boss') {
+    } else if (u.kind === 'card') {
+      rig = cardUnit(u.defId);
+      scale *= rig.presence ?? 1;
+    } else if (u.kind === 'boss') {
       const def = BOSS_BY_ID.get(u.defId);
-      rig = bossRig(def?.sprite ?? '', def?.palette ?? world.enemyPalette);
+      const palette = def?.palette ?? world.enemyPalette;
+      rig = bossUnit(def?.sprite ?? '', palette) ?? enemyUnit('armored', world.index, palette);
       scale *= 0.45 + (def?.size ?? 2) * 0.45;
       scale = Math.min(scale, 13 / rig.height);
     } else {
-      rig = enemyRig(u.role as string, world.index, world.enemyPalette);
+      rig = enemyUnit(u.role as string, world.index, world.enemyPalette);
+      scale *= rig.presence ?? 1;
       if (u.elite) scale *= 1.28;
       if (u.elite) this.addEliteMark(rig);
     }
@@ -840,7 +851,6 @@ export class BattleScene3D implements PlacementView {
     });
     const facing = u.side === 'ally' ? Math.PI / 2 : -Math.PI / 2;
     rig.root.rotation.y = facing;
-    addOutlines(rig.root, u.kind === 'boss' ? 0.016 : 0.02, (m) => m.material === rig.material);
     this.world.add(rig.root);
     const blob = new THREE.Mesh(this.blobGeo, this.blobMat);
     blob.rotation.x = -Math.PI / 2;
@@ -867,13 +877,20 @@ export class BattleScene3D implements PlacementView {
     };
   }
 
+  /** Elites wear a jagged ring of blood-lit iron spikes over the head. */
   private addEliteMark(rig: Rig): void {
     const crown = new THREE.Group();
-    const m = new THREE.MeshBasicMaterial({ color: '#ffc94a' });
-    for (let i = 0; i < 4; i++) {
-      const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 4), m);
-      c.position.set(-0.2 + i * 0.13, 0, 0);
+    const iron = new THREE.MeshStandardMaterial({ color: PAL.blackSteel, metalness: 0.6, roughness: 0.45 });
+    const tip = glowMaterial(PAL.eyeRed, 3);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      const h = i % 2 ? 0.22 : 0.34;
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.045, h, 4), iron);
+      c.position.set(Math.cos(a) * 0.16, h / 2, Math.sin(a) * 0.16);
       crown.add(c);
+      const g = new THREE.Mesh(new THREE.OctahedronGeometry(0.03), tip);
+      g.position.set(Math.cos(a) * 0.16, h, Math.sin(a) * 0.16);
+      crown.add(g);
     }
     crown.position.y = rig.height + 0.1;
     rig.body.add(crown);

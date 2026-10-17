@@ -88,7 +88,10 @@ void main() {`,
       .replace(
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor * (0.88 + 0.24 * plLarge), 0.28 + 0.22 * plFine, plMetal);`,
+        // Metal: fine scratches along one direction catch the light; duller metal (lower level) is rougher
+        float plScr = smoothstep(0.8, 0.9, plN(vWPos * vec3(3.0, 26.0, 3.0) + 3.7)) * (1.0 - smoothstep(0.15, 0.45, plPx * 26.0));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.5 + 0.05, plScr * plMetal * 0.7);
+        roughnessFactor = mix(roughnessFactor * (0.88 + 0.24 * plLarge), mix(0.62, 0.3, plMetal) + 0.22 * plFine - plScr * 0.15, step(0.01, plMetal));`,
       )
       .replace(
         '#include <metalnessmap_fragment>',

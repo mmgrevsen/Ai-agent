@@ -186,17 +186,19 @@ svg.flip,
   justify-items: center;
 }
 
+/* Framed card art outside the card tile (detail view, chest loot, shrine picks): same forged frame */
 .card-detail-art {
-  border-radius: 18px;
-  overflow: hidden;
+  --cut: 8px;
   padding: 5px;
-  background: linear-gradient(160deg, var(--rar), color-mix(in srgb, var(--rar) 40%, #120b30));
+  clip-path: var(--chamfer);
+  background: var(--forged);
   flex: none;
 }
 
 .card-detail-art canvas {
-  border-radius: 13px;
-  background: radial-gradient(circle at 50% 30%, #3f3290, #1a1347);
+  --cut: 5px;
+  clip-path: var(--chamfer);
+  background: #0b0b0e;
 }
 
 .compare-table {
@@ -685,4 +687,79 @@ svg.flip,
   color: var(--text);
   pointer-events: none;
   white-space: nowrap;
+}
+
+.card-detail-art.mini {
+  --cut: 6px;
+  padding: 3px;
+}
+
+.card-detail-art.mini canvas {
+  --cut: 4px;
+}
+
+.card-detail-art.thumb {
+  --cut: 4px;
+  padding: 2px;
+}
+
+.card-detail-art.thumb canvas {
+  --cut: 3px;
+}
+
+/* Legendary and mythic drops rise slowly out of the dark behind a flare of their frame's light */
+.loot-legendary,
+.loot-mythic {
+  position: relative;
+  animation: lootRise 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.loot-legendary::before,
+.loot-mythic::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  width: 140px;
+  height: 140px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(224, 189, 106, 0.45), rgba(224, 189, 106, 0) 65%);
+  animation: lootFlare 1.6s ease-out both;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.loot-mythic::before {
+  background: radial-gradient(circle, rgba(200, 30, 40, 0.55), rgba(200, 30, 40, 0) 65%);
+}
+
+@keyframes lootRise {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.9);
+    filter: brightness(0);
+  }
+  60% {
+    opacity: 1;
+    filter: brightness(1.4);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes lootFlare {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }

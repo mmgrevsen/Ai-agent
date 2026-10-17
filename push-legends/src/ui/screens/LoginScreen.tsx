@@ -2,8 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { authenticate, chooseSave, DEFAULT_SERVER, playOffline, type SaveChoice } from '../../app/friends';
 import { useGame } from '../../app/store';
 import { sound } from '../../platform/audio';
-import { drawWorldBackground } from '../art/scenery';
-import { drawSprite } from '../art/units';
+import { drawLineup } from '../art/cardPortraits';
 import { ArtCanvas, Segmented } from '../components/common';
 
 const when = (t: number) => (t > 0 ? new Date(t).toLocaleString() : 'unknown');
@@ -46,13 +45,7 @@ export function LoginScreen() {
           height={760}
           fill
           animate
-          draw={(ctx, t, w, h) => {
-            const ground = h * 0.3;
-            const s = Math.min(w / 180, h / 350);
-            drawWorldBackground(ctx, 0, w, h, ground, t, t * 10);
-            drawSprite(ctx, { type: 'hero', cape: 'cape_crimson', aura: 'aura_ember' }, w * 0.3, ground + 14, { t, facing: 1, attack: t % 2.4 < 0.3 ? (t % 2.4) / 0.3 : 0, hit: 0, scale: s * 0.62, moving: false });
-            drawSprite(ctx, { type: 'boss', id: 'grovemaw' }, w * 0.78, ground + 6, { t, facing: -1, attack: 0, hit: 0, scale: s * 0.4, moving: false });
-          }}
+          draw={(ctx, _t, w, h) => drawLineup(ctx, ['full:shade_assassin', 'hero:#5e0f14:sword', 'full:ember_mage'], w, h, h * 0.32)}
         />
       </div>
       <div className="intro-body stack-m">

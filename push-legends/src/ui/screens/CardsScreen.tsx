@@ -201,7 +201,7 @@ function ShopView() {
             return (
               <div key={o.id} className="list-item col" style={{ alignItems: 'stretch' }}>
                 <div className="row">
-                  <div className={`card-detail-art rarity-${def.rarity}`} style={{ padding: 3 }}>
+                  <div className={`card-detail-art mini rarity-${def.rarity}`}>
                     <CardArt cardId={o.cardId} width={44} />
                   </div>
                   <div className="grow">
@@ -338,7 +338,7 @@ export function CardModal({ id }: { id: string }) {
             <h2>{def.name}</h2>
             <div className="row wrap">
               <span className="chip">{ROLE_LABEL[def.role]}</span>
-              <span className="chip" style={{ color: '#ff9de0' }}>
+              <span className="chip" style={{ color: '#e0434b' }}>
                 {def.cost} valor
               </span>
               {def.count > 1 && <span className="chip">×{def.count} units</span>}

@@ -103,7 +103,7 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
             <div className="row wrap" style={{ gap: 12 }}>
               {summary.unlockedCards.map((id, i) => (
                 <div key={`u${id}`} className="col loot-card" style={{ alignItems: 'center', width: 80, animationDelay: `${i * 0.1}s` }}>
-                  <div className={`card-detail-art rarity-${getCard(id).rarity}`} style={{ padding: 3 }}>
+                  <div className={`card-detail-art mini rarity-${getCard(id).rarity}`}>
                     <CardArt cardId={id} width={64} />
                   </div>
                   <span className="chip green">New card!</span>
@@ -112,7 +112,7 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
               ))}
               {summary.fragments.map((f, i) => (
                 <div key={`f${i}`} className="col loot-card" style={{ alignItems: 'center', width: 64, animationDelay: `${0.2 + i * 0.1}s` }}>
-                  <div className={`card-detail-art rarity-${getCard(f.cardId).rarity}`} style={{ padding: 2 }}>
+                  <div className={`card-detail-art thumb rarity-${getCard(f.cardId).rarity}`}>
                     <CardArt cardId={f.cardId} width={50} />
                   </div>
                   <span className="xsmall display">×{f.amount}</span>

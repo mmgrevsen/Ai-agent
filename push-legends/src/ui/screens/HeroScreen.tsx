@@ -9,7 +9,8 @@ import { petPassiveValue, petUpgradeCost } from '../../core/systems/pets';
 import { armoryOffers, pushupDamage, pushupDamageWithWeapon } from '../../core/systems/armory';
 import { BALANCE } from '../../core/config/balance';
 import { formatNumber } from '../../core/util';
-import { drawSprite } from '../art/units';
+import { drawFigure } from '../art/cardPortraits';
+import { heroPortraitKey } from '../art/heroLook';
 import { ArtCanvas, Bar, ItemArt, ModalShell, PetArt, RarityTag, Segmented } from '../components/common';
 import { Icon } from '../components/Icon';
 
@@ -33,12 +34,8 @@ export function HeroScreen() {
           height={170}
           animate
           className="world-banner-canvas"
-          draw={(ctx, t) => {
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            ctx.beginPath();
-            ctx.ellipse(246, 156, 90, 14, 0, 0, Math.PI * 2);
-            ctx.fill();
-            drawSprite(ctx, { type: 'hero', cape: game.hero.cape, aura: game.hero.aura }, 246, 152, { t, facing: 1, attack: (t % 3) < 0.3 ? (t % 3) / 0.3 : 0, hit: 0, scale: 2.4, moving: false });
+          draw={(ctx) => {
+            drawFigure(ctx, heroPortraitKey(game), 246 - 64, 0, 128, 170);
           }}
         />
         <div style={{ position: 'absolute', top: 10, left: 14 }}>

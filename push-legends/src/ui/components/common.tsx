@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { store } from '../../app/store';
 import { getCard } from '../../core/content/cards';
 import type { BuildingId } from '../../core/content/buildings';
 import type { Reward } from '../../core/content/quests';
 import type { Rarity } from '../../core/content/types';
 import { formatNumber } from '../../core/util';
+import { drawCardArt, portraitState, subscribePortraits } from '../art/cardPortraits';
 import type { Ctx } from '../art/draw';
-import { drawCardPortrait, hasPortrait } from '../art/portraits';
 import { drawBuilding, drawItemIcon, drawPet } from '../art/scenery';
-import { drawSprite, type SpriteKey } from '../art/units';
 import { Icon, type IconName } from './Icon';
 
 // --- Canvas ---------------------------------------------------------------------------------------
@@ -17,7 +16,7 @@ import { Icon, type IconName } from './Icon';
  * A crisp (devicePixelRatio-aware) canvas that calls `draw` once, or every frame when `animate`.
  * With `fill`, it sizes itself to its parent element instead of the given width/height.
  */
-export function ArtCanvas({ width, height, draw, animate = false, className, fill = false }: { width: number; height: number; draw: (ctx: Ctx, t: number, w: number, h: number) => void; animate?: boolean; className?: string; fill?: boolean }) {
+export function ArtCanvas({ width, height, draw, animate = false, className, fill = false, redraw }: { width: number; height: number; draw: (ctx: Ctx, t: number, w: number, h: number) => void; animate?: boolean; className?: string; fill?: boolean; redraw?: unknown }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef(draw);
   drawRef.current = draw;
@@ -53,47 +52,15 @@ export function ArtCanvas({ width, height, draw, animate = false, className, fil
     };
     frame();
     return () => cancelAnimationFrame(raf);
-  }, [w, h, animate, reduced]);
+  }, [w, h, animate, reduced, redraw]);
   return <canvas ref={ref} className={className} style={{ width: w, height: h, display: 'block' }} />;
 }
 
-export function UnitPortrait({ sprite, size, animate = false, scale = 1.25 }: { sprite: SpriteKey; size: number; animate?: boolean; scale?: number }) {
-  return (
-    <ArtCanvas
-      width={size}
-      height={size}
-      animate={animate}
-      draw={(ctx, t) => {
-        const big = sprite.type === 'boss';
-        drawSprite(ctx, sprite, size / 2, size * (big ? 0.95 : 0.86), { t, facing: 1, attack: 0, hit: 0, scale: (size / 64) * scale * (big ? 0.55 : 1), moving: false });
-      }}
-    />
-  );
-}
-
+/** Card art: the unit's portrait rendered from its battle model (see art/cardPortraits.ts). */
 export function CardArt({ cardId, width, animate = false }: { cardId: string; width: number; animate?: boolean }) {
   const h = Math.round((width * 4) / 3);
-  const def = getCard(cardId);
-  const big = def.id === 'aurora_drake' || def.id === 'bastion_golem' || def.id === 'phoenix_warden';
-  return (
-    <ArtCanvas
-      width={width}
-      height={h}
-      animate={animate}
-      draw={(ctx, t) => {
-        if (hasPortrait(cardId)) {
-          drawCardPortrait(ctx, cardId, width, h, t);
-          return;
-        }
-        const g = ctx.createRadialGradient(width / 2, h * 0.45, 4, width / 2, h * 0.45, width);
-        g.addColorStop(0, def.palette.accent + '66');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, width, h);
-        drawSprite(ctx, { type: 'card', id: cardId }, width / 2 - (big ? 4 : 0), h * 0.8, { t, facing: 1, attack: 0, hit: 0, scale: (width / 64) * (big ? 0.95 : 1.25), moving: false });
-      }}
-    />
-  );
+  const state = useSyncExternalStore(subscribePortraits, () => portraitState(cardId));
+  return <ArtCanvas width={width} height={h} animate={animate && state === 2} redraw={`${cardId}:${state}`} draw={(ctx, t) => drawCardArt(ctx, cardId, width, h, t, animate)} />;
 }
 
 export function ItemArt({ defId, size }: { defId: string; size: number }) {

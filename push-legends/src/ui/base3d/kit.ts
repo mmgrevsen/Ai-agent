@@ -8,10 +8,16 @@ import { toonMaterial } from './style';
  */
 export const SHARED: THREE.Material = toonMaterial(0.35);
 
-/** Colours that are drawn as polished metal (steel, gold, blades); filled in by the model files. */
-const METAL_HEX = new Set<string>();
+/**
+ * Colours drawn as metal, with how metallic they are (1 = bright polished steel or gold, lower =
+ * dull, battered iron). Filled in by the model files.
+ */
+const METAL_HEX = new Map<string, number>();
 export function registerMetals(...hex: string[]): void {
-  for (const h of hex) METAL_HEX.add(h.toLowerCase());
+  for (const h of hex) METAL_HEX.set(h.toLowerCase(), 1);
+}
+export function registerMetal(hex: string, level: number): void {
+  METAL_HEX.set(hex.toLowerCase(), Math.max(0, Math.min(1, level)));
 }
 const color = new THREE.Color();
 const pos = new THREE.Vector3();
@@ -47,7 +53,7 @@ export class Kit {
       arr[i * 3 + 2] = color.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
-    g.setAttribute('aMetal', new THREE.BufferAttribute(new Float32Array(n).fill(METAL_HEX.has(hex.toLowerCase()) ? 1 : 0), 1));
+    g.setAttribute('aMetal', new THREE.BufferAttribute(new Float32Array(n).fill(METAL_HEX.get(hex.toLowerCase()) ?? 0), 1));
     this.geos.push(g);
     return this;
   }

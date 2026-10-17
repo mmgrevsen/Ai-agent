@@ -5,8 +5,7 @@ import { BALANCE } from '../../core/config/balance';
 import { Battle } from '../../core/combat/engine';
 import type { BattleSetup } from '../../core/combat/types';
 import { BATTLE_MODIFIERS } from '../../core/combat/types';
-import { ITEM_BY_ID } from '../../core/content/equipment';
-import type { GameState } from '../../core/state/types';
+import { heroHasGoldSword } from '../art/heroLook';
 import { FEEDBACK_TEXT } from '../../core/exercise/repCounter';
 import { formatNumber } from '../../core/util';
 import { sound } from '../../platform/audio';
@@ -59,13 +58,6 @@ function placementFor(battle: Battle, d: CardDrag | null, view: PlacementView): 
     count: spec.def.count,
     flying: spec.def.flying,
   };
-}
-
-function heroHasGoldSword(game: GameState): boolean {
-  const uid = game.hero.equipped.weapon;
-  const item = uid ? game.items.find((i) => i.uid === uid) : undefined;
-  const def = item ? ITEM_BY_ID.get(item.defId) : undefined;
-  return !!def && def.rarity !== 'common' && def.rarity !== 'rare';
 }
 
 export function BattleScreen({ setup, context }: { setup: BattleSetup; context: BattleContext }) {
@@ -478,7 +470,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
         </div>
 
         <div className="valor-row">
-          <span className="valor-gem display">{Math.floor(valor)}</span>
+          <span className="valor-gem">{Math.floor(valor)}</span>
           <div className="valor-bar" aria-label={`Valor ${Math.floor(valor)} of ${BALANCE.combat.maxValor}`}>
             {Array.from({ length: BALANCE.combat.maxValor }, (_, i) => (
               <i key={i} style={{ ['--fill' as string]: `${Math.max(0, Math.min(1, valor - i)) * 100}%` }} />

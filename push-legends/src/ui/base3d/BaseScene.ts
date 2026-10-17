@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import type { BuildingId } from '../../core/content/buildings';
 import { disposeTree } from './kit';
 import { MAP, PATROLS, PLOTS, ROADS, type Plot } from './layout';
-import { heroRig, humanoid } from '../battle3d/units3d';
+import { baseSoldier } from '../battle3d/dark/baseFolk';
+import { buildHero } from '../battle3d/dark/units';
+import { PAL } from '../art/darkArt';
 import { barrel, banner, buildPlot, BUILD_MAT, C, cannon, catapult, crate, flag, lantern, merlons, stoneBox, torch, tower, tree, type Animator, type BuiltPlot, type PlotInfo } from './models';
 import { bakeGroundAO, createPipeline, skyEnvironment, type Pipeline } from './render';
 import { K, shade as shadeHex, star } from './sculpt';
@@ -571,7 +573,7 @@ export class BaseScene {
     for (const w of this.walkers) disposeTree(w.mesh);
     this.walkerGroup.clear();
     this.walkers = [];
-    const palette = colors.length ? colors : [C.blue, C.red, C.leaf];
+    const palette = colors.length ? colors : [PAL.crimson, PAL.blackSteel, PAL.leather];
     const add = (rig: { root: THREE.Object3D; legs: THREE.Object3D[]; armR: THREE.Object3D | null; armL: THREE.Object3D | null }, pathIdx: number, offset: number, speed: number) => {
       const mesh = rig.root;
       mesh.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = true) : undefined));
@@ -589,12 +591,12 @@ export class BaseScene {
       this.walkerGroup.add(mesh);
       this.walkers.push({ mesh, legs: rig.legs, arms, path, lengths, total, offset: offset * total, speed });
     };
-    // The hero: bigger, gold armour and a purple cape
-    const hero = heroRig(C.purple, 'goldsword');
+    // The hero: bigger, with a crimson cape
+    const hero = buildHero(PAL.crimson, 'goldsword');
     hero.root.scale.setScalar(1.05);
     add(hero, 1, 0.1, 1.6);
     for (let i = 0; i < count; i++) {
-      const r = humanoid({ body: palette[i % palette.length]!, legs: '#4a4f5c', skin: '#f6c9a0', head: 'helm', headColor: i % 3 === 0 ? '#8c96a3' : '#cfd6df', weapon: i % 2 ? 'sword' : 'axe', shield: i % 2 ? 'round' : null, mood: 'brave', mustache: i % 4 === 1 ? '#7a4a1f' : undefined });
+      const r = baseSoldier(palette[i % palette.length]!, i);
       r.root.scale.setScalar(0.85);
       add(r, i, ((i * 0.37) % 1) + 0.05, 1.8 + (i % 3) * 0.25);
     }

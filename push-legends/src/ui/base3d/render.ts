@@ -29,7 +29,11 @@ const GradeShader = {
       // Split toning: cool shadows, warm highlights; gentle contrast around mid grey (still linear HDR)
       float k = smoothstep(0.02, 0.8, l);
       c.rgb *= mix(vec3(0.93, 0.97, 1.06), vec3(1.05, 1.0, 0.94), k);
-      c.rgb = max(vec3(0.0), (c.rgb - 0.18) * uContrast + 0.18);
+      // Below the pivot a power curve (a straight line would clip dark channels to 0 and turn
+      // dark colours into pure, saturated hues); above it a straight line (no extra highlight boost)
+      vec3 lo = 0.18 * pow(max(c.rgb, vec3(0.0)) / 0.18, vec3(uContrast));
+      vec3 hi = (c.rgb - 0.18) * uContrast + 0.18;
+      c.rgb = mix(lo, hi, step(0.18, c.rgb));
       vec2 d = vUv - 0.5;
       c.rgb *= 1.0 - uVignette * smoothstep(0.25, 0.75, dot(d, d) * 2.2);
       gl_FragColor = c;

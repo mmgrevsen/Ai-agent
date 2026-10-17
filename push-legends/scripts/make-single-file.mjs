@@ -1,5 +1,5 @@
 // Packs the `vite build --mode single` output into one double-clickable HTML file:
-// the stylesheet, the font and all JavaScript are inlined. Output: release/PushLegends.html
+// the stylesheet, the fonts and all JavaScript are inlined. Output: release/PushLegends.html
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,10 +7,15 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist-single');
 let html = readFileSync(join(dist, 'index.html'), 'utf8');
-const font = readFileSync(join(root, 'public/fonts/LilitaOne-Regular.ttf')).toString('base64');
+const fonts = [
+  ['LilitaOne-Regular.ttf', 'font/ttf'],
+  ['cinzel-latin-700-normal.woff2', 'font/woff2'],
+  ['cinzel-latin-900-normal.woff2', 'font/woff2'],
+].map(([file, type]) => [file, `data:${type};base64,${readFileSync(join(root, 'public/fonts', file)).toString('base64')}`]);
 
 html = html.replace(/<link rel="stylesheet"[^>]*href="\.\/(assets\/[^"]+\.css)"[^>]*>/g, (_, file) => {
-  const css = readFileSync(join(dist, file), 'utf8').replace(/url\([^)]*LilitaOne-Regular\.ttf\)/g, `url(data:font/ttf;base64,${font})`);
+  let css = readFileSync(join(dist, file), 'utf8');
+  for (const [name, data] of fonts) css = css.replaceAll(new RegExp(`url\\([^)]*${name.replaceAll('.', '\\.')}\\)`, 'g'), `url(${data})`);
   return `<style>\n${css}\n</style>`;
 });
 html = html.replace(/<link rel="modulepreload"[^>]*>/g, '');
@@ -19,6 +24,8 @@ html = html.replace(/<script type="module" crossorigin src="\.\/(assets\/[^"]+\.
   return `<script type="module">\n${js}\n</script>`;
 });
 
+const missingFont = html.match(/url\([^)]*fonts\/[^)]+\)/);
+if (missingFont) throw new Error(`Font was not inlined: ${missingFont[0]}`);
 const leftovers = html.match(/(src|href)="\.\/assets\/[^"]+"/g);
 if (leftovers) throw new Error(`Assets were not inlined: ${leftovers.join(', ')}`);
 const extraJs = readdirSync(join(dist, 'assets')).filter((f) => f.endsWith('.js'));

@@ -4,6 +4,21 @@
   font-display: swap;
 }
 
+/* Card names, costs and rarity labels (Cinzel, SIL Open Font License: public/fonts/Cinzel-OFL.txt) */
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/fonts/cinzel-latin-700-normal.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/fonts/cinzel-latin-900-normal.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+
 :root {
   --bg-0: #0f0a26;
   --bg-1: #191243;
@@ -24,16 +39,17 @@
   --text: #fff8ec;
   --text-dim: #cfc4f0;
   --text-faint: #9488c4;
-  --r-common: #a3b1c2;
-  --r-rare: #4aa8ff;
-  --r-epic: #b670ff;
-  --r-legendary: #ffb52e;
-  --r-mythic: #2ee6c8;
-  --r-mythic-2: #ff6ad5;
+  /* Rarity colours: restrained metals (see RARITY_FRAME in src/ui/art/darkArt.ts) */
+  --r-common: #9aa0a6;
+  --r-rare: #8fb2d4;
+  --r-epic: #b98ad0;
+  --r-legendary: #e0bd6a;
+  --r-mythic: #e0434b;
   --radius-s: 10px;
   --radius-m: 16px;
   --radius-l: 22px;
   --font-display: 'Lilita One', 'Trebuchet MS', system-ui, sans-serif;
+  --font-card: 'Cinzel', 'Trajan Pro', Georgia, 'Times New Roman', serif;
   --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --shadow-pop: 0 4px 0 rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.35);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -557,43 +573,66 @@ h3 {
   border: 1px dashed rgba(255, 122, 61, 0.6);
 }
 
-/* ---------- Rarity ---------- */
+/* ---------- Rarity ----------
+ * Forged-metal frame per rarity. Values mirror RARITY_FRAME in src/ui/art/darkArt.ts
+ * (tests/cardFrames.test.ts keeps the two in sync). --rar is the rarity text/indicator colour. */
 .rarity-common {
   --rar: var(--r-common);
+  --fr-metal: #3b3e43;
+  --fr-edge: #7c8188;
+  --fr-accent: #9aa0a6;
+  --fr-glow: transparent;
 }
 .rarity-rare {
   --rar: var(--r-rare);
+  --fr-metal: #2b3540;
+  --fr-edge: #6f8aa6;
+  --fr-accent: #8fb2d4;
+  --fr-glow: rgba(110, 150, 200, 0.25);
 }
 .rarity-epic {
   --rar: var(--r-epic);
+  --fr-metal: #2e2433;
+  --fr-edge: #8a5a9e;
+  --fr-accent: #b98ad0;
+  --fr-glow: rgba(150, 80, 190, 0.3);
 }
 .rarity-legendary {
   --rar: var(--r-legendary);
+  --fr-metal: #2f2717;
+  --fr-edge: #b08d43;
+  --fr-accent: #e0bd6a;
+  --fr-glow: rgba(224, 170, 80, 0.35);
 }
 .rarity-mythic {
   --rar: var(--r-mythic);
+  --fr-metal: #1a0d0e;
+  --fr-edge: #b3232b;
+  --fr-accent: #e8d9bd;
+  --fr-glow: rgba(200, 30, 40, 0.45);
 }
 
 .rarity-tag {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-family: var(--font-display);
+  gap: 4px;
+  font-family: var(--font-card);
+  font-weight: 700;
   font-size: var(--fs-xs);
   color: var(--rar);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 1.2px;
 }
 
 .rarity-mythic .rarity-tag,
 .rarity-tag.mythic {
-  background: linear-gradient(90deg, var(--r-mythic), var(--r-mythic-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--r-mythic);
+  text-shadow: 0 0 6px rgba(200, 30, 40, 0.55);
 }
 
-/* ---------- Cards ---------- */
+/* ---------- Cards ----------
+ * Angular forged frame (chamfered corners), art as the focus, a small dark cost gem, a compact
+ * rarity rune and a level plate. The name sits under the frame for readability at phone size. */
 .tile {
   position: relative;
   border: 0;
@@ -601,53 +640,72 @@ h3 {
   background: none;
   cursor: pointer;
   text-align: left;
+  color: var(--text);
+}
+
+/* Chamfered outline. Declared on every element that clips with it, because a custom property is
+   resolved where it is declared: each element's own --cut must be substituted. */
+.card,
+.card-inner,
+.card-level,
+.hand-card,
+.hand-card canvas,
+.next-card canvas,
+.drag-ghost canvas,
+.card-detail-art,
+.card-detail-art canvas {
+  --chamfer: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+}
+
+.card,
+.hand-card,
+.card-detail-art {
+  --cut: 7px;
+  --forged:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 14%, transparent 80%, rgba(0, 0, 0, 0.5)),
+    repeating-linear-gradient(112deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(23deg, rgba(0, 0, 0, 0.12) 0 2px, transparent 2px 7px),
+    linear-gradient(158deg, var(--fr-edge), var(--fr-metal) 24%, color-mix(in srgb, var(--fr-metal) 55%, #000) 58%, var(--fr-metal) 84%, color-mix(in srgb, var(--fr-edge) 70%, #000));
 }
 
 .card {
   position: relative;
-  border-radius: 13px;
   padding: 3px;
-  background: linear-gradient(165deg, color-mix(in srgb, var(--rar) 55%, #ffffff), var(--rar) 35%, color-mix(in srgb, var(--rar) 45%, #120b30));
-  box-shadow: 0 0 0 1.5px #120b30, 0 0 12px color-mix(in srgb, var(--rar) 55%, transparent), 0 4px 0 rgba(0, 0, 0, 0.45);
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 5px var(--fr-glow));
   transition: transform 0.12s;
 }
 
-.rarity-mythic.card {
-  background: linear-gradient(160deg, var(--r-mythic), var(--r-mythic-2), var(--r-mythic));
-  background-size: 200% 200%;
-  animation: shimmer 4s ease infinite;
+/* The forged frame */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--chamfer);
+  background: var(--forged);
 }
 
+/* Gothic crest on the top edge (epic and up) */
+.rarity-epic.card::after,
 .rarity-legendary.card::after,
 .rarity-mythic.card::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: 14px;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 45%, transparent 60%);
-  background-size: 250% 100%;
-  animation: sheen 3.5s ease-in-out infinite;
+  top: -3px;
+  left: 50%;
+  width: 18px;
+  height: 8px;
+  transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 78% 45%, 50% 100%, 22% 45%);
+  background: linear-gradient(180deg, var(--fr-accent), var(--fr-edge) 55%, color-mix(in srgb, var(--fr-edge) 45%, #000));
+  z-index: 3;
   pointer-events: none;
 }
 
-@keyframes shimmer {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes sheen {
-  0% {
-    background-position: 150% 0;
-  }
-  60%,
-  100% {
-    background-position: -100% 0;
-  }
+.rarity-legendary.card::after,
+.rarity-mythic.card::after {
+  width: 26px;
+  height: 10px;
+  clip-path: polygon(0 0, 100% 0, 88% 30%, 64% 34%, 50% 100%, 36% 34%, 12% 30%);
 }
 
 .tile:active .card {
@@ -656,11 +714,29 @@ h3 {
 
 .card-inner {
   position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #1a1347;
+  z-index: 1;
+  --cut: 5px;
+  clip-path: var(--chamfer);
+  background: #0b0b0e;
   aspect-ratio: 3 / 4;
-  box-shadow: inset 0 0 0 2px rgba(10, 6, 30, 0.75), inset 0 3px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Engraved inner edge, a bottom shade for the level plate and (legendary) gold filigree */
+.card-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), inset 0 0 0 2px color-mix(in srgb, var(--fr-edge) 35%, transparent);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25), transparent 22%, transparent 70%, rgba(0, 0, 0, 0.55));
+}
+
+.rarity-legendary .card-inner::after {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), inset 0 0 0 2px rgba(176, 141, 67, 0.55), inset 0 0 0 3px rgba(0, 0, 0, 0.6), inset 0 0 0 4px rgba(224, 189, 106, 0.22);
+}
+
+.rarity-mythic .card-inner::after {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), inset 0 0 0 2px rgba(179, 35, 43, 0.6), inset 0 0 14px rgba(120, 10, 16, 0.55);
 }
 
 .card-inner canvas {
@@ -669,57 +745,76 @@ h3 {
   height: 100% !important;
 }
 
-.card-cost {
+/* Slow blood pulse behind mythic cards (static with reduced motion) */
+.rarity-mythic.card {
+  animation: bloodPulse 3.2s ease-in-out infinite;
+}
+
+@keyframes bloodPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 4px rgba(200, 30, 40, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 9px rgba(200, 30, 40, 0.6));
+  }
+}
+
+/* Dark gem with the valor cost */
+.card-cost,
+.hand-cost {
   position: absolute;
-  top: -8px;
-  left: -7px;
-  width: 27px;
-  height: 27px;
+  top: -5px;
+  left: -5px;
+  width: 22px;
+  height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3;
   pointer-events: none;
+  clip-path: polygon(50% 0, 100% 24%, 100% 76%, 50% 100%, 0 76%, 0 24%);
+  background: linear-gradient(160deg, #e8d9bd, #8f7130 45%, #2a2116);
 }
 
 .card-cost::before,
 .hand-cost::before {
   content: '';
   position: absolute;
-  inset: 2px;
-  border-radius: 0 50% 50% 50%;
-  transform: rotate(45deg);
-  background: radial-gradient(circle at 60% 55%, #ffb3ea 0 18%, #ff4fc4 45%, #a3127a 100%);
-  border: 2px solid #fff3fb;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 0 6px rgba(255, 79, 196, 0.6);
+  inset: 1.5px;
+  clip-path: polygon(50% 0, 100% 24%, 100% 76%, 50% 100%, 0 76%, 0 24%);
+  background: radial-gradient(circle at 38% 30%, #d0434b 0 8%, #8a1a1c 32%, #3a0709 70%, #160304);
 }
 
 .card-cost > span,
 .hand-cost > span {
   position: relative;
-  margin-top: 3px;
-  font-family: var(--font-display);
-  font-size: 15px;
+  font-family: var(--font-card);
+  font-weight: 900;
+  font-size: 13px;
   line-height: 1;
-  color: #fff;
-  -webkit-text-stroke: 1px #4a0838;
-  paint-order: stroke fill;
-  text-shadow: 0 1.5px 0 #4a0838;
+  color: #f1e6cf;
+  text-shadow: 0 1px 1px #000, 0 0 3px #000;
 }
 
 .card-level {
   position: absolute;
-  bottom: 3px;
+  z-index: 2;
+  bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 1px 7px 2px;
-  border-radius: 999px;
-  background: rgba(10, 6, 30, 0.78);
-  font-family: var(--font-display);
-  font-size: 10.5px;
-  line-height: 1.2;
+  padding: 1px 6px 1px;
+  --cut: 3px;
+  clip-path: var(--chamfer);
+  background: linear-gradient(180deg, rgba(30, 30, 34, 0.95), rgba(10, 10, 12, 0.95));
+  border-top: 1px solid color-mix(in srgb, var(--fr-edge) 60%, transparent);
+  font-family: var(--font-card);
+  font-weight: 700;
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  line-height: 1.35;
+  color: #e4d8bf;
   white-space: nowrap;
-  text-shadow: 0 1px 2px #000;
 }
 
 .card-progress {
@@ -728,59 +823,70 @@ h3 {
 }
 
 .card-name {
-  font-family: var(--font-display);
-  font-size: 11.5px;
+  font-family: var(--font-card);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.2px;
   text-align: center;
   margin-top: 4px;
-  line-height: 1.1;
-  min-height: 2.2em;
+  line-height: 1.15;
+  min-height: 2.3em;
+  color: #e4d8bf;
   text-shadow: 0 1px 2px #000;
 }
 
+/* Compact rarity rune (shape and colour, so it reads without colour vision) */
 .card-rarity-icon {
   position: absolute;
-  bottom: 6px;
-  right: 7px;
-  font-size: 12px;
-  color: var(--rar);
-  text-shadow: 0 1px 2px #000;
-  z-index: 2;
+  top: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8.5px;
+  line-height: 1;
+  color: var(--fr-accent);
+  background: linear-gradient(160deg, #2a2a30, #0d0d10);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  z-index: 3;
+  text-shadow: 0 0 3px var(--fr-glow);
+}
+
+.card-rarity-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%, 1.5px 50%, 50% calc(100% - 1.5px), calc(100% - 1.5px) 50%, 50% 1.5px, 1.5px 50%, 0 50%);
+  background: var(--fr-edge);
 }
 
 .card.locked {
-  filter: grayscale(1) brightness(0.55);
+  filter: grayscale(1) brightness(0.45) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.65));
+  animation: none;
 }
 
-.card.in-deck::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border: 3px solid var(--mint);
-  border-radius: 16px;
-  pointer-events: none;
+.card.in-deck .card-inner::after {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), inset 0 0 0 2px rgba(214, 201, 173, 0.7);
 }
 
 .upgrade-arrow {
   position: absolute;
-  top: -7px;
-  right: -7px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid #eafff1;
-  background: var(--mint);
-  color: #053b1b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 14px;
-  box-shadow: 0 2px 0 #0f6634;
-  animation: bounce 1.2s ease-in-out infinite;
-  z-index: 3;
+  top: -6px;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  clip-path: polygon(50% 0, 100% 50%, 70% 50%, 70% 100%, 30% 100%, 30% 50%, 0 50%);
+  background: linear-gradient(180deg, #e8d9bd, #bf9d52 50%, #6b5222);
+  color: transparent;
+  font-size: 0;
+  animation: rise 1.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 3px rgba(224, 189, 106, 0.8));
+  z-index: 4;
 }
 
-@keyframes bounce {
+@keyframes rise {
   0%,
   100% {
     transform: translateY(0);
