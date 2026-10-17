@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { authenticate, chooseSave, DEFAULT_SERVER, type SaveChoice } from '../../app/friends';
+import { authenticate, chooseSave, DEFAULT_SERVER, playOffline, type SaveChoice } from '../../app/friends';
 import { useGame } from '../../app/store';
 import { sound } from '../../platform/audio';
 import { drawWorldBackground } from '../art/scenery';
@@ -20,6 +20,7 @@ export function LoginScreen() {
   const [password2, setPassword2] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [unreachable, setUnreachable] = useState(false);
   const [choice, setChoice] = useState<SaveChoice | null>(null);
 
   const submit = async (e: FormEvent) => {
@@ -30,7 +31,10 @@ export function LoginScreen() {
     setBusy(true);
     const r = await authenticate(mode, server, username, password);
     setBusy(false);
-    if (!r.ok) return setError(r.message);
+    if (!r.ok) {
+      setUnreachable(!!r.unreachable);
+      return setError(r.message);
+    }
     if (r.choice) setChoice(r.choice);
   };
 
@@ -93,6 +97,12 @@ export function LoginScreen() {
                 {error}
               </div>
             )}
+            {unreachable && (
+              <button type="button" className="btn block" onClick={playOffline}>
+                Play offline for now
+              </button>
+            )}
+            {unreachable && <p className="xsmall faint" style={{ margin: 0 }}>Your progress is saved on this device and joins your account the next time you log in.</p>}
             <button className="btn gold big block" type="submit" disabled={busy}>
               {busy ? 'One moment...' : mode === 'login' ? 'Log in' : 'Create account'}
             </button>

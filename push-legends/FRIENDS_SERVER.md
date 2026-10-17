@@ -5,7 +5,8 @@ in before they can play. Accounts, cloud saves and online friends (friend reques
 friends' progress, duels sent to a friend, ranking among friends) run on a small server you host
 yourself. Everyone who wants to play together uses the **same** server.
 
-Once logged in, a device stays logged in (also when the server is briefly unreachable: the game is
+If the server cannot be reached, the login screen offers **Play offline for now**: progress is
+saved on the device and joins the account at the next login. Once logged in, a device stays logged in (also when the server is briefly unreachable: the game is
 played and saved locally and backed up again when the server is back). The save is uploaded every
 minute while playing and when the game is put away. Logging in on another device brings the
 progress along; if both the account and the device hold different progress, the player chooses

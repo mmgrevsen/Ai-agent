@@ -10,13 +10,15 @@ import { store } from './store';
  * (it is not part of the save). Duels sent by friends are copied into the local challenge list.
  */
 interface FriendsView {
+  /** Playing without login because the server could not be reached (not saved: the next launch asks again). */
+  offline: boolean;
   status: 'off' | 'connecting' | 'online' | 'error';
   message: string;
   overview: FriendsOverview | null;
   updatedAt: number;
 }
 
-let view: FriendsView = { status: 'off', message: '', overview: null, updatedAt: 0 };
+let view: FriendsView = { offline: false, status: 'off', message: '', overview: null, updatedAt: 0 };
 const listeners = new Set<() => void>();
 const set = (patch: Partial<FriendsView>) => {
   view = { ...view, ...patch };
@@ -93,12 +95,31 @@ function adoptCloud(data: string, session: { token: string; username: string; se
  * Logs in or creates an account. Returns a SaveChoice when both the server and this device hold
  * progress for different players (or it is unclear which is newer); otherwise it is done.
  */
-export async function authenticate(mode: 'login' | 'signup', address: string, username: string, password: string): Promise<{ ok: true; choice: SaveChoice | null } | { ok: false; message: string }> {
+/**
+ * The server is a service the game must never be stuck behind: when it cannot be reached the
+ * player may play offline. Progress is saved on the device and joins the account at the next login.
+ */
+export function playOffline(): void {
+  set({ offline: true });
+}
+
+/** Back to the login screen from offline play. */
+export function leaveOffline(): void {
+  set({ offline: false });
+}
+
+export async function authenticate(mode: 'login' | 'signup', address: string, username: string, password: string): Promise<{ ok: true; choice: SaveChoice | null } | { ok: false; message: string; unreachable?: boolean }> {
   const base = normalizeServerUrl(address);
   if (!base) return { ok: false, message: 'Enter the server address, e.g. 192.168.1.20:8787' };
+  // Remember the address even if the server is down, so the next try (or offline play) keeps it
+  if (store.state.social.online.server !== base) {
+    store.update((s) => {
+      s.social.online = { ...s.social.online, server: base };
+    });
+  }
   const anon = new FriendsApi(base, '');
   const health = await anon.health();
-  if (!health.ok) return { ok: false, message: health.message };
+  if (!health.ok) return { ok: false, message: health.message, unreachable: true };
   if (health.data.service !== 'push-legends-friends') return { ok: false, message: 'That address is not a Push Legends server.' };
   const g = store.state;
   const name = g.profile.name && g.profile.name !== 'Hero' ? g.profile.name : username;
@@ -147,6 +168,7 @@ function finishLogin(session: { token: string; username: string; server: string 
     if (!s.profile.name || s.profile.name === 'Hero') s.profile.name = name;
   });
   lastUploaded = '';
+  set({ offline: false });
   void uploadSave();
   void refresh(true);
 }

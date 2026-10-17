@@ -32,7 +32,10 @@ signing up on its own server first), and a multi-device browser test: sign up, s
 reload, log out, wrong password, log in on a second device with the cloud save, the save choice on a
 third device with a backup kept.
 
-**The game now needs a running server** (`npm run friends-server`) to get past the login screen.
+When the server cannot be reached, the login screen offers **Play offline for now** (the original
+brief: never leave the app stuck behind a missing service). Offline progress is saved on the device
+and joins the account at the next login (Settings → Account → Log in); tested in the browser: server
+down → offline play → server up → login → the offline progress was kept and uploaded.
 
 ## Earlier change (2026-10-17): online friends
 

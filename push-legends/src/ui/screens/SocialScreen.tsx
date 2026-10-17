@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { blockOnline, cancelRequest, deleteServerAccount, logout, respond, sendRequest, startPolling, unblockOnline, unfriend, useFriends } from '../../app/friends';
+import { blockOnline, cancelRequest, deleteServerAccount, leaveOffline, logout, respond, sendRequest, startPolling, unblockOnline, unfriend, useFriends } from '../../app/friends';
 import { store, useGame } from '../../app/store';
 import { CARD_BY_ID, getCard } from '../../core/content/cards';
 import { decodeChallenge } from '../../core/social/codes';
@@ -321,6 +321,20 @@ function OnlineFriends() {
     setBusy(false);
   };
 
+  if (!game.social.online.token) {
+    return (
+      <div className="panel stack-m">
+        <div className="spread">
+          <h3>Friends online</h3>
+          <span className="chip">Offline</span>
+        </div>
+        <p className="small dim" style={{ margin: 0 }}>You are playing offline because the server could not be reached. Log in to add friends and back up your progress.</p>
+        <button className="btn green block" onClick={leaveOffline}>
+          Log in
+        </button>
+      </div>
+    );
+  }
   const o = f.overview;
   const friends = [...(o?.friends ?? [])].sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
   return (

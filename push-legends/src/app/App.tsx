@@ -56,7 +56,9 @@ function OverlayView({ overlay }: { overlay: Overlay }) {
 /** Nothing is playable until the player is logged in. */
 export function App() {
   const { game } = useGame();
-  return game.social.online.token ? <GameApp /> : <LoginScreen />;
+  const friends = useFriends();
+  // Logged in, or playing offline because the server could not be reached
+  return game.social.online.token || friends.offline ? <GameApp /> : <LoginScreen />;
 }
 
 function GameApp() {

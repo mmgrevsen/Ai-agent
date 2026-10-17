@@ -1,7 +1,8 @@
 PUSH LEGENDS - spil det på din Mac
 ===================================
 
-Spillet starter med en login-skærm. Den kræver, at Push Legends-serveren kører.
+Spillet starter med en login-skærm, som bruger Push Legends-serveren. Kører serveren ikke,
+kan du trykke "Play offline for now" og logge ind senere (Settings -> Account).
 
 1. Start serveren (én gang hver gang du vil spille):
    - Installer Node.js (nodejs.org, version 18 eller nyere), hvis du ikke har det.

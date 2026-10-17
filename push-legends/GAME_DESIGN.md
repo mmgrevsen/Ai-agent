@@ -376,7 +376,8 @@ quest rewards; online guilds planned). Buildings are drawn procedurally and grow
   A device stays logged in. Progress is saved locally as before and backed up to the account
   (cloud save) every minute and when the game is hidden; logging in elsewhere brings it along, and
   if two different progresses meet the player chooses (nothing is silently overwritten; the other
-  one is kept as a backup).
+  one is kept as a backup). If the server cannot be reached, the player can play offline and log
+  in later; the game is never stuck behind the server.
 
 - **Friend code** (`PL-XXXX-XXXX`) per player, shown on the Profile tab.
 - **Online friends** (optional, self-hosted friend server, see FRIENDS_SERVER.md): connect under
