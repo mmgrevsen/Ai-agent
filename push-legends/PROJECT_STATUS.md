@@ -13,7 +13,26 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-16): realistic look and fight animations
+## Latest change (2026-10-17): online friends
+
+A working friend system on a small self-hosted server (`server/`, zero dependencies, Node 18+;
+`npm run friends-server`, guide in FRIENDS_SERVER.md). In the game (Friends tab) players connect to
+the server address and can then: add friends by code (requests with accept / decline / cancel,
+mutual requests become friends at once), see who is online and when friends were last seen, follow
+friends' progress (level, stage, power, bosses, verified push-ups, deck) according to each
+friend's privacy setting, block players (server-side), send a finished duel straight to a friend
+(it appears in their Duels list), and compare progress in an "Among friends" ranking (labelled
+self-reported, no rewards). A badge on the profile button shows waiting friend requests. Local
+contacts without a server still work. No chat, no search, no camera data, no rewards from the
+server.
+
+Verified: 10 server tests (service logic plus a real HTTP round trip with restart), a save
+migration test (121 unit tests in total), typecheck, and a two-player browser test against a running
+server: connect, request, badge, accept, both see each other online with progress, duel delivered,
+friends ranking. One player ran the Mac file from `file://`. Not tested: a public cloud host and the
+phone apps against an HTTPS server.
+
+## Earlier change (2026-10-16): realistic look and fight animations
 
 The cartoon look was replaced by a realistic stylised one in both battle and base: physically
 based materials with band-limited procedural surface detail (colour patches, grain, bump, metal
@@ -183,7 +202,7 @@ Test coverage highlights:
 - Rep counting is only validated against synthetic landmark sequences and a fake camera. It needs testing with real people, lighting, phones and camera angles; thresholds are configurable for that tuning. Front placement is less reliable than side placement.
 - Native builds were generated but not compiled or run on devices here.
 - The final boss (stage 5-10) needs a near-maxed army on Normal; the simulator shows idle players beating it around day 19 and casual players around day 37. Intended as a long-term goal, but it may need softening after playtests.
-- All online features (accounts, cloud saves, friend requests, global leaderboards, guilds, co-op bosses, seasonal events) are planned only.
+- Online friends need a self-hosted friend server (FRIENDS_SERVER.md). Sign-in accounts, cloud saves, verified global leaderboards, guilds, co-op bosses and seasonal events are planned only.
 - Music and sound effects are simple synthesized placeholders behind a `SoundId` interface; real audio assets can replace them.
 - Haptics use the Vibration API (works on Android; iOS WebViews ignore it). A Capacitor Haptics plugin would add iOS support.
 - The 3D battle and base have not been profiled on real phones (headless software rendering here runs at only a few frames per second, which says little about phone GPUs); on slow devices "Pixel 256" is also the cheaper mode, and shadows may need a further quality option.

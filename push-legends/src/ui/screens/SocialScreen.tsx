@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { blockOnline, cancelRequest, connect, disconnect, respond, sendRequest, startPolling, unblockOnline, unfriend, useFriends } from '../../app/friends';
 import { store, useGame } from '../../app/store';
-import { getCard } from '../../core/content/cards';
+import { CARD_BY_ID, getCard } from '../../core/content/cards';
 import { decodeChallenge } from '../../core/social/codes';
 import { powerRating } from '../../core/systems/hero';
 import { formatNumber } from '../../core/util';
@@ -10,7 +11,11 @@ import { Icon } from '../components/Icon';
 const PLANNED = <span className="chip planned">Planned · needs online backend</span>;
 
 export function SocialScreen() {
-  const [tab, setTab] = useState<'profile' | 'friends' | 'challenges' | 'boards'>('profile');
+  const [tab, setTab] = useState<'profile' | 'friends' | 'challenges' | 'boards'>('friends');
+  const { game } = useGame();
+  const connected = !!game.social.online.token;
+  // Keep online friends fresh while this screen is open
+  useEffect(() => (connected ? startPolling() : undefined), [connected]);
   return (
     <div className="overlay">
       <OverlayHeader title="Friends & Profile" onBack={() => store.popOverlay()} />
@@ -51,7 +56,7 @@ function ProfileTab() {
           </button>
         </div>
         <p className="xsmall dim" style={{ margin: '6px 0 0' }}>
-          Share it so friends can save you as a contact. Friend requests and online profiles are planned for a future update.
+          Share it so friends can add you. With a friend server connected (Friends tab) they send you a friend request; without one they can save you as a contact on their device.
         </p>
       </div>
       <div className="panel stack-m">
@@ -65,11 +70,11 @@ function ProfileTab() {
           </div>
         </label>
         <label className="col">
-          <span className="small dim">Profile visibility (applies when online profiles launch)</span>
+          <span className="small dim">What friends on the friend server can see</span>
           <select className="field" value={game.profile.privacy} onChange={(e) => store.setProfile({ privacy: e.target.value as 'public' | 'friends' | 'private' })}>
-            <option value="public">Public</option>
-            <option value="friends">Friends only</option>
-            <option value="private">Private</option>
+            <option value="public">Everything (progress, deck, last seen)</option>
+            <option value="friends">Friends see my progress</option>
+            <option value="private">Name and online status only</option>
           </select>
         </label>
       </div>
@@ -124,11 +129,14 @@ function FriendsTab() {
   const messages = { added: 'Contact saved!', invalid: 'That is not a valid friend code (PL-XXXX-XXXX).', self: "That's your own code.", duplicate: 'Already in your contacts.', blocked: 'You blocked this code. Unblock it first.', full: 'Contact list is full.' };
   return (
     <div className="stack-m">
-      <div className="notice info small">
-        Contacts are stored on this device only. Online friend requests, presence and profile viewing are planned once accounts and a server exist - nothing here pretends to be online.
+      <OnlineFriends />
+      <div className="section-title">
+        <h3>Contacts on this device</h3>
       </div>
       <div className="panel stack-m">
-        <h3>Add a contact</h3>
+        <p className="xsmall dim" style={{ margin: 0 }}>
+          Works without a server: save a friend's code and name here, and duel each other by sharing challenge codes.
+        </p>
         <input className="field" placeholder="Friend code (PL-XXXX-XXXX)" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Friend code" />
         <input className="field" placeholder="Nickname" maxLength={16} value={name} onChange={(e) => setName(e.target.value)} aria-label="Nickname" />
         <button
@@ -179,11 +187,6 @@ function FriendsTab() {
         </div>
       )}
       <div className="panel dark">
-        <div className="spread">
-          <h3>Friend requests</h3>
-          {PLANNED}
-        </div>
-        <div className="divider" />
         <div className="spread">
           <h3>Guilds & co-op world bosses</h3>
           {PLANNED}
@@ -284,15 +287,258 @@ function BoardsTab() {
           <b>{game.stats.verifiedKneeReps}</b>
         </div>
       </div>
+      <FriendBoards />
       <div className="panel dark">
         <div className="spread">
-          <h3>Friend & global leaderboards</h3>
+          <h3>Global leaderboards</h3>
           {PLANNED}
         </div>
         <p className="xsmall dim" style={{ margin: '8px 0 0' }}>
           Leaderboards will rank highest wave, bosses, weekly improvement and arena rating. Full and knee push-ups will be ranked separately, never mixed. Scores will be validated by the server - the game never trusts client-submitted competitive scores.
         </p>
       </div>
+    </div>
+  );
+}
+
+function ago(t: number | null): string {
+  if (t === null) return '';
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  return h < 48 ? `${h} h ago` : `${Math.floor(h / 24)} days ago`;
+}
+
+function OnlineFriends() {
+  const { game } = useGame();
+  const f = useFriends();
+  const [address, setAddress] = useState(game.social.online.server || '');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const connected = !!game.social.online.token;
+  const run = async (p: Promise<unknown>) => {
+    setBusy(true);
+    await p;
+    setBusy(false);
+  };
+
+  if (!connected) {
+    return (
+      <div className="panel stack-m">
+        <div className="spread">
+          <h3>Online friends</h3>
+          <span className="chip">Not connected</span>
+        </div>
+        <p className="small dim" style={{ margin: 0 }}>
+          Connect to a Push Legends friend server to send friend requests, see when friends are online, follow their progress and send them duels. Everyone who wants to be friends uses the same server. You can run one yourself (see FRIENDS_SERVER.md) or use one a friend runs.
+        </p>
+        <input className="field" placeholder="Server address, e.g. 192.168.1.20:8787" value={address} onChange={(e) => setAddress(e.target.value)} aria-label="Friend server address" />
+        <button className="btn green block" disabled={busy || f.status === 'connecting'} onClick={() => void run(connect(address))}>
+          {f.status === 'connecting' ? 'Connecting...' : 'Connect'}
+        </button>
+        {f.status === 'error' && <div className="notice small">{f.message}</div>}
+        <p className="xsmall faint" style={{ margin: 0 }}>
+          The server gets your hero name, friend code and the progress you choose to show (Profile tab). No camera data, no chat. Nothing on the server gives game rewards.
+        </p>
+      </div>
+    );
+  }
+
+  const o = f.overview;
+  const friends = [...(o?.friends ?? [])].sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
+  return (
+    <div className="stack-m">
+      <div className="panel stack-m">
+        <div className="spread">
+          <h3>Online friends</h3>
+          <span className={`chip ${f.status === 'online' ? 'gold' : ''}`}>{f.status === 'online' ? 'Connected' : f.status === 'error' ? 'Connection problem' : 'Connecting...'}</span>
+        </div>
+        {f.status === 'error' && <div className="notice small">{f.message}</div>}
+        <div className="xsmall faint">
+          {game.social.online.server} · your code <b>{game.profile.friendCode}</b>
+        </div>
+        <div className="row">
+          <input className="field grow" placeholder="Friend code (PL-XXXX-XXXX)" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Friend code to add" />
+          <button
+            className="btn green small"
+            disabled={busy || !code.trim()}
+            onClick={() =>
+              void run(
+                sendRequest(code).then((ok) => {
+                  if (ok) setCode('');
+                }),
+              )
+            }
+          >
+            Add friend
+          </button>
+        </div>
+      </div>
+
+      {(o?.incoming.length ?? 0) > 0 && (
+        <div className="panel gold stack-m">
+          <h3>Friend requests ({o!.incoming.length})</h3>
+          {o!.incoming.map((r) => (
+            <div key={r.id} className="spread">
+              <div>
+                <div className="display">{r.name}</div>
+                <div className="xsmall faint">{r.code}</div>
+              </div>
+              <div className="row" style={{ gap: 6 }}>
+                <button className="btn green small" disabled={busy} onClick={() => void run(respond(r.id, true))}>
+                  Accept
+                </button>
+                <button className="btn ghost small" disabled={busy} onClick={() => void run(respond(r.id, false))}>
+                  Decline
+                </button>
+                <button className="btn red small" disabled={busy} onClick={() => void run(blockOnline(r.code))} aria-label={`Block ${r.name}`}>
+                  Block
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="section-title">
+        <h3>Friends ({friends.length})</h3>
+        <button className="btn ghost small" onClick={() => void run(import('../../app/friends').then((m) => m.refresh(true)))}>
+          Refresh
+        </button>
+      </div>
+      {friends.length === 0 && <div className="empty">No friends yet. Share your code {game.profile.friendCode} or add a friend's code above.</div>}
+      {friends.map((fr) => (
+        <div key={fr.code} className="panel friend-card">
+          <div className="spread">
+            <div className="row" style={{ gap: 8 }}>
+              <span className={`presence ${fr.online ? 'on' : ''}`} aria-label={fr.online ? 'Online' : 'Offline'} />
+              <div>
+                <div className="display">{fr.name}</div>
+                <div className="xsmall faint">{fr.online ? 'Online now' : fr.lastSeen ? `Seen ${ago(fr.lastSeen)}` : fr.code}</div>
+              </div>
+            </div>
+            <div className="row" style={{ gap: 6 }}>
+              <button className="btn ghost small" disabled={busy} onClick={() => void run(unfriend(fr.code))}>
+                Remove
+              </button>
+              <button className="btn red small" disabled={busy} onClick={() => void run(blockOnline(fr.code))}>
+                Block
+              </button>
+            </div>
+          </div>
+          {fr.showcase ? (
+            <>
+              <div className="friend-stats">
+                <span>
+                  Lv <b>{fr.showcase.heroLevel}</b>
+                </span>
+                <span>
+                  Stage <b>{fr.showcase.stage}</b>
+                </span>
+                <span>
+                  Power <b>{formatNumber(fr.showcase.power)}</b>
+                </span>
+                <span>
+                  Bosses <b>{fr.showcase.bosses}</b>
+                </span>
+                <span>
+                  Push-ups <b>{formatNumber(fr.showcase.verifiedFull)}</b>
+                </span>
+              </div>
+              <div className="row wrap" style={{ gap: 4 }}>
+                {fr.showcase.deck.filter((id) => CARD_BY_ID.has(id)).map((id, i) => (
+                  <div key={`${id}-${i}`} className={`card-detail-art rarity-${CARD_BY_ID.get(id)!.rarity}`} style={{ padding: 2, borderRadius: 8 }}>
+                    <CardArt cardId={id} width={26} />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="xsmall faint">This friend keeps their progress private.</div>
+          )}
+        </div>
+      ))}
+
+      {(o?.outgoing.length ?? 0) > 0 && (
+        <div className="panel dark stack-m">
+          <h3>Sent requests</h3>
+          {o!.outgoing.map((r) => (
+            <div key={r.id} className="spread small">
+              <span>
+                {r.name} <span className="faint">{r.code}</span>
+              </span>
+              <button className="btn ghost small" disabled={busy} onClick={() => void run(cancelRequest(r.id))}>
+                Cancel
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(o?.blocked.length ?? 0) > 0 && (
+        <div className="panel dark stack-m">
+          <h3>Blocked on the server</h3>
+          {o!.blocked.map((b) => (
+            <div key={b} className="spread small">
+              <span>{b}</span>
+              <button className="btn ghost small" disabled={busy} onClick={() => void run(unblockOnline(b))}>
+                Unblock
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="row" style={{ gap: 6 }}>
+        <button className="btn ghost small grow" onClick={() => void disconnect(false)}>
+          Disconnect this device
+        </button>
+        <button
+          className="btn red small grow"
+          onClick={() => {
+            if (window.confirm('Delete your account on this friend server? Your friends list there is removed. Your game progress stays on this device.')) void disconnect(true);
+          }}
+        >
+          Delete server account
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+function FriendBoards() {
+  const { game } = useGame();
+  const f = useFriends();
+  const [board, setBoard] = useState<'stage' | 'bosses' | 'verifiedFull' | 'power'>('stage');
+  if (!game.social.online.token) return null;
+  const me = { name: `${game.profile.name} (you)`, stage: game.progress.highestCleared + 1, bosses: game.stats.bossesDefeated, verifiedFull: game.stats.verifiedFullReps, power: powerRating(game), me: true };
+  const rows = [me, ...(f.overview?.friends ?? []).filter((x) => x.showcase).map((x) => ({ name: x.name, ...x.showcase!, me: false }))].sort((a, b) => b[board] - a[board]);
+  return (
+    <div className="panel stack-m">
+      <h3>Among friends</h3>
+      <Segmented
+        value={board}
+        onChange={setBoard}
+        options={[
+          { value: 'stage', label: 'Stage' },
+          { value: 'bosses', label: 'Bosses' },
+          { value: 'verifiedFull', label: 'Push-ups' },
+          { value: 'power', label: 'Power' },
+        ]}
+      />
+      {rows.map((r, i) => (
+        <div key={`${r.name}-${i}`} className="stat-row" style={r.me ? { color: 'var(--gold)' } : undefined}>
+          <span>
+            {i + 1}. {r.name}
+          </span>
+          <b>{formatNumber(r[board])}</b>
+        </div>
+      ))}
+      <p className="xsmall faint" style={{ margin: 0 }}>
+        For fun: friends report their own progress, so this list is not verified and gives no rewards. Friends with private profiles are not listed.
+      </p>
     </div>
   );
 }

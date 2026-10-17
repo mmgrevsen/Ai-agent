@@ -1,3 +1,4 @@
+import { useFriends } from './friends';
 import { useEffect } from 'react';
 import { BUILDINGS } from '../core/content/buildings';
 import { activeUpgrades, checkBuildingUpgrade } from '../core/systems/buildings';
@@ -53,6 +54,7 @@ function OverlayView({ overlay }: { overlay: Overlay }) {
 
 export function App() {
   const { game, ui } = useGame();
+  const friendsView = useFriends();
 
   useEffect(() => {
     const tick = window.setInterval(() => store.tick(), 5000);
@@ -88,11 +90,13 @@ export function App() {
     hero: nextAffordableSword(game) ? 1 : 0,
   };
 
+  const friendRequests = friendsView.overview?.incoming.length ?? 0;
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn" onClick={() => store.pushOverlay({ kind: 'social' })} aria-label="Friends and profile">
+        <button className="icon-btn has-dot" onClick={() => store.pushOverlay({ kind: 'social' })} aria-label={friendRequests ? `Friends and profile, ${friendRequests} friend requests` : 'Friends and profile'}>
           <Icon name="social" />
+          {friendRequests > 0 && <span className="dot">{friendRequests}</span>}
         </button>
         <div className="col grow" style={{ gap: 0, minWidth: 0 }}>
           <span className="display" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

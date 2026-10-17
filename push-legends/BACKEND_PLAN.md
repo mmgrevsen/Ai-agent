@@ -1,9 +1,10 @@
 # Push Legends - Backend Integration Plan
 
-**Status: planned, not implemented.** The current build is fully offline. Nothing in the app pretends
-to be online: features that need a server are labelled "Planned" in the UI, and
-`OfflineSocialBackend` (`src/core/social/service.ts`) answers every online call with
-`not_implemented`.
+**Status:** the **friend server is implemented** (self-hosted, see FRIENDS_SERVER.md): device
+accounts, friend requests, online status, friends' showcases, blocking, duels sent to friends and a
+"for fun" ranking among friends. Everything below that is not part of it (sign-in with Apple/Google,
+cloud saves, verified leaderboards, guilds, co-op) is still **planned, not implemented** and labelled
+"Planned" in the UI.
 
 What already works offline and is designed to carry over:
 

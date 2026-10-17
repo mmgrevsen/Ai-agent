@@ -10,7 +10,8 @@ import { encodeChallenge } from '../../core/social/codes';
 import { formatNumber } from '../../core/util';
 import { CardArt, ItemArt, PetArt, RewardList } from '../components/common';
 import { Icon } from '../components/Icon';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { refresh as refreshFriends, sendDuel, useFriends } from '../../app/friends';
 
 export function ResultScreen({ summary, result, context, dungeon }: { summary: BattleSummary; result: BattleResult; context: BattleContext; dungeon: DungeonRoomSummary | null }) {
   const won = result.outcome === 'victory';
@@ -199,6 +200,12 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
 function ChallengeShare({ result, context }: { result: BattleResult; context: BattleContext }) {
   const game = store.state;
   const [copied, setCopied] = useState(false);
+  const [sent, setSent] = useState<string[]>([]);
+  const friends = useFriends();
+  const online = !!game.social.online.token;
+  useEffect(() => {
+    if (online && !friends.overview) void refreshFriends();
+  }, [online, friends.overview]);
   if (context.type !== 'challenge' && result.mode !== 'blitz') return null;
   const seed = context.type === 'challenge' ? context.seed : 0;
   const world = context.type === 'challenge' ? context.world : 0;
@@ -221,6 +228,27 @@ function ChallengeShare({ result, context }: { result: BattleResult; context: Ba
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
+      {online && (friends.overview?.friends.length ?? 0) > 0 && (
+        <div className="stack-s" style={{ marginTop: 10 }}>
+          <div className="small dim">Send this duel to a friend:</div>
+          <div className="row wrap" style={{ gap: 6 }}>
+            {friends.overview!.friends.map((f) => (
+              <button
+                key={f.code}
+                className="btn small purple"
+                disabled={sent.includes(f.code)}
+                onClick={() =>
+                  void sendDuel(f.code, code, f.name).then((ok) => {
+                    if (ok) setSent((x) => [...x, f.code]);
+                  })
+                }
+              >
+                {sent.includes(f.code) ? `Sent to ${f.name}` : f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

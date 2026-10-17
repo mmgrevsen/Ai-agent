@@ -7,3 +7,4 @@ ios/App/Pods
 *.log
 e2e-shots
 dist-single
+friends-data*.json

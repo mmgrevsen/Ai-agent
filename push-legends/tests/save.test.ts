@@ -45,6 +45,15 @@ describe('save system', () => {
     expect(sanitizeState(JSON.parse(JSON.stringify(s)), NOW).settings.autoDeploy).toBe(true);
   });
 
+  it('friend server connection: old saves get an empty connection, bad values are repaired', () => {
+    const s = createInitialState(NOW, 1);
+    const old = JSON.parse(JSON.stringify(s));
+    delete old.social.online;
+    expect(sanitizeState(old, NOW).social.online).toEqual({ server: '', token: '' });
+    old.social.online = { server: 42, token: 'abc' };
+    expect(sanitizeState(old, NOW).social.online).toEqual({ server: '', token: 'abc' });
+  });
+
   it('save manager persists and reloads', () => {
     const storage = new MemoryStorage();
     const m = new SaveManager(storage);

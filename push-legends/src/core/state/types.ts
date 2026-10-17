@@ -199,6 +199,8 @@ export interface GameState {
   streak: StreakState;
   settings: Settings;
   social: {
+    /** Connection to an optional friend server (empty strings = not connected). */
+    online: { server: string; token: string };
     friends: LocalFriend[];
     blocked: string[];
     challenges: ChallengeRecord[];

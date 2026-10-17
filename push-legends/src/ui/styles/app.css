@@ -1092,3 +1092,45 @@ canvas.pixel {
   image-rendering: crisp-edges;
   image-rendering: pixelated;
 }
+
+/* Online friends */
+.friend-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.friend-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text-dim, #b9b2d8);
+}
+
+.friend-stats b {
+  color: var(--text, #fff);
+}
+
+.presence {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: #5c5873;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
+.presence.on {
+  background: #43d17a;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 8px #43d17a;
+}
+
+.icon-btn.has-dot {
+  position: relative;
+}
+
+.icon-btn.has-dot .dot {
+  top: -4px;
+  right: -4px;
+}

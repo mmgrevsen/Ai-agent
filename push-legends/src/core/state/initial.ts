@@ -101,7 +101,7 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
       autoDeployOptIn: false,
       cameraPrivacyAccepted: false,
     },
-    social: { friends: [], blocked: [], challenges: [] },
+    social: { online: { server: '', token: '' }, friends: [], blocked: [], challenges: [] },
     tutorial: {},
     pendingChests: [],
     shop: { day: '', purchased: [] },

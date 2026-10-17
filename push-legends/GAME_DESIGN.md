@@ -370,6 +370,20 @@ quest rewards; online guilds planned). Buildings are drawn procedurally and grow
 
 ---
 
+## 11b. Friends
+
+- **Friend code** (`PL-XXXX-XXXX`) per player, shown on the Profile tab.
+- **Online friends** (optional, self-hosted friend server, see FRIENDS_SERVER.md): connect under
+  Friends, add friends by code (requests with accept / decline / cancel; mutual requests become
+  friends at once), see who is online and when friends were last seen, follow friends' level,
+  stage, power, bosses, verified push-ups and deck, block players, send a finished Friend Challenge
+  straight to a friend's Duels list, and compare in an "Among friends" ranking. A badge on the
+  profile button shows waiting requests; the game checks every minute while open.
+- **Privacy** decides what friends see (everything / progress / name and online status only).
+  Non-friends see nothing and there is no player search or chat.
+- **Fairness:** the server grants no rewards; shown numbers are self-reported and labelled so.
+- **Without a server:** local contacts and challenge codes shared by hand still work.
+
 ## 12. Balance verification
 
 `src/core/sim/simulate.ts` plays the campaign headlessly with three profiles (exerciser: 15 battles a

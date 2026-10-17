@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: single ? { output: { codeSplitting: false } } : undefined,
     },
     test: {
-      include: ['tests/**/*.test.ts'],
+      include: ['tests/**/*.test.ts', 'tests/**/*.test.mjs'],
       environment: 'node',
     },
   };
