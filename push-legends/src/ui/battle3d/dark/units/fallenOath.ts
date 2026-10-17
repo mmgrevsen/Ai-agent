@@ -53,7 +53,7 @@ function sorrowHelm(k: K, glow: THREE.Object3D): number {
   k.add(shellGeo([[r * 1.15, hy + r * 0.34], [r * 1.14, hy + r * 0.46]], 0, 1.1, 6, 1.09, 0, 0.04), GOLD, 0, 0, 0);
   // Sorrowing eye slits, slanting down to the outside, with dim holy light
   for (const s of [-1, 1]) cbox(k, r * 0.5, r * 0.085, 0.03, s * r * 0.33, hy + r * 0.12, r * 1.12, SHADOW, 0, s * 0.35, -s * 0.22);
-  eyeSlit(k, glow, HOLY, hy + r * 0.12, r * 1.15, 0, r * 0.07, r * 0.33, 2.2, 0.22, r * 0.3);
+  eyeSlit(k, glow, HOLY, hy + r * 0.12, r * 1.15, 0, r * 0.07, r * 0.33, 1.5, 0.22, r * 0.3);
   // Crimson tears running from the slits (faint glow)
   for (const s of [-1, 1]) addGlow(glow, new THREE.BoxGeometry(r * 0.04, r * 0.45, 0.004), CRIMSON, s * r * 0.36, hy - r * 0.18, r * 1.14 - 0.01, FAINT).rotation.set(-0.12, s * 0.35, s * 0.05);
   // Breathing slot and the tarnish of old blood under the mask
@@ -79,7 +79,7 @@ function sorrowHelm(k: K, glow: THREE.Object3D): number {
     k.add(new THREE.ConeGeometry(r * 0.07, len, 4), GOLD, Math.sin(a) * rr, hyc + Math.cos(a) * rr, hz - 0.004, 0, 0, -a, 1, 1, 0.35);
   }
   // A faint holy ember on the crown, the only light left in it
-  addGlow(glow, new THREE.TorusGeometry(R * 0.86, 0.004, 3, 16, Math.PI * 1.1), HOLY, 0, hyc, hz + 0.004, 0.9).rotation.z = 1.2;
+  addGlow(glow, new THREE.TorusGeometry(R * 0.86, 0.004, 3, 16, Math.PI * 1.1), GOLD, 0, hyc, hz + 0.004, 0.6).rotation.z = 1.2;
   return hy + r * 1.75;
 }
 

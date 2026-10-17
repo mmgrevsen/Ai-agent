@@ -93,7 +93,7 @@ export const blackguard: UnitDef = {
       weapon: (k) => greatsword(k),
       shield: heater,
       shieldTilt: 0.3,
-      cape: { color: PAL.crimson, w: 0.58, h: 1.42, seed: 31 },
+      cape: { color: PAL.crimson, w: 0.58, h: 1.42, seed: 34 },
       tabard: { front: PAL.blood, back: PAL.crimson, len: 0.62 },
       extra: (p: KnightParts) => {
         // Chain hanging from the belt

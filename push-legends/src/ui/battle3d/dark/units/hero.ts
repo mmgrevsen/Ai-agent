@@ -18,8 +18,8 @@ const GOLD_HI = PAL.goldLight;
 const SHADOW = '#060607';
 const BLACK_BLADE = metal('#2a2c31', 0.65);
 const FULLER = mtl(PAL.steel, -0.45);
-const FUR = '#2e2a27';
-const FUR_TIP = '#4a4440';
+const FUR = '#3a3531';
+const FUR_TIP = PAL.ashLight;
 
 const CREST = shapeFrom([
   [-0.1, 0],
@@ -83,7 +83,7 @@ function bastardSword(k: K, g: THREE.Group, gold: boolean): void {
   for (const sx of [-1, 1]) k.add(new THREE.ConeGeometry(0.022, 0.12, 4), guard, sx * 0.26, 0.23, 0, 0, 0, sx * 2.35);
   k.add(frustumGeo(0.07, 0.11, 0.032, 0.55), guard, 0, 0.32, 0);
   // Blade with a dark fuller
-  k.plate(SHAPES.greatswordBlade(1.14, 0.062), 0.013, 0.008, 0, 0.29, 0, gold ? BLACK_BLADE : PAL.steel);
+  k.plate(SHAPES.greatswordBlade(1.14, 0.062), 0.013, 0.008, 0, 0.29, 0, gold ? BLACK_BLADE : PAL.steelLight);
   k.add(frustumGeo(0.024, 0.8, 0.034, 0.5), gold ? '#120c0a' : FULLER, 0, 0.72, 0);
   if (gold) {
     // An ember burning down the fuller and in the pommel
@@ -112,16 +112,32 @@ export function buildHero(capeColor: string, sword: 'sword' | 'goldsword'): Rig 
       for (const d of [-0.06, 0, 0.06]) k.add(frustumGeo(0.011, 0.011, 0.26, 1, 0.8), d === 0 ? GOLD_HI : GOLD, tx, ty + 0.004, d, 0, 0, -s * 0.55);
     },
     weapon: (k, g) => bastardSword(k, g, sword === 'goldsword'),
-    cape: { color: cape, w: 0.66, h: 1.58, seed: 77, tatter: 0.22, folds: 4 },
+    cape: { color: cape, w: 0.66, h: 1.58, seed: 77, tatter: 0.22, folds: 4, depth: 0.028 },
     tabard: { front: tabard, back: tabard, len: 0.68, w: 0.27, seed: 19, tatter: 0.25 },
     extra: (p: KnightParts) => {
       const b = p.b;
       // High fur collar round the back of the neck and over the shoulders
-      p.torso.add(shellGeo([[0.21 * b, 1.5], [0.2 * b, 1.6], [0.15 * b, 1.7], [0.11 * b, 1.75]], Math.PI, 1.75, 9, 0.95, 0, 0.06), FUR, 0, 0, -0.005);
+      p.torso.add(shellGeo([[0.27 * b, 1.5], [0.245 * b, 1.6], [0.17 * b, 1.71], [0.115 * b, 1.77]], Math.PI, 1.35, 9, 0.98, 0, 0.05), FUR, 0, 0, -0.01);
       for (let i = 0; i < 11; i++) {
-        const a = Math.PI + (i / 10 - 0.5) * 3.2;
-        const rr = 0.21 * b;
-        p.torso.add(new THREE.ConeGeometry(0.035, 0.1, 4), i % 2 ? FUR : FUR_TIP, Math.sin(a) * rr, 1.48 + (i % 3) * 0.012, Math.cos(a) * rr * 0.95, Math.PI + Math.cos(a) * 0.2, 0, -Math.sin(a) * 0.2);
+        const a = Math.PI + (i / 10 - 0.5) * 2.5;
+        const rr = 0.255 * b;
+        p.torso.add(new THREE.ConeGeometry(0.04, 0.12, 4), i % 2 ? FUR : FUR_TIP, Math.sin(a) * rr, 1.48 + (i % 3) * 0.014, Math.cos(a) * rr * 0.98, Math.PI + Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25);
+      }
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI + (i / 6 - 0.5) * 2.1;
+        const rr = 0.2 * b;
+        p.torso.add(new THREE.ConeGeometry(0.035, 0.12, 4), FUR_TIP, Math.sin(a) * rr, 1.7, Math.cos(a) * rr * 0.98, 0.35 * Math.cos(a), 0, -0.35 * Math.sin(a));
+      }
+      // The captain's sigil embroidered in gold on the cape: a ring pierced by a sword
+      if (p.cape) {
+        const ck = p.cape;
+        const z = -0.075;
+        ck.add(new THREE.TorusGeometry(0.085, 0.011, 3, 14), GOLD, 0, -0.36, z);
+        cbox(ck, 0.022, 0.34, 0.006, 0, -0.38, z - 0.004, GOLD_HI);
+        cbox(ck, 0.11, 0.02, 0.006, 0, -0.26, z - 0.004, GOLD_HI);
+        ck.add(new THREE.ConeGeometry(0.018, 0.05, 3), GOLD_HI, 0, -0.575, z - 0.004, Math.PI, 0, 0, 1, 1, 0.3);
+        // Gilded hem along the top edge
+        cbox(ck, 0.6 * b, 0.035, 0.03, 0, -0.02, 0.0, GOLD);
       }
       // Chain of office across the chest with a gilded pendant
       for (let i = 0; i < 11; i++) {

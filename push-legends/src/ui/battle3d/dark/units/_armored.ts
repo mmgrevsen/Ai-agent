@@ -136,7 +136,7 @@ export interface KnightSpec {
   shieldTilt?: number;
   /** Left-hand item that is not a shield (drawn in the hand group). */
   offhand?: (k: K, g: THREE.Group) => void;
-  cape?: { color: string; w?: number; h?: number; seed?: number; tatter?: number; folds?: number };
+  cape?: { color: string; w?: number; h?: number; seed?: number; tatter?: number; folds?: number; depth?: number };
   tabard?: { front: string; back?: string | null; len?: number; w?: number; seed?: number; tatter?: number };
   /** Number of fauld lames below the cuirass (default 3). */
   faulds?: number;
@@ -269,7 +269,7 @@ export function knight(spec: KnightSpec): Rig {
     capeKit = new K();
     const cs = spec.cape;
     capeKit.add(
-      ragGeo((cs.w ?? 0.58) * b, cs.h ?? 1.4, { folds: cs.folds ?? 3, depth: 0.05, flare: 0.4, tatter: cs.tatter ?? 0.3, seed: cs.seed ?? 31, curl: 0.16 }),
+      ragGeo((cs.w ?? 0.58) * b, cs.h ?? 1.4, { folds: cs.folds ?? 3, depth: cs.depth ?? 0.05, flare: 0.4, tatter: cs.tatter ?? 0.3, seed: cs.seed ?? 31, curl: 0.16 }),
       cs.color,
       0,
       0,

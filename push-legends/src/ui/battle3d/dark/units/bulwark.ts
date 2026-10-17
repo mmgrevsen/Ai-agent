@@ -14,7 +14,7 @@ const P = metal('#7b8189', 0.75);
 const D = PAL.blackSteel;
 const T = PAL.iron;
 const HI = mtl(P, 0.2);
-const FACE = metal('#4d5259', 0.6);
+const FACE = metal('#41454b', 0.6);
 const SHADOW = '#060607';
 
 function frogHelm(k: K, glow: THREE.Object3D): number {
@@ -76,11 +76,11 @@ function towerShield(k: K): void {
   k.add(shellGeo([[R, y0], [R, y1 - 0.06], [R - 0.004, y1]], 0, half, 6, 1, -0.05), FACE, cx, 0, cz);
   // Thick frame: top, bottom and side bands with a raised edge
   const rim = (ya: number, yb: number, hex: string) => k.add(shellGeo([[R - 0.02, ya], [R + 0.028, ya], [R + 0.028, yb], [R - 0.02, yb]], 0, half + 0.01, 6), hex, cx, 0, cz);
-  rim(y0 - 0.02, y0 + 0.05, D);
-  rim(y1 - 0.11, y1 - 0.04, D);
+  rim(y0 - 0.02, y0 + 0.05, P);
+  rim(y1 - 0.11, y1 - 0.04, P);
   for (const s of [-1, 1]) {
     const [x, , z] = at(s * (half + 0.005), 0, 0.004);
-    cbox(k, 0.06, y1 - y0 - 0.04, 0.05, x, (y0 + y1) / 2 - 0.03, z, D, 0, s * half, 0);
+    cbox(k, 0.06, y1 - y0 - 0.04, 0.05, x, (y0 + y1) / 2 - 0.03, z, P, 0, s * half, 0);
   }
   // Viewing notch in the top edge
   cbox(k, 0.12, 0.05, 0.06, cx, y1 - 0.06, cz + R + 0.01, SHADOW);
@@ -182,7 +182,7 @@ export const bulwark: UnitDef = {
     // Shield planted upright in front, mace raised over it
     pose: (rig) => {
       rig.armR?.rotation.set(-1.25, 0, 0.32);
-      rig.armL?.rotation.set(-0.42, 0, 0.04);
+      rig.armL?.rotation.set(-0.3, 0, 0.04);
       rig.legs.forEach((l, i) => (l.rotation.x = i === 0 ? 0.25 : -0.2));
       rig.body.rotation.y = 0.1;
       rig.neck?.rotation.set(0.06, -0.12, 0);
