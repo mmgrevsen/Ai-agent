@@ -102,21 +102,23 @@ function sallet(k: K, glowParent: THREE.Object3D): number {
   return HY + r * 1.25;
 }
 
-/** Tall pavise slung on the back: iron-rimmed crimson face with a central ridge and a bone sigil. */
+/** Narrow pavise slung on the back: blackened iron face, a single crimson kill-stripe, bone sigil. */
 function pavise(k: K): void {
-  const shape = SHAPES.tower(0.27, 0.92);
-  const z = -0.29;
-  k.plate(shape, 0.04, 0.012, 0, 1.2, z, C.plateDark, 0.1, Math.PI, 0, 1.05);
-  k.plate(shape, 0.03, 0.01, 0, 1.2, z - 0.025, C.lining, 0.1, Math.PI, 0);
-  k.add(frustumGeo(0.09, 0.9, 0.05, 0.8), shade(C.lining, -0.25), 0, 1.2, z - 0.05, 0.1);
-  // Bone sigil: a downward bolt point with a ring (the mark of a confirmed kill)
-  k.add(new THREE.ConeGeometry(0.07, 0.16, 3), C.bone, 0, 1.0, z - 0.06, 0.1 + Math.PI, 0, 0, 1, 1, 0.2);
-  hoop(k, 0.09, 0.012, 0, 1.3, z - 0.07, PAL.boneDark, 0.1, 0, 0, 10);
-  for (const [x, y] of [[-0.22, 1.6], [0.22, 1.6], [-0.24, 0.85], [0.24, 0.85]] as const) k.add(new THREE.OctahedronGeometry(0.018), C.bright, x, y, z - 0.035 + (y - 1.2) * 0.1);
-  gouge(k, 0.1, 1.45, z - 0.075, 0.16, 0.7);
-  gouge(k, -0.12, 0.95, z - 0.08, 0.12, -0.5);
+  const shape = SHAPES.tower(0.2, 0.74);
+  const z = -0.27;
+  const y0 = 1.12;
+  k.plate(shape, 0.04, 0.012, 0, y0, z, C.plateDark, 0.1, Math.PI, 0, 1.06);
+  k.plate(shape, 0.03, 0.01, 0, y0, z - 0.022, C.plate, 0.1, Math.PI, 0);
+  // Raised central ridge painted with one crimson stripe (the only accent on the back)
+  k.add(frustumGeo(0.07, 0.72, 0.045, 0.85), C.lining, 0, y0, z - 0.045, 0.1);
+  k.add(frustumGeo(0.02, 0.72, 0.02, 0.6), C.bright, 0, y0, z - 0.07, 0.1);
+  // Bone sigil: a downward bolt point (the mark of a confirmed kill)
+  k.add(new THREE.ConeGeometry(0.06, 0.14, 3), C.bone, 0, y0 - 0.14, z - 0.075, 0.1 + Math.PI, 0, 0, 1, 1, 0.2);
+  for (const [x, y] of [[-0.17, y0 + 0.32], [0.17, y0 + 0.32], [-0.18, y0 - 0.28], [0.18, y0 - 0.28]] as const) k.add(new THREE.OctahedronGeometry(0.016), C.bright, x, y, z - 0.035 + (y - y0) * 0.1);
+  gouge(k, 0.1, y0 + 0.2, z - 0.06, 0.14, 0.7);
+  gouge(k, -0.11, y0 - 0.18, z - 0.065, 0.1, -0.5);
   // Carry straps over the shoulders
-  for (const sx of [-1, 1]) strap(k, [sx * 0.12, 1.6, z + 0.03], [sx * 0.15, 1.58, 0.06], 0.04, 0.012, C.coatDark);
+  for (const sx of [-1, 1]) strap(k, [sx * 0.11, y0 + 0.34, z + 0.03], [sx * 0.15, 1.58, 0.06], 0.04, 0.012, C.coatDark);
 }
 
 function marksman(): Rig {

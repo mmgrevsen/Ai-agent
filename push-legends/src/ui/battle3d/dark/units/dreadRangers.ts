@@ -25,7 +25,7 @@ const C = {
   plateDark: PAL.blackSteel,
   rivet: PAL.steel,
   bone: PAL.bone,
-  wood: shade(PAL.wood, -0.25),
+  wood: shade(PAL.wood, -0.08),
   fletch: PAL.charcoal,
   glow: PAL.toxic,
 };
@@ -40,9 +40,9 @@ function longbow(k: K): void {
       [0, sy * 0.86, -0.12],
       [0, sy * 0.95, -0.04],
     ];
-    k.curve(pts, 0.03, 0.012, C.wood, 5);
+    k.curve(pts, 0.038, 0.015, C.wood, 5);
     // Bone plates bound to the limbs, steel-capped spiked tips
-    k.add(prismGeo(0.025, 0.18, 5), C.bone, 0, sy * 0.5, -0.085, sy * 0.2, 0, 0);
+    k.add(prismGeo(0.032, 0.26, 5), C.bone, 0, sy * 0.52, -0.09, sy * 0.2, 0, 0);
     band(k, 0.033, 0.03, 0, sy * 0.36, -0.05, C.strap, -sy * 0.2, 0, 0, 6);
     band(k, 0.03, 0.03, 0, sy * 0.66, -0.12, C.strap, -sy * 0.25, 0, 0, 6);
     k.add(new THREE.ConeGeometry(0.017, 0.14, 4), C.rivet, 0, sy * 1.0, -0.0, sy > 0 ? -0.5 : Math.PI + 0.5, 0, 0);
