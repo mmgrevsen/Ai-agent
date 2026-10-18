@@ -6,7 +6,7 @@ import { BOSS_BY_ID } from '../../core/content/worlds';
 import { formatNumber } from '../../core/util';
 import { circle, glow, line, rgba, rr, type Ctx } from '../art/draw';
 import { drawBattleProps, drawWorldBackground } from '../art/scenery';
-import { drawSprite, spriteHeight, type SpriteKey } from '../art/units';
+import { drawSprite, spriteHeight, type SpriteKey } from '../art/darkSprites';
 import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } from './placement';
 
 interface FloatText {

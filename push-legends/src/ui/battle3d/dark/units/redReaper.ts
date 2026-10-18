@@ -3,7 +3,7 @@ import { PAL } from '../../../art/darkArt';
 import { K, shade, shapeFrom } from '../../../base3d/sculpt';
 import type { Rig } from '../../rig';
 import { cbox, frustumGeo, prismGeo } from '../parts';
-import { armBase, band, chestZ, glow, gouge, HR, HY, hood, Hunter, latheArc, legBase, onShin, ragGeoN, shell, strapPath, torsoBase } from './_hunters';
+import { armBase, band, chestZ, glow, gouge, HR, HY, hood, Hunter, latheArc, legBase, mantle, onShin, ragGeoN, shell, strapPath, torsoBase } from './_hunters';
 import type { UnitDef } from './types';
 
 /**
@@ -14,7 +14,7 @@ import type { UnitDef } from './types';
  */
 const C = {
   suit: shade(PAL.charcoal, 0.12),
-  hood: shade(PAL.charcoal, 0.2),
+  hood: shade(PAL.charcoal, 0.05),
   hoodDark: PAL.black,
   leather: PAL.leatherDark,
   plate: PAL.blackSteel,
@@ -75,7 +75,7 @@ function shoulderLames(k: K, s: number): void {
   for (let i = 0; i < 3; i++) {
     const y = 0.06 - i * 0.065;
     const w = 0.2 - i * 0.02;
-    k.add(frustumGeo(w, 0.03, 0.2 - i * 0.015, 0.7, 0.9), i % 2 ? C.plateHi : C.plate, s * (0.04 + i * 0.012), y, 0, 0, 0, -s * (0.55 + i * 0.12));
+    k.add(frustumGeo(w, 0.03, 0.2 - i * 0.015, 0.7, 0.9), i % 2 ? C.plateHi : C.plate, s * (0.04 + i * 0.012), y, 0, 0, 0, -s * (0.35 + i * 0.1));
     k.add(frustumGeo(w * 1.02, 0.008, 0.012, 1), i === 0 ? C.blood : C.crimson, s * (0.04 + i * 0.012 + Math.cos(0.55 + i * 0.12) * w * 0.5), y - Math.sin(0.55 + i * 0.12) * w * 0.5, 0.0, 0, Math.PI / 2, -s * (0.55 + i * 0.12) - s * Math.PI / 2);
   }
   k.add(new THREE.ConeGeometry(0.02, 0.12, 4), C.plateHi, s * 0.1, 0.1, -0.04, -0.3, 0, -s * 0.9);
@@ -122,6 +122,9 @@ function reaper(): Rig {
   const hk = h.head;
   const top = hood(hk, { cloth: C.hood, edge: C.hoodDark, wrap: C.hoodDark, tail: 1.0, forward: 0.16, faceZ: -0.1, overhang: 0.5, open: 0.8 });
   facePlate(hk, h.headGroup);
+  // Short torn cowl falling from the hood over the chest and back (reads as cloth, not a helm)
+  mantle(t, b, C.hood, { bottom: 1.4, width: 0.27, tatter: 0.14, seed: 8, seg: 9 });
+  hk.add(latheArc([[HR * 0.97, -HR * 0.1], [HR * 1.05, HR * 0.5]], 10, 0.8, Math.PI * 2 - 1.6), C.crimson, 0, HY, HR * 0.12, 0, 0, 0, 0.94, 1, 1.1);
 
   // Crimson scarf wound at the throat, two torn tails streaming behind (the cape pivot)
   t.add(new THREE.TorusGeometry(0.115, 0.04, 4, 10), C.crimson, 0, 1.63, -0.01, Math.PI / 2 + 0.2, 0, 0, 1, 1, 0.85);

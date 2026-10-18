@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PAL } from '../../../art/darkArt';
-import { shade, shapeFrom, type K } from '../../../base3d/sculpt';
+import { shapeFrom, type K } from '../../../base3d/sculpt';
 import { addGlow, type Rig } from '../../rig';
 import { cbox, frustumGeo, HEAD_R, HEAD_Y, metal, SHAPES } from '../parts';
 import { band, copTop, eyeSlit, flat, gouge, grip, knight, mtl, rivet, scratch, shellGeo, spaulder, type KnightParts } from './_armored';
@@ -11,8 +11,8 @@ import { band, copTop, eyeSlit, flat, gouge, grip, knight, mtl, rivet, scratch, 
  * collar, a chain of office and a long hand-and-a-half sword. `goldsword` gives the blade gilded
  * furniture and a blackened edge with an ember burning down the fuller.
  */
-const M = PAL.gunmetal;
-const D = PAL.blackSteel;
+const M = metal('#6a7078', 0.5);
+const D = metal('#3a3e44', 0.45);
 const GOLD = PAL.gold;
 const GOLD_HI = PAL.goldLight;
 const SHADOW = '#060607';
@@ -55,13 +55,13 @@ function captainHelm(k: K, glow: THREE.Object3D, plume: string): number {
   // Plume in the cape colour, flowing back from the crest
   k.curve(
     [
-      [0, hy + r * 2.0, -r * 0.5],
-      [0, hy + r * 2.35, -r * 1.4],
-      [0, hy + r * 1.9, -r * 2.5],
-      [0, hy + r * 0.7, -r * 3.2],
+      [0, hy + r * 1.85, -r * 0.7],
+      [0, hy + r * 1.75, -r * 1.6],
+      [0, hy + r * 1.1, -r * 2.5],
+      [0, hy + r * 0.15, -r * 2.9],
     ],
-    r * 0.3,
-    r * 0.05,
+    r * 0.27,
+    r * 0.06,
     plume,
     6,
   );
@@ -69,7 +69,7 @@ function captainHelm(k: K, glow: THREE.Object3D, plume: string): number {
   k.lathe([[r * 1.12, hy - r * 1.2], [r * 1.04, hy - r * 1.0]], 0, 0, -r * 0.03, D, 8, 1, 1.08);
   scratch(k, r * 0.6, r * 0.55, hy + r * 0.62, r * 0.8, 0.5, 0.65);
   gouge(k, r * 0.4, -r * 0.6, hy + r * 0.05, r * 0.85, -0.3, -0.7);
-  return hy + r * 2.4;
+  return hy + r * 2.1;
 }
 
 function bastardSword(k: K, g: THREE.Group, gold: boolean): void {
@@ -94,11 +94,20 @@ function bastardSword(k: K, g: THREE.Group, gold: boolean): void {
   }
 }
 
+/** Desaturates (desat 0..1) and darkens (dark 0..1) a colour in linear space. */
+function weather(hex: string, dark: number, desat: number): string {
+  const c = new THREE.Color(hex);
+  const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  c.lerp(new THREE.Color(l, l, l), desat).multiplyScalar(1 - dark);
+  return '#' + c.getHexString();
+}
+
 /** The player's Legend. `capeColor` is the equipped cosmetic; `sword` the unlocked blade. */
 export function buildHero(capeColor: string, sword: 'sword' | 'goldsword'): Rig {
-  // The cosmetic colour, weathered a little so it sits in the dark palette
-  const cape = shade(capeColor, -0.12);
-  const tabard = shade(capeColor, -0.68);
+  // The cosmetic colour, weathered (desaturated, darkened) so it sits in the dark palette but
+  // keeps its hue; the tabard is a much darker dye of the same colour
+  const cape = weather(capeColor, 0.4, 0.3);
+  const tabard = weather(capeColor, 0.85, 0.5);
   return knight({
     bulk: 1.2,
     col: { plate: M, dark: D, trim: GOLD, mail: PAL.iron, cloth: PAL.charcoal, leather: PAL.leatherDark },
@@ -121,12 +130,12 @@ export function buildHero(capeColor: string, sword: 'sword' | 'goldsword'): Rig 
       for (let i = 0; i < 11; i++) {
         const a = Math.PI + (i / 10 - 0.5) * 2.5;
         const rr = 0.255 * b;
-        p.torso.add(new THREE.ConeGeometry(0.04, 0.12, 4), i % 2 ? FUR : FUR_TIP, Math.sin(a) * rr, 1.48 + (i % 3) * 0.014, Math.cos(a) * rr * 0.98, Math.PI + Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25);
+        p.torso.add(new THREE.ConeGeometry(0.045, 0.09 + (i % 3) * 0.03, 4), i % 2 ? FUR : FUR_TIP, Math.sin(a) * rr, 1.48 + (i % 3) * 0.014, Math.cos(a) * rr * 0.98, Math.PI + Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25);
       }
       for (let i = 0; i < 7; i++) {
         const a = Math.PI + (i / 6 - 0.5) * 2.1;
         const rr = 0.2 * b;
-        p.torso.add(new THREE.ConeGeometry(0.035, 0.12, 4), FUR_TIP, Math.sin(a) * rr, 1.7, Math.cos(a) * rr * 0.98, 0.35 * Math.cos(a), 0, -0.35 * Math.sin(a));
+        p.torso.add(new THREE.ConeGeometry(0.04, 0.08 + (i % 2) * 0.03, 4), i % 2 ? FUR : FUR_TIP, Math.sin(a) * rr, 1.71, Math.cos(a) * rr * 0.98, 0.5 * Math.cos(a), 0, -0.5 * Math.sin(a));
       }
       // The captain's sigil embroidered in gold on the cape: a ring pierced by a sword
       if (p.cape) {

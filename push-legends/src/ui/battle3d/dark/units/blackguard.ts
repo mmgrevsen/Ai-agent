@@ -92,7 +92,7 @@ export const blackguard: UnitDef = {
       pauldron: (k, s) => spaulder(k, s, { size: 0.165, lames: 3, plate: M, dark: D, trim: T, haute: 0.1, rivets: 3, facet: true }),
       weapon: (k) => greatsword(k),
       shield: heater,
-      shieldTilt: 0.3,
+      shieldTilt: 0.38,
       cape: { color: PAL.crimson, w: 0.58, h: 1.42, seed: 34 },
       tabard: { front: PAL.blood, back: PAL.crimson, len: 0.62 },
       extra: (p: KnightParts) => {

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PAL } from '../../../art/darkArt';
 import { K, shade, type V } from '../../../base3d/sculpt';
 import type { Rig } from '../../rig';
-import { capGeo, cbox, frustumGeo, metal, prismGeo } from '../parts';
+import { capGeo, cbox, metal, prismGeo } from '../parts';
 import { armBase, band, chestZ, glow, gouge, hoop, HR, HY, Hunter, latheArc, legBase, mix, onShin, rod, shell, SHADOW, skirtHalf, strapPath, torsoBase } from './_hunters';
 import type { UnitDef } from './types';
 
@@ -25,7 +25,7 @@ const C = {
   iron: PAL.iron,
   ironDark: PAL.blackSteel,
   bomb: shade(PAL.black, 0.15),
-  wood: shade(PAL.wood, 0.1),
+  wood: shade(PAL.wood, 0.28),
   rope: PAL.boneDark,
   glow: PAL.fire,
 };
@@ -75,15 +75,15 @@ function gasMask(k: K, glowParent: THREE.Object3D): number {
 }
 
 /** Wooden powder keg strapped to the back, with a coil of slow-match and a fuse bag. */
-function keg(k: K): void {
-  const z = -0.3;
+function keg(k: K, b: number): void {
+  const z = -0.34;
   k.lathe(
     [
-      [0.12, 1.05],
-      [0.15, 1.18],
-      [0.155, 1.3],
-      [0.15, 1.42],
-      [0.12, 1.55],
+      [0.14, 1.02],
+      [0.175, 1.16],
+      [0.185, 1.3],
+      [0.175, 1.44],
+      [0.14, 1.58],
     ],
     0,
     0,
@@ -91,14 +91,14 @@ function keg(k: K): void {
     C.wood,
     8,
   );
-  k.add(new THREE.CircleGeometry(0.12, 8), shade(C.wood, -0.25), 0, 1.55, z, -Math.PI / 2, 0, 0);
-  for (const y of [1.1, 1.3, 1.5]) band(k, y === 1.3 ? 0.158 : 0.14, 0.025, 0, y, z, C.ironDark, 0, 0, 0, 8);
+  k.add(new THREE.CircleGeometry(0.14, 8), shade(C.wood, -0.25), 0, 1.58, z, -Math.PI / 2, 0, 0);
+  for (const y of [1.08, 1.3, 1.52]) band(k, y === 1.3 ? 0.19 : 0.165, 0.035, 0, y, z, C.ironDark, 0, 0, 0, 8);
   k.add(new THREE.TorusGeometry(0.1, 0.022, 4, 10), C.rope, 0.0, 1.6, z, Math.PI / 2, 0, 0);
   k.add(new THREE.TorusGeometry(0.075, 0.02, 4, 10), shade(C.rope, -0.2), 0.0, 1.64, z, Math.PI / 2, 0, 0);
   cbox(k, 0.06, 0.04, 0.04, 0.06, 1.42, z - 0.15, C.soot);
   // Straps holding it on
   for (const sx of [-1, 1]) {
-    strapPath(k, [[sx * 0.13, 1.58, -0.12], [sx * 0.17, 1.6, 0.0], [sx * 0.14, 1.52, chestZ(1.12, 1.52, 0.04)]], 0.045, 0.012, PAL.leatherDark);
+    strapPath(k, [[sx * 0.13, 1.58, -0.12], [sx * 0.17, 1.6, 0.0], [sx * 0.14, 1.52, chestZ(b, 1.52, 0.04)]], 0.045, 0.012, PAL.leatherDark);
   }
   band(k, 0.24, 0.05, 0, 1.22, -0.05, PAL.leatherDark, 0, 0, 0, 10);
   // Side satchel of fuses
@@ -112,7 +112,6 @@ function sapperRig(): Rig {
   torsoBase(t, b, { shirt: C.padding, trousers: C.trousers, neck: C.coat });
   // Quilted gambeson under a heavy leather coat, scorched apron bib on the front
   shell(t, b, C.coat, 0.96, 1.6, 0.025);
-  for (let i = 0; i < 3; i++) band(t, 0.0, 0.0, 0, 0, 0, C.coat); // (no-op guard for older builds)
   shell(t, b, C.apron, 1.02, 1.5, 0.045, { phiStart: -1.0, phiLen: 2.0, seg: 6 });
   for (const [x, y, w, rz] of [[0.08, 1.38, 0.1, 0.4], [-0.06, 1.2, 0.12, -0.2], [0.02, 1.1, 0.08, 0.9]] as const) cbox(t, w, w * 0.6, 0.01, x, y, chestZ(b, y, 0.055), C.soot, 0, 0, rz);
   for (const sx of [-1, 1]) strapPath(t, [[sx * 0.11, 1.5, chestZ(b, 1.5, 0.05)], [sx * 0.12, 1.62, 0.04], [sx * 0.1, 1.6, -0.12]], 0.03, 0.01, PAL.leatherDark);
@@ -136,7 +135,7 @@ function sapperRig(): Rig {
   bomb(t, [0.22, 0.96, 0.08], 0.055, false);
   bomb(t, [0.26, 0.98, -0.04], 0.05, false);
   cbox(t, 0.1, 0.11, 0.07, -0.2, 1.0, 0.07, C.coat, 0, -0.5, 0);
-  keg(t);
+  keg(t, b);
 
   const hk = h.head;
   const top = gasMask(hk, h.headGroup);

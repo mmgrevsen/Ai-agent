@@ -14,7 +14,7 @@ const P = metal('#7b8189', 0.75);
 const D = PAL.blackSteel;
 const T = PAL.iron;
 const HI = mtl(P, 0.2);
-const FACE = metal('#41454b', 0.6);
+const FACE = metal('#4c5157', 0.35);
 const SHADOW = '#060607';
 
 function frogHelm(k: K, glow: THREE.Object3D): number {

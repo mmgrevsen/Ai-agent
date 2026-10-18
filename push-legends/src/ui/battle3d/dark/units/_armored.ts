@@ -170,6 +170,8 @@ export interface KnightParts {
   chestYaw: (a: number) => number;
   /** Cuirass radius at height y (before the depth squash CHEST_SZ). */
   chestR: (y: number) => number;
+  /** Depth (z) at which the front tabard hangs (back panel at −tabardZ). */
+  tabardZ: number;
 }
 
 /** Cuirass profile [radius, y] (× bulk), from the waist to the collar. */
@@ -209,6 +211,7 @@ export function knight(spec: KnightSpec): Rig {
     return [Math.sin(a) * r, y, Math.cos(a) * r * CUIRASS_SZ];
   };
   const chestYaw = (a: number) => Math.atan2(Math.sin(a), Math.cos(a) / CUIRASS_SZ);
+  const tabardZ = (0.212 + 0.016 * ((spec.faulds ?? 3) - 1)) * b * 0.82 + 0.014;
 
   torsoKit(tk, b, c, spec, prof);
   const top = spec.helm(hk, headGroup);
@@ -280,7 +283,7 @@ export function knight(spec: KnightSpec): Rig {
 
   const [legR, legL] = legKits as [K, K];
   const [armR, armL] = armKits as [K, K];
-  spec.extra?.({ rig, b, torso: tk, head: hk, frame, headGroup, armR, armL, legR, legL, handR, handL, cape: capeKit, onChest, chestYaw, chestR: (y) => profR(prof, y) });
+  spec.extra?.({ rig, b, torso: tk, head: hk, frame, headGroup, armR, armL, legR, legL, handR, handL, cape: capeKit, onChest, chestYaw, chestR: (y) => profR(prof, y), tabardZ });
 
   addMesh(rig, frame, tk);
   addMesh(rig, headGroup, hk);
@@ -289,6 +292,7 @@ export function knight(spec: KnightSpec): Rig {
   addMesh(rig, rig.armL!, armL);
   if (capeKit && rig.cape) addMesh(rig, rig.cape, capeKit);
   rig.height = (top + 0.04) * tall;
+  /*SIDETEST*/ rig.body.rotation.y = 1.07;
   return rig;
 }
 
@@ -328,8 +332,8 @@ function torsoKit(k: K, b: number, c: PlateColors, spec: KnightSpec, prof: [numb
   k.lathe(scaleP([[0.196, 1.04], [0.198, 1.09]], b), 0, 0, 0, c.leather, 8, 1, 0.83);
   cbox(k, 0.07, 0.065, 0.025, 0, 1.065, 0.165 * b, c.trim);
   cbox(k, 0.035, 0.035, 0.03, 0, 1.065, 0.168 * b, c.leather);
-  // Backplate spine ridge and straps
-  cbox(k, 0.014, 0.4, 0.014, 0, 1.3, -profR(prof, 1.3) * CUIRASS_SZ - 0.006, hi);
+  // Backplate spine ridge (hidden by a cape)
+  if (!spec.cape) cbox(k, 0.014, 0.4, 0.014, 0, 1.3, -profR(prof, 1.3) * CUIRASS_SZ - 0.006, hi);
   // Rivets along the breastplate edges
   for (const s of [-1, 1])
     for (let i = 0; i < 3; i++) {
@@ -360,13 +364,14 @@ function torsoKit(k: K, b: number, c: PlateColors, spec: KnightSpec, prof: [numb
     const [x, y, z] = ch(-0.25, 1.44);
     k.ball(0.028, x, y, z - 0.004, mtl(c.plate, -0.35), 1, 0.7, 0.35, 6);
   }
-  // Tabard (front and back panels)
+  // Tabard (front and back panels), hung clear of the lowest fauld
   if (spec.tabard) {
     const t = spec.tabard;
     const len = t.len ?? 0.62;
     const w = (t.w ?? 0.26) * b;
-    k.add(ragGeo(w, len, { folds: 2, depth: 0.012, flare: 0.3, tatter: t.tatter ?? 0.35, seed: t.seed ?? 13, curl: 0.03 }), t.front, 0, 1.06, 0.19 * b);
-    if (t.back !== null) k.add(ragGeo(w * 1.1, len * 1.05, { folds: 2, depth: 0.012, flare: 0.3, tatter: t.tatter ?? 0.35, seed: (t.seed ?? 13) + 4, curl: -0.03 }), t.back ?? shade(t.front, -0.15), 0, 1.06, -0.17 * b);
+    const tz = (0.212 + 0.016 * (nf - 1)) * b * 0.82 + 0.014;
+    k.add(ragGeo(w, len, { folds: 2, depth: 0.012, flare: 0.3, tatter: t.tatter ?? 0.35, seed: t.seed ?? 13, curl: -0.02 }), t.front, 0, 1.06, tz);
+    if (t.back !== null) k.add(ragGeo(w * 1.1, len * 1.05, { folds: 2, depth: 0.012, flare: 0.3, tatter: t.tatter ?? 0.35, seed: (t.seed ?? 13) + 4, curl: 0.02 }), t.back ?? shade(t.front, -0.15), 0, 1.06, -tz);
   }
 }
 

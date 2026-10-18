@@ -19,9 +19,9 @@ const DARKER = metal('#1b1b1f', 0.5);
 const GOLD = PAL.gold;
 const SHADOW = '#060607';
 const HOLY = PAL.holy;
-const CRIMSON = PAL.bloodBright;
+const CRIMSON = PAL.blood;
 /** Faint glows: crimson cracks and tears, the last gold light in the crown. */
-const FAINT = 0.7;
+const FAINT = 0.4;
 
 function sorrowHelm(k: K, glow: THREE.Object3D): number {
   const r = HEAD_R;
@@ -171,9 +171,9 @@ export const fallenOath: UnitDef = {
       },
       weapon: sunMace,
       shield: kiteShield,
-      shieldTilt: 0.32,
+      shieldTilt: 0.38,
       cape: { color: PAL.crimson, w: 0.6, h: 1.55, seed: 57, tatter: 0.38 },
-      tabard: { front: PAL.bone, back: PAL.boneDark, len: 0.82, w: 0.27, seed: 23, tatter: 0.45 },
+      tabard: { front: '#b3a68a', back: PAL.boneDark, len: 0.82, w: 0.27, seed: 23, tatter: 0.45 },
       extra: (p: KnightParts) => {
         // Gold sun on the breastplate, cracked through with crimson light
         const [x, y, z] = p.onChest(0, 1.38, 0.012);
@@ -185,7 +185,7 @@ export const fallenOath: UnitDef = {
         }
         addGlow(p.frame, new THREE.BoxGeometry(0.006, 0.12, 0.004), CRIMSON, x + 0.008, y - 0.01, z + 0.01, FAINT).rotation.z = 0.4;
         // Bloodied stripe down the bone tabard
-        p.torso.add(ragGeo(0.06 * p.b, 0.7, { folds: 1, depth: 0.006, flare: 0.2, tatter: 0.5, seed: 61, curl: 0.03 }), PAL.crimson, 0, 1.05, 0.2 * p.b + 0.006);
+        p.torso.add(ragGeo(0.06 * p.b, 0.72, { folds: 1, depth: 0.006, flare: 0.2, tatter: 0.5, seed: 61, curl: -0.02 }), PAL.crimson, 0, 1.05, p.tabardZ + 0.008);
         // A broken sun medallion on a chain at the belt
         for (let i = 0; i < 4; i++) band(p.torso, 0.012, 0.004, 0.16 * p.b, 1.02 - i * 0.022, 0.12 * p.b, GOLD, 0, i * 1.2, 0, 6);
         p.torso.add(new THREE.CylinderGeometry(0.03, 0.03, 0.008, 8, 1, false, 0, Math.PI * 1.4), GOLD, 0.16 * p.b, 0.92, 0.125 * p.b, Math.PI / 2, 0, 0);
