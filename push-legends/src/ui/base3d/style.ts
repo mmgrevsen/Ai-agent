@@ -27,8 +27,10 @@ export function toonRamp(): THREE.DataTexture {
  * cloth, wood and grass catch the light unevenly), and vertices marked as metal (`aMetal`, set by
  * the Kit from the colour palette) become shiny metal that reflects the sky.
  */
-export function realMaterial(opts: { grain?: number; bump?: number; roughness?: number; scale?: number } = {}): THREE.MeshStandardMaterial {
+export function realMaterial(opts: { grain?: number; bump?: number; roughness?: number; scale?: number; ornate?: number } = {}): THREE.MeshStandardMaterial {
   const grain = opts.grain ?? 1;
+  // Engraved filigree on armour metal (characters): flowing inlaid lines, faded out where too fine
+  const ornate = opts.ornate ?? 0;
   const bump = opts.bump ?? 1;
   const scale = opts.scale ?? 1;
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: opts.roughness ?? 0.9, metalness: 0 });
@@ -91,7 +93,16 @@ void main() {`,
         // Metal: fine scratches along one direction catch the light; duller metal (lower level) is rougher
         float plScr = smoothstep(0.8, 0.9, plN(vWPos * vec3(3.0, 26.0, 3.0) + 3.7)) * (1.0 - smoothstep(0.15, 0.45, plPx * 26.0));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.5 + 0.05, plScr * plMetal * 0.7);
-        roughnessFactor = mix(roughnessFactor * (0.88 + 0.24 * plLarge), mix(0.62, 0.3, plMetal) + 0.22 * plFine - plScr * 0.15, step(0.01, plMetal));`,
+        roughnessFactor = mix(roughnessFactor * (0.88 + 0.24 * plLarge), mix(0.62, 0.3, plMetal) + 0.22 * plFine - plScr * 0.15, step(0.01, plMetal));
+        ${ornate > 0 ? `{
+          // Contour lines of a smooth field read as engraved, inlaid scrollwork
+          float fn = (plN(vWPos * 4.0 + 11.0) + 0.5 * plN(vWPos * 9.0 + 3.0)) * 3.0;
+          float fw = fwidth(fn) + 1e-4;
+          float line = (1.0 - smoothstep(0.012, 0.012 + 1.2 * fw, abs(fract(fn) - 0.5))) * (1.0 - smoothstep(0.08, 0.2, fw));
+          float inl = line * smoothstep(0.5, 0.62, plMetal) * ${f(ornate)};
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.48, 0.25), inl * 0.75);
+          roughnessFactor = mix(roughnessFactor, 0.25, inl);
+        }` : ''}`,
       )
       .replace(
         '#include <metalnessmap_fragment>',
@@ -115,7 +126,7 @@ void main() {`,
         }`,
       );
   };
-  m.customProgramCacheKey = () => `real${grain}|${bump}|${scale}`;
+  m.customProgramCacheKey = () => `real${grain}|${bump}|${scale}|${ornate}`;
   return m;
 }
 

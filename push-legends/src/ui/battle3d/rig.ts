@@ -42,7 +42,7 @@ export function pivot(parent: THREE.Object3D, x: number, y: number, z: number): 
 
 export function rigMaterial(): THREE.MeshStandardMaterial {
   // Characters: light grain and bump (worn cloth, scratched metal), clean enough to read in battle
-  const m = realMaterial({ grain: 0.35, bump: 0.45, roughness: 0.74 });
+  const m = realMaterial({ grain: 0.35, bump: 0.45, roughness: 0.74, ornate: 1 });
   // Lathed brims, cloth and wing membranes are open surfaces
   m.side = THREE.DoubleSide;
   return m;

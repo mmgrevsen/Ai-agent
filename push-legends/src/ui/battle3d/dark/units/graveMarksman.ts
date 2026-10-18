@@ -38,20 +38,20 @@ function arbalest(k: K, g: THREE.Object3D): void {
   // Steel prod with bound tips, spanned string and a stirrup at the nose
   k.curve(
     [
-      [-0.42, 0.5, -0.0],
-      [-0.2, 0.57, -0.01],
+      [-0.5, 0.47, -0.0],
+      [-0.25, 0.565, -0.01],
       [0, 0.6, -0.01],
-      [0.2, 0.57, -0.01],
-      [0.42, 0.5, -0.0],
+      [0.25, 0.565, -0.01],
+      [0.5, 0.47, -0.0],
     ],
-    0.024,
-    0.024,
+    0.032,
+    0.022,
     C.plate,
     5,
   );
   for (const sx of [-1, 1]) {
-    k.add(new THREE.OctahedronGeometry(0.03), C.bright, sx * 0.42, 0.5, 0);
-    rod(k, [sx * 0.41, 0.5, -0.02], [0, 0.2, -0.045], 0.004, PAL.boneDark, 3);
+    k.add(new THREE.OctahedronGeometry(0.03), C.bright, sx * 0.5, 0.47, 0);
+    rod(k, [sx * 0.49, 0.47, -0.02], [0, 0.2, -0.045], 0.004, PAL.boneDark, 3);
   }
   k.add(frustumGeo(0.09, 0.08, 0.06, 0.8), C.plateDark, 0, 0.6, 0);
   hoop(k, 0.055, 0.009, 0, 0.7, 0.0, C.plateDark, 0, 0, 0, 8);

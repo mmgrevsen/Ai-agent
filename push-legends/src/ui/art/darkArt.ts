@@ -51,14 +51,14 @@ export type Faction = 'iron' | 'ash' | 'grave' | 'frost' | 'storm' | 'blood' | '
 
 /** Faction look: card background tones, rim light and glow accent. */
 export const FACTIONS: Record<Faction, { name: string; bgTop: string; bgBottom: string; rim: string; accent: string; glow: string }> = {
-  iron: { name: 'Iron Legion', bgTop: '#1a1b20', bgBottom: '#2a1214', rim: '#ffb07a', accent: PAL.blood, glow: PAL.ember },
-  ash: { name: 'Ashen Covenant', bgTop: '#1a0f0c', bgBottom: '#3a160c', rim: '#ff7a2a', accent: PAL.fire, glow: PAL.fire },
-  grave: { name: 'Gravewatch', bgTop: '#111614', bgBottom: '#22301f', rim: '#b8d88a', accent: PAL.toxic, glow: PAL.toxic },
-  frost: { name: 'Rimeborn', bgTop: '#0c1218', bgBottom: '#1d3346', rim: '#9fdcff', accent: PAL.frost, glow: PAL.frost },
-  storm: { name: 'Stormbound', bgTop: '#0f1018', bgBottom: '#262c48', rim: '#c8d8ff', accent: PAL.storm, glow: PAL.storm },
-  blood: { name: 'Red Hand', bgTop: '#120b0c', bgBottom: '#32100f', rim: '#ff4a4a', accent: PAL.bloodBright, glow: PAL.eyeRed },
-  void: { name: 'Hollow Court', bgTop: '#0d0b14', bgBottom: '#2a1544', rim: '#c39bff', accent: PAL.void2, glow: PAL.void2 },
-  wild: { name: 'Feral Host', bgTop: '#101210', bgBottom: '#2c241a', rim: '#ffcf8a', accent: PAL.ember, glow: PAL.ember },
+  iron: { name: 'Iron Legion', bgTop: '#0c0b0d', bgBottom: '#1c0c0b', rim: '#ff7a45', accent: PAL.blood, glow: '#ff3d1a' },
+  ash: { name: 'Ashen Covenant', bgTop: '#0d0908', bgBottom: '#241009', rim: '#ffa04a', accent: PAL.fire, glow: '#ff6a12' },
+  grave: { name: 'Gravewatch', bgTop: '#090c0c', bgBottom: '#0f1a17', rim: '#9fe0c8', accent: PAL.toxic, glow: '#5fe0a8' },
+  frost: { name: 'Rimeborn', bgTop: '#080b10', bgBottom: '#0e1a26', rim: '#bfefff', accent: PAL.frost, glow: '#7fdcff' },
+  storm: { name: 'Stormbound', bgTop: '#09090f', bgBottom: '#121a33', rim: '#d0dcff', accent: PAL.storm, glow: '#8fb4ff' },
+  blood: { name: 'Red Hand', bgTop: '#0c0809', bgBottom: '#22080f', rim: '#ff6a8a', accent: PAL.bloodBright, glow: '#ff2a55' },
+  void: { name: 'Hollow Court', bgTop: '#0a0710', bgBottom: '#1e0d33', rim: '#d2a8ff', accent: PAL.void2, glow: '#a64dff' },
+  wild: { name: 'Feral Host', bgTop: '#0b0a09', bgBottom: '#1d150d', rim: '#ffc27a', accent: PAL.ember, glow: '#ff8a2a' },
 };
 
 /** Dark-fantasy title, faction and lore line for each card id (ids and stats stay unchanged). */

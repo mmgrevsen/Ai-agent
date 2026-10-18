@@ -40,6 +40,38 @@ const GradeShader = {
     }`,
 };
 
+/**
+ * Kuwahara filter: each pixel takes the mean of the calmest of four neighbouring quadrants, which
+ * flattens texture into brush-like strokes while keeping edges sharp (painted concept-art look).
+ */
+const PaintShader = {
+  uniforms: { tDiffuse: { value: null as THREE.Texture | null }, uTexel: { value: new THREE.Vector2(1, 1) } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 uTexel; varying vec2 vUv;
+    void main() {
+      vec3 m[4]; vec3 v[4];
+      for (int k = 0; k < 4; k++) { m[k] = vec3(0.0); v[k] = vec3(0.0); }
+      for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
+        vec3 c = texture2D(tDiffuse, vUv + vec2(float(i), float(j)) * uTexel).rgb;
+        vec3 c2 = c * c;
+        if (i <= 0 && j <= 0) { m[0] += c; v[0] += c2; }
+        if (i >= 0 && j <= 0) { m[1] += c; v[1] += c2; }
+        if (i <= 0 && j >= 0) { m[2] += c; v[2] += c2; }
+        if (i >= 0 && j >= 0) { m[3] += c; v[3] += c2; }
+      }
+      float best = 1e9; vec3 col = vec3(0.0);
+      for (int k = 0; k < 4; k++) {
+        vec3 mean = m[k] / 9.0;
+        vec3 var = abs(v[k] / 9.0 - mean * mean);
+        float s = var.r + var.g + var.b;
+        if (s < best) { best = s; col = mean; }
+      }
+      // Half strength: brush-like flattening without blocky squares at this small size
+      gl_FragColor = vec4(mix(texture2D(tDiffuse, vUv).rgb, col, 0.55), 1.0);
+    }`,
+};
+
 export interface Pipeline {
   render(): void;
   setSize(w: number, h: number, pixelRatio: number): void;
@@ -58,6 +90,8 @@ export function createPipeline(
     contrast?: number;
     /** Ambient occlusion radius in world units (null = off, e.g. the 256 px pixel mode). */
     ao?: { radius: number; intensity: number } | null;
+    /** Painterly brush filter after tone mapping (card portraits). */
+    paint?: boolean;
   },
 ): Pipeline {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: opts.msaa ? 4 : 0 });
@@ -80,11 +114,14 @@ export function createPipeline(
   grade.uniforms.uContrast!.value = opts.contrast ?? 1.06;
   composer.addPass(grade);
   composer.addPass(new OutputPass());
+  const paint = opts.paint ? new ShaderPass(PaintShader) : null;
+  if (paint) composer.addPass(paint);
   return {
     render: () => composer.render(),
     setSize: (w, h, pr) => {
       composer.setPixelRatio(pr);
       composer.setSize(w, h);
+      paint?.uniforms.uTexel!.value.set(1 / (w * pr), 1 / (h * pr));
       // AO at (at most) native resolution: it is soft anyway and expensive on phones
       ao?.setSize(Math.round(w * Math.min(pr, 1)), Math.round(h * Math.min(pr, 1)));
     },

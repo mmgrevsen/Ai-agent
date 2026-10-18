@@ -17,7 +17,7 @@ const DENT = mtl(M, -0.4);
 const FULLER = mtl(PAL.steel, -0.45);
 
 function greathelm(k: K, glow: THREE.Object3D): number {
-  const r = HEAD_R;
+  const r = HEAD_R * 1.06;
   const hy = HEAD_Y;
   k.ball(r * 0.9, 0, hy, 0, '#08080a', 1, 1.05, 1.05, 8);
   // Octagonal bucket tapering to the crown, with a medial ridge down the face
@@ -36,7 +36,9 @@ function greathelm(k: K, glow: THREE.Object3D): number {
     const a = s * Math.PI / 8;
     cbox(k, r * 0.78, r * 0.11, 0.02, Math.sin(a) * fr, hy + r * 0.1, Math.cos(a) * fr * 1.04, '#060607', 0, a, 0);
   }
-  eyeSlit(k, glow, PAL.ember, hy + r * 0.1, r * 0.99, 0, r * 0.1, r * 0.34, 5, 0, r * 0.42);
+  eyeSlit(k, glow, PAL.ember, hy + r * 0.1, r * 0.99, 0, r * 0.08, r * 0.32, 3.2, 0, r * 0.26);
+  // Low riveted comb front to back over the flat crown (sharpens the silhouette)
+  k.add(flat(frustumGeo(0.026, r * 0.3, r * 2.1, 0.4, 0.72)), D, 0, hy + r * 1.27, 0);
   // Vertical reinforcement down the ridge (cross-shaped visor)
   cbox(k, r * 0.12, r * 1.25, r * 0.08, 0, hy - r * 0.35, r * 1.1, D);
   cbox(k, r * 0.07, r * 0.55, r * 0.06, 0, hy - r * 0.45, r * 1.15, '#060607');
@@ -47,7 +49,7 @@ function greathelm(k: K, glow: THREE.Object3D): number {
   k.ball(r * 0.22, -r * 0.62, hy + r * 0.62, r * 0.76, DENT, 1, 0.7, 0.4, 6);
   gouge(k, r * 0.7, r * 0.55, hy + r * 0.75, r * 0.85, 0.5, 0.6);
   scratch(k, r * 0.6, -r * 0.4, hy - r * 0.6, r * 0.98, -0.4, -0.35);
-  return hy + r * 1.36;
+  return hy + r * 1.42;
 }
 
 function greatsword(k: K): void {
@@ -92,8 +94,10 @@ export const blackguard: UnitDef = {
       pauldron: (k, s) => spaulder(k, s, { size: 0.165, lames: 3, plate: M, dark: D, trim: T, haute: 0.1, rivets: 3, facet: true }),
       weapon: (k) => greatsword(k),
       shield: heater,
-      shieldTilt: 0.38,
-      cape: { color: PAL.crimson, w: 0.58, h: 1.42, seed: 34 },
+      shieldTilt: 0.15,
+      shieldOffset: [0.1, 0.12],
+      // A short ragged war-cloak (the Fallen Oath and the hero wear long ones)
+      cape: { color: PAL.crimson, w: 0.56, h: 1.08, seed: 34, tatter: 0.55, folds: 3 },
       tabard: { front: PAL.blood, back: PAL.crimson, len: 0.62 },
       extra: (p: KnightParts) => {
         // Chain hanging from the belt

@@ -25,7 +25,7 @@ const C = {
   iron: PAL.iron,
   ironDark: PAL.blackSteel,
   bomb: shade(PAL.black, 0.15),
-  wood: shade(PAL.wood, 0.28),
+  wood: shade(PAL.wood, 0.16),
   rope: PAL.boneDark,
   glow: PAL.fire,
 };

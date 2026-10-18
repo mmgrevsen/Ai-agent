@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { K, shade, type V } from '../../../base3d/sculpt';
-import { armBase, latheArc, legBase, skirtHalf, type Hunter } from './_hunters';
+import { K, shade, taperTube, type V } from '../../../base3d/sculpt';
+import { armBase, latheArc, legBase, skirtHalf, span, type Hunter } from './_hunters';
 
 /**
  * Shared pieces for the robed spellcasters (Ashen Herald, Rime Widow, Storm Heretic): ankle-length
@@ -31,6 +31,10 @@ export interface RobeLook {
   outerGap?: number;
   /** Ground clearance of the inner hem (0 = touching). */
   lift?: number;
+  /** Front opening of the inner layer (radians, default 0.06). */
+  innerGap?: number;
+  /** Colour of a burnt / frost-rimed band at the hem (null = none). */
+  hem?: string | null;
 }
 
 /** Ankle-length layered robe in two halves per layer, on the leg pivots. */
@@ -51,8 +55,26 @@ export function robeLegs(h: Hunter, o: RobeLook): void {
         [f * 0.64, -0.2],
         [0.17 * h.b, 0.06],
       ],
-      { frontGap: 0.06, backGap: 0.02, tatter: o.tatter ?? 0.12, seed: o.seed ?? 5, seg: 7, depth: 0.82 },
+      { frontGap: o.innerGap ?? 0.06, backGap: 0.02, tatter: o.tatter ?? 0.12, seed: o.seed ?? 5, seg: 7, depth: 0.82 },
     );
+    if (o.hem) {
+      // Short ragged band just outside the lowest layer: scorched or frost-rimed hem
+      const outerHem = !!o.outer;
+      const r0 = outerHem ? f * 1.115 : f * 1.02;
+      const y0 = outerHem ? -0.905 : -0.975 + lift;
+      skirtHalf(
+        k,
+        s,
+        h.legX,
+        o.hem,
+        [
+          [r0, y0],
+          [r0 * 0.965, y0 + 0.1],
+          [r0 * 0.93, y0 + 0.17],
+        ],
+        { frontGap: outerHem ? (o.outerGap ?? 0.42) + 0.01 : (o.innerGap ?? 0.06) + 0.01, backGap: 0.03, tatter: (o.tatter ?? 0.12) * 1.6, seed: (o.seed ?? 5) + 11, seg: 7, depth: outerHem ? 0.865 : 0.825 },
+      );
+    }
     if (o.outer)
       skirtHalf(
         k,
@@ -195,4 +217,52 @@ export function halo(parent: THREE.Object3D, hex: string, r: number, x: number, 
   m.scale.set(1, sy, 1);
   parent.add(m);
   return m;
+}
+
+// --- Hardware -----------------------------------------------------------------------------------------
+
+/**
+ * Iron chain through the points: oval links (36 triangles each) alternating 90° so they interlock.
+ * `link` is the link length along the path.
+ */
+export function chain(k: K, pts: V[], link: number, hex: string, thick = 0.006): void {
+  let n = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    const d: V = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const len = Math.hypot(d[0], d[1], d[2]);
+    const cnt = Math.max(1, Math.round(len / link));
+    for (let j = 0; j < cnt; j++) {
+      const t0 = j / cnt;
+      const t1 = (j + 1) / cnt;
+      const p0: V = [a[0] + d[0] * t0, a[1] + d[1] * t0, a[2] + d[2] * t0];
+      const p1: V = [a[0] + d[0] * t1, a[1] + d[1] * t1, a[2] + d[2] * t1];
+      const l = len / cnt;
+      span(k, p0, p1, () => new THREE.TorusGeometry(l * 0.36, thick, 3, 6).scale(0.62, 1, 1), hex, (n++ % 2) * (Math.PI / 2));
+    }
+  }
+}
+
+/** Flame tongue: a tapered curved tube from p along dir, wavering sideways (glow geometry). */
+export function flameGeo(p: V, dir: V, len: number, r: number, seed: number): THREE.BufferGeometry {
+  const rr = rnd(seed);
+  const pts: V[] = [];
+  for (let i = 0; i <= 3; i++) {
+    const t = i / 3;
+    const w = Math.sin(t * Math.PI) * len * 0.22;
+    pts.push([p[0] + dir[0] * len * t + (rr() - 0.5) * w, p[1] + dir[1] * len * t + (rr() - 0.5) * w, p[2] + dir[2] * len * t + (rr() - 0.5) * w]);
+  }
+  return taperTube(pts, r, 0.002, 4, 6);
+}
+
+/** Small faceted spark or ember (glow geometry). */
+export function sparkGeo(r: number): THREE.BufferGeometry {
+  return new THREE.TetrahedronGeometry(r, 0);
+}
+
+/** Glowing crack across a plate: a jagged hairline from a to b (glow geometry). */
+export function crackGeo(a: V, b: V, seed: number, w = 0.004, kinks = 4): THREE.BufferGeometry {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  return boltGeo(jag(a, b, kinks, len * 0.12, seed), w, w * 0.5);
 }

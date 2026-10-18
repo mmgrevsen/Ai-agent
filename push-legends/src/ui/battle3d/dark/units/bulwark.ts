@@ -14,7 +14,7 @@ const P = metal('#7b8189', 0.75);
 const D = PAL.blackSteel;
 const T = PAL.iron;
 const HI = mtl(P, 0.2);
-const FACE = metal('#4c5157', 0.35);
+const FACE = metal('#596068', 0.45);
 const SHADOW = '#060607';
 
 function frogHelm(k: K, glow: THREE.Object3D): number {
@@ -53,7 +53,7 @@ function mace(k: K): void {
   k.add(prismGeo(0.042, 0.22, 6), D, 0, 0.66, 0);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    k.plate(FLANGE, 0.016, 0.004, Math.sin(a) * 0.03, 0.66, Math.cos(a) * 0.03, i % 2 ? P : HI, 0, a - Math.PI / 2, 0, 1.2);
+    k.plate(FLANGE, 0.018, 0, Math.sin(a) * 0.03, 0.66, Math.cos(a) * 0.03, i % 2 ? P : HI, 0, a - Math.PI / 2, 0, 1.2);
   }
   k.add(new THREE.ConeGeometry(0.034, 0.1, 6), P, 0, 0.82, 0);
   band(k, 0.045, 0.01, 0, 0.54, 0, T, Math.PI / 2, 0, 0, 6);
@@ -94,14 +94,14 @@ function towerShield(k: K): void {
       const [x, , z] = at(a, y, 0.02);
       rivet(k, x, y, z, PAL.steel, 0.014);
     }
-  // Painted portcullis: blood-red bars with spiked feet
-  for (const a of [-0.2, 0, 0.2]) {
-    const [x, , z] = at(a, 0.3, 0.007);
-    cbox(k, 0.035, 0.36, 0.006, x, 0.36, z, PAL.blood, 0, a, 0);
-    const [fx, , fz] = at(a, 0.15, 0.007);
-    k.add(new THREE.ConeGeometry(0.03, 0.08, 3), PAL.blood, fx, 0.15, fz, Math.PI, a, 0, 1, 1, 0.12);
+  // Painted portcullis over the upper two thirds: blood-red bars with spiked feet
+  for (const a of [-0.25, -0.085, 0.085, 0.25]) {
+    const [x, , z] = at(a, 0.2, 0.007);
+    cbox(k, 0.04, 0.5, 0.006, x, 0.24, z, PAL.blood, 0, a, 0);
+    const [fx, , fz] = at(a, -0.05, 0.007);
+    k.add(new THREE.ConeGeometry(0.035, 0.1, 3), PAL.blood, fx, -0.05, fz, Math.PI, a, 0, 1, 1, 0.12);
   }
-  for (const y of [0.3, 0.44]) k.add(shellGeo([[R + 0.006, y - 0.016], [R + 0.006, y + 0.016]], 0, 0.27, 4), PAL.blood, cx, 0, cz);
+  for (const y of [0.3, 0.44]) k.add(shellGeo([[R + 0.006, y - 0.02], [R + 0.006, y + 0.02]], 0, 0.3, 4), PAL.blood, cx, 0, cz);
   // Ground spikes along the foot so it can be planted
   for (const a of [-0.26, 0, 0.26]) {
     const [x, , z] = at(a, y0, 0.002);
@@ -149,8 +149,9 @@ export const bulwark: UnitDef = {
       },
       weapon: (k) => mace(k),
       shield: towerShield,
-      shieldTilt: 0.42,
-      tabard: { front: PAL.blood, back: PAL.crimson, len: 0.5, w: 0.24, seed: 41, tatter: 0.4 },
+      shieldTilt: 0.15,
+      shieldOffset: [0.05, 0.12],
+      tabard: { front: null, back: PAL.crimson, len: 0.5, w: 0.24, seed: 41, tatter: 0.4 },
       faulds: 4,
       extra: (p: KnightParts) => {
         // Heavy chain slung round the hips

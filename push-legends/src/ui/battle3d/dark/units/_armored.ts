@@ -95,6 +95,59 @@ export function profR(prof: [number, number][], y: number): number {
   return prof[prof.length - 1]![0];
 }
 
+/**
+ * Light hanging cloth (tabards, sashes): ragGeo's folds, flare and torn hem on a coarser grid
+ * (cols × rows), doubled with flipped normals so both faces shade correctly. About 40% of
+ * ragGeo's triangles, which matters for units instanced many times.
+ */
+export function clothGeo(w: number, h: number, o: { cols?: number; rows?: number; folds?: number; depth?: number; flare?: number; tatter?: number; seed?: number; curl?: number } = {}): THREE.BufferGeometry {
+  const { cols = 8, rows = 5, folds = 2, depth = 0.012, flare = 0.3, tatter = 0.35, seed = 13, curl = 0 } = o;
+  let st = seed * 9301 + 49297;
+  const rnd = () => ((st = (st * 9301 + 49297) % 233280) / 233280);
+  const cut = Array.from({ length: cols + 1 }, () => rnd());
+  const front = new THREE.PlaneGeometry(w, h, cols, rows);
+  const p = front.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const px = p.getX(i);
+    const py = p.getY(i);
+    const down = (h / 2 - py) / h;
+    const col = Math.round(((px + w / 2) / w) * cols);
+    const tear = down > 0.65 ? Math.pow((down - 0.65) / 0.35, 1.5) * tatter * h * (0.3 + cut[col]! * 1.2) : 0;
+    p.setXYZ(i, px * (1 + flare * down), py + tear, Math.sin((px / w) * Math.PI * 2 * folds + cut[col]! * 0.6) * depth * (0.3 + down) - down * curl);
+  }
+  front.translate(0, -h / 2, 0);
+  const g = front.toNonIndexed();
+  front.dispose();
+  g.computeVertexNormals();
+  const back = g.clone();
+  const bp = back.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < bp.count; i += 3) {
+    // Reverse the winding and nudge it behind the front face
+    const x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i);
+    bp.setXYZ(i, bp.getX(i + 2), bp.getY(i + 2), bp.getZ(i + 2));
+    bp.setXYZ(i + 2, x, y, z);
+  }
+  back.translate(0, 0, -0.006);
+  back.computeVertexNormals();
+  const out = mergeTwo(g, back);
+  return out;
+}
+
+function mergeTwo(a: THREE.BufferGeometry, b: THREE.BufferGeometry): THREE.BufferGeometry {
+  const out = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'uv']) {
+    const x = a.getAttribute(name) as THREE.BufferAttribute;
+    const y = b.getAttribute(name) as THREE.BufferAttribute;
+    const arr = new Float32Array(x.array.length + y.array.length);
+    arr.set(x.array as Float32Array, 0);
+    arr.set(y.array as Float32Array, x.array.length);
+    out.setAttribute(name, new THREE.BufferAttribute(arr, x.itemSize));
+  }
+  a.dispose();
+  b.dispose();
+  return out;
+}
+
 /** Flat plate fan (poleyn and couter wings), drawn in xy with its root at the origin. */
 const FAN = shapeFrom([[0, -0.045], [0.04, -0.06], [0.07, -0.03], [0.075, 0.0], [0.07, 0.03], [0.04, 0.06], [0, 0.045]]);
 
@@ -134,10 +187,15 @@ export interface KnightSpec {
   shield?: (k: K, g: THREE.Group) => void;
   /** Shield pre-tilt about x (top forward when positive) so it stays upright when raised. */
   shieldTilt?: number;
+  /**
+   * Shield offset [up, forward] from the fist: strapped over the forearm and held clear of the
+   * tabard (default [0.1, 0.08]). A leather bracket bridges the gap to the fist.
+   */
+  shieldOffset?: [number, number];
   /** Left-hand item that is not a shield (drawn in the hand group). */
   offhand?: (k: K, g: THREE.Group) => void;
   cape?: { color: string; w?: number; h?: number; seed?: number; tatter?: number; folds?: number; depth?: number };
-  tabard?: { front: string; back?: string | null; len?: number; w?: number; seed?: number; tatter?: number };
+  tabard?: { front: string | null; back?: string | null; len?: number; w?: number; seed?: number; tatter?: number };
   /** Number of fauld lames below the cuirass (default 3). */
   faulds?: number;
   /** Mail skirt showing below the faulds (default true). */
@@ -189,6 +247,8 @@ const CUIRASS_SZ = 0.76;
 export const CHEST_SZ = CUIRASS_SZ;
 
 export const NECK_Y = 1.66;
+/** Fraction of the shield arm's raise the shield turns back against (stays facing the enemy). */
+const SHIELD_KEEP = 0.85;
 
 /** Builds the armoured body and assembles the rig. */
 export function knight(spec: KnightSpec): Rig {
@@ -255,7 +315,19 @@ export function knight(spec: KnightSpec): Rig {
     rig.shield = true;
     const sg = pivot(handL, 0, 0, 0);
     sg.rotation.x = spec.shieldTilt ?? 0.3;
+    const [oy, oz] = spec.shieldOffset ?? [0.1, 0.08];
+    sg.position.set(0, oy, oz);
+    // Keep the shield upright: when the battle raises the arm to block, the shield turns back
+    // against the raise instead of lying flat like a tray over the fist.
+    const base = sg.rotation.x;
+    const arm = rig.armL!;
+    sg.updateMatrixWorld = function (force?: boolean) {
+      this.rotation.x = base - SHIELD_KEEP * arm.rotation.x;
+      THREE.Object3D.prototype.updateMatrixWorld.call(this, force);
+    };
     const sk = new K();
+    // Enarmes: a leather bracket from the fist to the back of the shield
+    if (oz > 0.02) cbox(sk, 0.05, 0.12 + oy, oz + 0.14, 0.01, -oy * 0.5, 0.07 - oz / 2, c.leather);
     spec.shield(sk, sg);
     addMesh(rig, sg, sk);
   } else if (spec.offhand) {
@@ -369,8 +441,8 @@ function torsoKit(k: K, b: number, c: PlateColors, spec: KnightSpec, prof: [numb
     const len = t.len ?? 0.62;
     const w = (t.w ?? 0.26) * b;
     const tz = (0.212 + 0.016 * (nf - 1)) * b * 0.82 + 0.014;
-    k.add(ragGeo(w, len, { folds: 2, depth: 0.012, flare: 0.3, tatter: t.tatter ?? 0.35, seed: t.seed ?? 13, curl: -0.02 }), t.front, 0, 1.06, tz);
-    if (t.back !== null) k.add(ragGeo(w * 1.1, len * 1.05, { folds: 2, depth: 0.012, flare: 0.3, tatter: t.tatter ?? 0.35, seed: (t.seed ?? 13) + 4, curl: 0.02 }), t.back ?? shade(t.front, -0.15), 0, 1.06, -tz);
+    if (t.front) k.add(clothGeo(w, len, { tatter: t.tatter ?? 0.35, seed: t.seed ?? 13, curl: -0.02 }), t.front, 0, 1.06, tz);
+    if (t.back !== null) k.add(clothGeo(w * 1.1, len * 1.05, { tatter: t.tatter ?? 0.35, seed: (t.seed ?? 13) + 4, curl: 0.02 }), t.back ?? shade(t.front ?? PAL.crimson, -0.15), 0, 1.06, -tz);
   }
 }
 
@@ -384,7 +456,7 @@ function armKit(k: K, s: number, b: number, c: PlateColors): void {
   k.lathe([[w * 1.02, -0.31], [w * 1.12, -0.2], [w * 1.08, -0.1]], 0, 0, 0, c.plate, 8);
   // Couter: cup on the elbow with a fan on the outside
   k.add(capGeo(w * 1.28, Math.PI * 0.5, 8, 3), c.plate, 0, -0.33, -0.012, -Math.PI / 2 - 0.25, 0, 0);
-  k.plate(FAN, 0.01, 0.004, s * w * 1.05, -0.33, -0.01, c.dark, 0, s * Math.PI / 2, 0, 0.95);
+  k.plate(FAN, 0.014, 0, s * w * 1.05, -0.33, -0.01, c.dark, 0, s * Math.PI / 2, 0, 0.95);
   // Vambrace with a ridge
   k.lathe([[w * 0.98, -0.585], [w * 1.04, -0.5], [w * 1.12, -0.41], [w * 1.04, -0.35]], 0, 0, 0, c.plate, 8);
   cbox(k, 0.01, 0.2, 0.01, 0, -0.47, w * 1.1, hi, -0.06);
@@ -398,7 +470,8 @@ function armKit(k: K, s: number, b: number, c: PlateColors): void {
 
 /** Leg from the hip pivot to the sole (y −1.0). s = +1 right, −1 left (outer side = s·x). */
 function legKit(k: K, s: number, b: number, c: PlateColors, tassets: boolean): void {
-  const lb = Math.sqrt(b);
+  // Heavier knights get sturdier legs (not just wider shoulders)
+  const lb = Math.pow(b, 0.75);
   const hi = mtl(c.plate, 0.18);
   // Padded hose / mail under the plate (fills the knee and hip gaps)
   k.add(prismGeo(0.072 * lb, 0.62, 6, 1.15), c.mail, 0, -0.38, 0);
@@ -408,7 +481,7 @@ function legKit(k: K, s: number, b: number, c: PlateColors, tassets: boolean): v
   // Poleyn: knee cop, side fan and lames
   k.lathe(scaleP([[0.078, -0.455], [0.083, -0.43]], lb), 0, 0, 0.008, c.dark, 8, 1, 1.05);
   k.add(capGeo(0.074 * lb, Math.PI * 0.5, 8, 3), mtl(c.plate, 0.08), 0, -0.505, 0.045 * lb, Math.PI / 2 - 0.1, 0, 0, 1, 1, 0.75);
-  k.plate(FAN, 0.01, 0.004, s * 0.062 * lb, -0.51, 0.012, c.dark, 0, s * -Math.PI / 2 + Math.PI, 0, 1.05);
+  k.plate(FAN, 0.014, 0, s * 0.062 * lb, -0.51, 0.012, c.dark, 0, s * -Math.PI / 2 + Math.PI, 0, 1.05);
   k.lathe(scaleP([[0.072, -0.585], [0.077, -0.56]], lb), 0, 0, 0.006, c.dark, 8, 1, 1.05);
   // Greave with a calf swell and a front ridge
   k.lathe(scaleP([[0.054, -0.935], [0.06, -0.86], [0.075, -0.74], [0.078, -0.66], [0.068, -0.57]], lb), 0, 0, 0, c.plate, 8, 1, 1.1);
@@ -512,8 +585,9 @@ export function copTop(p: PauldronSpec, s: number): [number, number] {
 /** Leather-wrapped grip from y0 to y1. */
 export function grip(k: K, y0: number, y1: number, r: number, hex: string): void {
   k.add(prismGeo(r, y1 - y0, 6), hex, 0, (y0 + y1) / 2, 0);
-  const n = Math.max(1, Math.round((y1 - y0) / 0.06));
-  for (let i = 0; i < n; i++) band(k, r * 1.05, r * 0.22, 0, y0 + (i + 0.5) * ((y1 - y0) / n), 0, shade(hex, -0.35), Math.PI / 2 + 0.25, 0, 0, 6);
+  // Spiral binding: a few cheap tilted wraps
+  const n = Math.max(1, Math.round((y1 - y0) / 0.075));
+  for (let i = 0; i < n; i++) k.add(new THREE.TorusGeometry(r * 1.05, r * 0.24, 3, 6), shade(hex, -0.35), 0, y0 + (i + 0.5) * ((y1 - y0) / n), 0, Math.PI / 2 + 0.25, 0, 0);
 }
 
 /** Face-plate eye slit (w > 0 draws the dark slot) with two glowing eyes behind it (in the head group). */

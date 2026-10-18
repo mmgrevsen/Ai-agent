@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PAL } from '../../../art/darkArt';
-import { shapeFrom, type K } from '../../../base3d/sculpt';
+import { shade, shapeFrom, type K } from '../../../base3d/sculpt';
 import { addGlow, type Rig } from '../../rig';
 import { cbox, frustumGeo, HEAD_R, HEAD_Y, metal, SHAPES } from '../parts';
 import { band, copTop, eyeSlit, flat, gouge, grip, knight, mtl, rivet, scratch, shellGeo, spaulder, type KnightParts } from './_armored';
@@ -11,7 +11,7 @@ import { band, copTop, eyeSlit, flat, gouge, grip, knight, mtl, rivet, scratch, 
  * collar, a chain of office and a long hand-and-a-half sword. `goldsword` gives the blade gilded
  * furniture and a blackened edge with an ember burning down the fuller.
  */
-const M = metal('#6a7078', 0.5);
+const M = metal('#6e757e', 0.6);
 const D = metal('#3a3e44', 0.45);
 const GOLD = PAL.gold;
 const GOLD_HI = PAL.goldLight;
@@ -45,26 +45,45 @@ function captainHelm(k: K, glow: THREE.Object3D, plume: string): number {
   k.lathe([[r * 1.12, hy + r * 0.3], [r * 1.11, hy + r * 0.42]], 0, 0, -r * 0.05, GOLD, 8, 1, 1.12);
   cbox(k, r * 1.45, r * 0.1, r * 0.4, 0, hy + r * 0.24, r * 0.9, SHADOW);
   eyeSlit(k, glow, PAL.ember, hy + r * 0.24, r * 1.08, 0, r * 0.1, r * 0.3, 5, 0, r * 0.36);
-  // Breaths in the beak
-  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) cbox(k, r * 0.06, r * 0.18, 0.02, s * r * (0.22 + i * 0.12), hy - r * 0.3, r * (1.05 - i * 0.16), SHADOW, 0, s * 0.75, 0);
+  // Breaths: two short columns of vents on the right flank of the beak only
+  for (let i = 0; i < 6; i++) cbox(k, r * 0.07, r * 0.07, 0.02, r * (0.36 + (i % 2) * 0.15), hy - r * (0.28 + Math.floor(i / 2) * 0.17), r * (0.98 - (i % 2) * 0.17), SHADOW, 0, 0.8, 0);
   // Visor pivots
   for (const s of [-1, 1]) rivet(k, s * r * 1.1, hy + r * 0.05, -r * 0.05, GOLD, 0.016);
   // Swept crest down the crown, gilded rivets
   k.plate(CREST, 0.02, 0.004, 0, hy + r * 0.98, -r * 0.1, D, 0, Math.PI / 2, 0, 1.55);
   for (let i = 0; i < 3; i++) rivet(k, 0.016, hy + r * 1.15 + i * 0.01, r * 0.45 - i * r * 0.7, GOLD, 0.009);
-  // Plume in the cape colour, flowing back from the crest
+  // Horsehair plume in the cape colour: rises from the crest and streams back over the shoulders
   k.curve(
     [
-      [0, hy + r * 1.85, -r * 0.7],
-      [0, hy + r * 1.75, -r * 1.6],
-      [0, hy + r * 1.1, -r * 2.5],
-      [0, hy + r * 0.15, -r * 2.9],
+      [0, hy + r * 1.35, r * 0.2],
+      [0, hy + r * 1.9, -r * 0.5],
+      [0, hy + r * 1.75, -r * 1.5],
+      [0, hy + r * 1.0, -r * 2.4],
+      [0, hy - r * 0.1, -r * 2.8],
     ],
-    r * 0.27,
-    r * 0.06,
+    r * 0.34,
+    r * 0.08,
     plume,
     6,
   );
+  k.curve(
+    [
+      [0, hy + r * 1.7, -r * 0.6],
+      [r * 0.12, hy + r * 1.5, -r * 1.6],
+      [r * 0.18, hy + r * 0.6, -r * 2.3],
+      [r * 0.2, hy - r * 0.4, -r * 2.5],
+    ],
+    r * 0.2,
+    r * 0.05,
+    shade(plume, -0.25),
+    5,
+  );
+  // Gilded coronet of points round the brow: the mark of the Legend
+  for (let i = 0; i < 9; i++) {
+    const a = ((i - 4) / 4) * 2.1;
+    const tall = i === 4 ? r * 0.55 : i % 2 ? r * 0.3 : r * 0.42;
+    k.add(new THREE.ConeGeometry(r * 0.085, tall, 4), i === 4 ? GOLD_HI : GOLD, Math.sin(a) * r * 1.1, hy + r * 0.4 + tall / 2, -r * 0.05 + Math.cos(a) * r * 1.1 * 1.12, Math.cos(a) * 0.12, 0, -Math.sin(a) * 0.12);
+  }
   // Lower rim and battle damage
   k.lathe([[r * 1.12, hy - r * 1.2], [r * 1.04, hy - r * 1.0]], 0, 0, -r * 0.03, D, 8, 1, 1.08);
   scratch(k, r * 0.6, r * 0.55, hy + r * 0.62, r * 0.8, 0.5, 0.65);
@@ -87,7 +106,7 @@ function bastardSword(k: K, g: THREE.Group, gold: boolean): void {
   k.add(frustumGeo(0.024, 0.8, 0.034, 0.5), gold ? '#120c0a' : FULLER, 0, 0.72, 0);
   if (gold) {
     // An ember burning down the fuller and in the pommel
-    addGlow(g, new THREE.BoxGeometry(0.009, 0.74, 0.036), PAL.ember, 0, 0.71, 0, 3.2);
+    addGlow(g, new THREE.BoxGeometry(0.008, 0.72, 0.035), PAL.ember, 0, 0.7, 0, 2.7);
     addGlow(g, new THREE.OctahedronGeometry(0.016, 0), PAL.ember, 0, -0.155, 0.034, 3);
     // Gilded edge bevel near the guard
     for (const sx of [-1, 1]) cbox(k, 0.008, 0.26, 0.03, sx * 0.058, 0.43, 0, GOLD_HI, 0, 0, -sx * 0.02);
@@ -107,11 +126,13 @@ export function buildHero(capeColor: string, sword: 'sword' | 'goldsword'): Rig 
   // The cosmetic colour, weathered (desaturated, darkened) so it sits in the dark palette but
   // keeps its hue; the tabard is a much darker dye of the same colour
   const cape = weather(capeColor, 0.4, 0.3);
-  const tabard = weather(capeColor, 0.85, 0.5);
+  // The plume keeps more of the dye so it reads against the steel
+  const plume = weather(capeColor, 0.15, 0.15);
+  const tabard = weather(capeColor, 0.72, 0.45);
   return knight({
     bulk: 1.2,
     col: { plate: M, dark: D, trim: GOLD, mail: PAL.iron, cloth: PAL.charcoal, leather: PAL.leatherDark },
-    helm: (k, glow) => captainHelm(k, glow, cape),
+    helm: (k, glow) => captainHelm(k, glow, plume),
     pauldron: (k, s) => {
       const left = s < 0;
       const ps = { size: left ? 0.185 : 0.17, lames: 4, plate: M, dark: D, trim: GOLD, haute: left ? 0.17 : 0.11, rivets: 3, facet: true };
