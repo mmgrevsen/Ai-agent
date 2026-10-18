@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../../../art/darkArt';
-import { K, shade, type V } from '../../../base3d/sculpt';
+import { K, shade, shapeFrom, taperTube, type V } from '../../../base3d/sculpt';
 import { glowMaterial } from '../../../base3d/style';
 import { addMesh, newRig, pivot, type Rig } from '../../rig';
-import { cbox, frustumGeo, HEAD_R, HEAD_Y } from '../parts';
+import { cbox, frustumGeo, HEAD_R, HEAD_Y, metal } from '../parts';
 
 /**
  * Shared anatomy for the lean, cloth-and-leather humanoids (rangers, marksman, assassin, sapper,
@@ -600,4 +600,429 @@ export function mix(a: string, b: string, t: number): string {
 /** Thin dark gouge on a surface (battle damage). */
 export function gouge(k: K, x: number, y: number, z: number, len: number, rz: number, ry = 0): void {
   cbox(k, len, 0.009, 0.008, x, y, z, PAL.void, 0, ry, rz);
+}
+
+// --- Dark ornate plate (client reference set) ----------------------------------------------------
+// Glossy near-black plate with gold inlay, sculpted pointed visors, crescent pauldrons and heavy
+// capes. Metal at level >= 0.6 also gets the shader's engraved filigree, so ONYX reads as ornate.
+
+/** Near-black glossy plate. */
+export const ONYX = metal('#24262d', 0.74);
+/** Raised ridges and plate edges (a touch lighter so the forms read). */
+export const ONYX_HI = metal('#4c505b', 0.8);
+/** Recessed under-plates. */
+export const ONYX_DK = metal('#17181d', 0.66);
+export const GILT = PAL.gold;
+export const GILT_HI = PAL.goldLight;
+
+/** Surface sampled as f(phi, t): phi 0 = front (+z) turning towards +x, t 0 → 1 bottom → top. */
+export type Surf = (phi: number, t: number) => V;
+
+/** Grid mesh of a sampled surface (outward faces when f winds like a lathe). */
+export function surfGeo(f: Surf, nPhi: number, nT: number, phi0 = 0, phiLen = Math.PI * 2, t0 = 0, t1 = 1): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const idx: number[] = [];
+  for (let j = 0; j <= nT; j++) for (let i = 0; i <= nPhi; i++) pos.push(...f(phi0 + (phiLen * i) / nPhi, t0 + ((t1 - t0) * j) / nT));
+  const row = nPhi + 1;
+  for (let j = 0; j < nT; j++)
+    for (let i = 0; i < nPhi; i++) {
+      const a = j * row + i;
+      const b = a + row;
+      idx.push(a, a + 1, b, a + 1, b + 1, b);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** A point on a surface pushed `out` along its rough outward direction. */
+export function onSurf(f: Surf, phi: number, t: number, out = 0): V {
+  const p = f(phi, t);
+  return [p[0] + Math.sin(phi) * out, p[1], p[2] + Math.cos(phi) * out];
+}
+
+/** Thin tube through points with few segments (inlay lines, piping): far cheaper than K.curve. */
+export function line(k: K, pts: V[], r: number, hex: string, radial = 3, r1 = r * 0.8): K {
+  return k.add(taperTube(pts, r, r1, radial, Math.max(3, (pts.length - 1) * 3)), hex, 0, 0, 0);
+}
+
+/** Thin raised line following a surface (gold inlay, ridges). pts: [phi, t]. */
+export function surfLine(k: K, f: Surf, pts: [number, number][], r: number, hex: string, out = 0.003, radial = 3): K {
+  return line(
+    k,
+    pts.map(([p, t]) => onSurf(f, p, t, out + r * 0.5)),
+    r,
+    hex,
+    radial,
+  );
+}
+
+function interp(prof: [number, number][], t: number): number {
+  if (t <= prof[0]![0]) return prof[0]![1];
+  for (let i = 1; i < prof.length; i++) {
+    const [t1, v1] = prof[i]!;
+    const [t0, v0] = prof[i - 1]!;
+    if (t <= t1) return v0 + ((v1 - v0) * (t - t0)) / (t1 - t0);
+  }
+  return prof[prof.length - 1]![1];
+}
+
+export interface HelmLook {
+  /** Size factor on the head radius. */
+  size?: number;
+  /** Forward projection of the pointed visor (in head radii). */
+  keel?: number;
+  /** Height (t) of the visor point. */
+  keelT?: number;
+  /** Swept-back spire at the crown (in head radii): tall pointed helms. */
+  peak?: number;
+  /** Bottom front pulled down into a pointed chin guard. */
+  chin?: number;
+  /** Sideways flattening of the cheeks (angular face). */
+  cheek?: number;
+  /** z offset of the whole helm. */
+  z?: number;
+  /** Radius profile [t, r] in head radii, bottom (t 0) → top (t 1). */
+  profile?: [number, number][];
+}
+
+const HELM_PROFILE: [number, number][] = [
+  [0, 0.88],
+  [0.14, 1.0],
+  [0.34, 1.07],
+  [0.55, 1.08],
+  [0.72, 0.99],
+  [0.86, 0.74],
+  [0.95, 0.42],
+  [1, 0.04],
+];
+
+/** Sculpted closed helm with a pointed visor ridge (head centre at HY): returns its surface. */
+export function visorSurf(o: HelmLook = {}): Surf {
+  const R = HR * (o.size ?? 1);
+  const keel = o.keel ?? 0.5;
+  const kt = o.keelT ?? 0.4;
+  const peak = o.peak ?? 0;
+  const chin = o.chin ?? 0.25;
+  const cheek = o.cheek ?? 0.12;
+  const prof = o.profile ?? HELM_PROFILE;
+  const z0 = o.z ?? 0;
+  return (phi, t) => {
+    const rr = interp(prof, t) * R;
+    const c = Math.cos(phi);
+    const front = Math.max(0, c);
+    const f5 = front ** 5;
+    const bump = Math.exp(-(((t - kt) / 0.26) ** 2));
+    let y = HY + R * (-1.12 + 2.42 * t);
+    let z = rr * c * 1.06 + R * keel * f5 * bump + z0;
+    const x = rr * Math.sin(phi) * (1 - cheek * front);
+    if (t < 0.22) y -= R * chin * front ** 6 * (1 - t / 0.22);
+    if (t > 0.55 && peak > 0) {
+      const u = ((t - 0.55) / 0.45) ** 2;
+      y += R * peak * u;
+      z -= R * peak * 0.45 * u;
+    }
+    return [x, y, z];
+  };
+}
+
+/** Two angled glowing eye slits on a helm surface (V-shaped, outer ends raised). */
+export function slitEyes(parent: THREE.Object3D, k: K, f: Surf, hex: string, o: { phi?: number; t?: number; w?: number; h?: number; tilt?: number; lum?: number } = {}): THREE.Mesh {
+  const phi = o.phi ?? 0.42;
+  const t = o.t ?? 0.52;
+  const w = o.w ?? HR * 0.5;
+  const h = o.h ?? HR * 0.065;
+  const tilt = o.tilt ?? 0.32;
+  const parts: GlowPart[] = [];
+  for (const s of [-1, 1]) {
+    const p = onSurf(f, s * phi, t, 0.004);
+    const q = onSurf(f, s * phi, t, 0.001);
+    cbox(k, w * 1.12, h * 2.1, 0.012, q[0], q[1], q[2], SHADOW, 0, s * phi, -s * tilt);
+    parts.push([new THREE.BoxGeometry(w, h, 0.006), p[0], p[1], p[2], 0, s * phi, -s * tilt]);
+  }
+  return glow(parent, hex, o.lum ?? 6, parts);
+}
+
+/** Swept blade crest standing on the helm's midline; shape x runs backwards, y up. */
+export function crest(k: K, pts: [number, number][], y: number, z: number, hex: string, thick = 0.012): K {
+  return k.plate(shapeFrom(pts), thick, thick * 0.4, 0, y, z, hex, 0, Math.PI / 2, 0);
+}
+
+export interface PauldronLook {
+  r?: number;
+  lames?: number;
+  plate?: string;
+  hi?: string;
+  trim?: string;
+  /** Crescent horn length (0 = none). */
+  horn?: number;
+  /** Small spikes along the lower lame. */
+  spikes?: number;
+  /** Extra outward tilt. */
+  tilt?: number;
+}
+
+/** Layered crescent pauldron with gold-edged lames and a swept horn, drawn into an arm kit. */
+export function crescentPauldron(k: K, s: number, o: PauldronLook = {}): void {
+  const r0 = o.r ?? 0.15;
+  const n = o.lames ?? 3;
+  const plate = o.plate ?? ONYX;
+  const hi = o.hi ?? ONYX_HI;
+  const trim = o.trim ?? GILT;
+  const th = Math.PI * 0.42;
+  for (let i = 0; i < n; i++) {
+    const r = r0 * (1 - i * 0.07);
+    const x = s * (0.035 + i * 0.016);
+    const y = 0.05 - i * 0.062;
+    const rz = -s * (0.32 + i * 0.13 + (o.tilt ?? 0));
+    const sc: [number, number, number] = [1.12, 0.62, 1.2];
+    k.add(new THREE.SphereGeometry(r, 14, 3, 0, Math.PI * 2, 0, th), i % 2 ? hi : plate, x, y, 0, 0, 0, rz, ...sc);
+    const rim = new THREE.TorusGeometry(r * Math.sin(th), 0.0065 / sc[1], 3, 12).rotateX(Math.PI / 2).translate(0, r * Math.cos(th), 0);
+    k.add(rim, trim, x, y, 0, 0, 0, rz, ...sc);
+  }
+  // Raised ridge over the top cop
+  k.add(new THREE.ConeGeometry(0.02, r0 * 2.0, 4), hi, s * 0.06, 0.1, 0, Math.PI / 2, 0, -s * 0.3, 1, 1, 0.4);
+  const horn = o.horn ?? 0.3;
+  if (horn > 0) {
+    const h = horn;
+    line(
+      k,
+      [
+        [s * 0.07, 0.09, -0.01],
+        [s * (0.1 + h * 0.4), 0.12 + h * 0.2, -0.03],
+        [s * (0.12 + h * 0.62), 0.12 + h * 0.62, -0.04],
+        [s * (0.08 + h * 0.5), 0.12 + h * 1.0, -0.03],
+      ],
+      0.028,
+      hi,
+      5,
+      0.002,
+    );
+    line(
+      k,
+      [
+        [s * 0.09, 0.07, -0.07],
+        [s * (0.12 + h * 0.4), 0.08 + h * 0.15, -0.1],
+        [s * (0.13 + h * 0.5), 0.08 + h * 0.5, -0.11],
+      ],
+      0.02,
+      plate,
+      4,
+      0.002,
+    );
+  }
+  const sp = o.spikes ?? 0;
+  for (let i = 0; i < sp; i++) {
+    const a = -0.9 + (1.8 * i) / Math.max(1, sp - 1);
+    k.add(new THREE.ConeGeometry(0.014, 0.09, 4), hi, s * (0.14 + Math.cos(a) * 0.02), -0.06, Math.sin(a) * 0.13, Math.sin(a) * 0.5, 0, -s * 1.9);
+  }
+}
+
+/** Point on the torso surface at (x, y), `grow` outside the bare body (front if z >= 0). */
+export function onTorso(b: number, x: number, y: number, grow = 0, back = false): V {
+  const rx = torsoR(y) * b + grow;
+  const rm = 0.18 * b;
+  const sz = (rm * TORSO_DEPTH + grow) / (rm + grow);
+  const u = Math.min(0.98, Math.abs(x) / rx);
+  const z = rx * sz * Math.sqrt(1 - u * u);
+  return [x, y, back ? -z : z];
+}
+
+/** Gold inlay line across the torso front through (x, y) points. */
+export function torsoLine(k: K, b: number, pts: [number, number][], grow: number, r = 0.0035, hex: string = GILT, back = false): K {
+  return line(
+    k,
+    pts.map(([x, y]) => onTorso(b, x, y, grow + r * 0.6, back)),
+    r,
+    hex,
+  );
+}
+
+export interface CuirassLook {
+  plate?: string;
+  hi?: string;
+  dark?: string;
+  trim?: string;
+  /** Top and bottom of the breastplate. */
+  y0?: number;
+  y1?: number;
+  grow?: number;
+  /** Abdominal lames under the breastplate. */
+  lames?: number;
+  /** Gold chevron inlays down the chest. */
+  chevrons?: number;
+  /** Plate back as well as front. */
+  back?: boolean;
+}
+
+/** Fitted, glossy black breastplate with a medial ridge, gold inlay and stepped lames. */
+export function cuirass(t: K, b: number, o: CuirassLook = {}): { grow: number } {
+  const plate = o.plate ?? ONYX;
+  const hi = o.hi ?? ONYX_HI;
+  const dark = o.dark ?? ONYX_DK;
+  const trim = o.trim ?? GILT;
+  const y0 = o.y0 ?? 1.3;
+  const y1 = o.y1 ?? 1.6;
+  const g = o.grow ?? 0.032;
+  shell(t, b, plate, y0, y1, g, { seg: 20, phiStart: o.back ? 0 : -1.5, phiLen: o.back ? Math.PI * 2 : 3.0 });
+  // Medial ridge
+  t.add(frustumGeo(0.024, y1 - y0 - 0.04, 0.03, 0.45, 0.6), hi, 0, (y0 + y1) / 2 - 0.01, onTorso(b, 0, (y0 + y1) / 2, g)[2] + 0.004);
+  // Gold edge along the bottom of the breastplate (pointed down at the centre)
+  torsoLine(
+    t,
+    b,
+    [
+      [-0.17 * b, y0 + 0.05],
+      [-0.08 * b, y0 + 0.01],
+      [0, y0 - 0.02],
+      [0.08 * b, y0 + 0.01],
+      [0.17 * b, y0 + 0.05],
+    ],
+    g,
+    0.005,
+    trim,
+  );
+  for (let i = 0; i < (o.chevrons ?? 2); i++) {
+    const yy = y0 + 0.08 + i * 0.085;
+    const w = (0.12 - i * 0.012) * b;
+    torsoLine(t, b, [[-w, yy + 0.07], [-w * 0.5, yy + 0.03], [-0.012, yy]], g, 0.0032, trim);
+    torsoLine(t, b, [[w, yy + 0.07], [w * 0.5, yy + 0.03], [0.012, yy]], g, 0.0032, trim);
+  }
+  const n = o.lames ?? 3;
+  for (let i = 0; i < n; i++) {
+    const ya = y0 - 0.02 - (i + 1) * 0.062;
+    shell(t, b, i % 2 ? dark : hi, ya, ya + 0.07, g - 0.004 + i * 0.002, { seg: 14, phiStart: -1.25, phiLen: 2.5 });
+    torsoLine(t, b, [[-0.14 * b, ya + 0.004], [0, ya - 0.004], [0.14 * b, ya + 0.004]], g + i * 0.002, 0.0028, trim);
+  }
+  return { grow: g };
+}
+
+/** Steel collar (gorget) rising around the throat, with a gold rim. */
+export function gorget(t: K, hex: string = ONYX, trim: string = GILT, h = 0.1, r = 0.12): void {
+  t.add(new THREE.CylinderGeometry(r * 0.82, r * 1.15, h, 16, 1, true), hex, 0, 1.6 + h / 2, 0.0, 0, 0, 0, 1, 1, 0.92);
+  hoop(t, r * 0.82, 0.006, 0, 1.6 + h, 0, trim, Math.PI / 2, 0, 0, 12);
+}
+
+export interface PlateLimbLook {
+  plate?: string;
+  hi?: string;
+  trim?: string;
+  /** Spike projecting from the elbow / knee. */
+  spike?: number;
+}
+
+/** Couter with a back spike, flared vambrace with gold rims (arm kit, wrist at y −0.6). */
+export function plateForearm(k: K, s: number, o: PlateLimbLook = {}): void {
+  const plate = o.plate ?? ONYX;
+  const hi = o.hi ?? ONYX_HI;
+  const trim = o.trim ?? GILT;
+  k.lathe(
+    [
+      [0.044, -0.6],
+      [0.05, -0.52],
+      [0.058, -0.42],
+      [0.064, -0.37],
+    ],
+    0,
+    0,
+    0,
+    plate,
+    12,
+    1,
+    0.92,
+  );
+  hoop(k, 0.046, 0.005, 0, -0.595, 0, trim, Math.PI / 2, 0, 0, 8);
+  hoop(k, 0.064, 0.005, 0, -0.372, 0, trim, Math.PI / 2, 0, 0, 8);
+  // Flared, pointed upper edge on the outside of the vambrace
+  k.add(new THREE.ConeGeometry(0.03, 0.12, 4), hi, s * 0.045, -0.35, -0.01, 0, 0, -s * 0.25, 1, 1, 0.35);
+  // Couter (elbow cop) with a spike
+  k.add(new THREE.SphereGeometry(0.06, 10, 3, 0, Math.PI * 2, 0, Math.PI * 0.5), hi, 0, -0.33, -0.015, -Math.PI / 2 - 0.25, 0, 0, 1, 1, 0.8);
+  if ((o.spike ?? 0.1) > 0) k.add(new THREE.ConeGeometry(0.018, o.spike ?? 0.1, 5), plate, 0, -0.33, -0.08, -Math.PI / 2 - 0.5, 0, 0);
+}
+
+/** Pointed knee cop, cuisse plate and shin greave following a legBase leg. */
+export function plateLeg(k: K, l: { knee: V; ankle: V; bend: number }, o: PlateLimbLook & { thigh?: boolean; greave?: boolean } = {}): void {
+  const plate = o.plate ?? ONYX;
+  const hi = o.hi ?? ONYX_HI;
+  const trim = o.trim ?? GILT;
+  if (o.thigh !== false) {
+    k.add(frustumGeo(0.15, 0.3, 0.05, 0.85, 1, 0.0), plate, 0, l.knee[1] * 0.45, 0.07, -l.bend * 0.6, 0, 0);
+    hoop(k, 0.075, 0.0045, 0, l.knee[1] * 0.45 - 0.15, 0.072, trim, Math.PI / 2 - l.bend, 0, 0, 10, Math.PI);
+  }
+  // Knee: rounded cop with a forward spike and side wings
+  k.add(new THREE.SphereGeometry(0.066, 10, 3, 0, Math.PI * 2, 0, Math.PI * 0.5), hi, 0, l.knee[1], l.knee[2] + 0.035, Math.PI / 2 - 0.1, 0, 0, 1, 1, 0.75);
+  k.add(new THREE.ConeGeometry(0.022, o.spike ?? 0.08, 5), plate, 0, l.knee[1] + 0.005, l.knee[2] + 0.1, Math.PI / 2 - 0.15, 0, 0);
+  if (o.greave !== false) {
+    const top = onShin(l, 0.1, 0.045);
+    const bot = onShin(l, 0.92, 0.03);
+    k.add(
+      surfGeo(
+        (phi, t) => {
+          const r = 0.07 - t * 0.0 + (1 - t) * 0.0;
+          const y = bot[1] + (top[1] - bot[1]) * t;
+          const zc = bot[2] + (top[2] - bot[2]) * t - 0.035;
+          const rr = r * (0.82 + 0.18 * Math.sin(Math.PI * (0.25 + 0.6 * t)));
+          return [Math.sin(phi) * rr, y, zc + Math.cos(phi) * rr * 1.05];
+        },
+        8,
+        3,
+        -1.45,
+        2.9,
+      ),
+      plate,
+      0,
+      0,
+      0,
+    );
+    k.add(frustumGeo(0.014, top[1] - bot[1], 0.012, 0.4), hi, 0, (top[1] + bot[1]) / 2, (top[2] + bot[2]) / 2 + 0.04, l.bend, 0, 0);
+  }
+}
+
+/**
+ * Torn, folded cloth hanging from its top edge (like parts.ragGeo) but single-sided: the rig
+ * material renders both faces, so this costs half the triangles.
+ */
+export function capeGeo(w: number, h: number, o: { folds?: number; depth?: number; flare?: number; tatter?: number; seed?: number; curl?: number; cols?: number; rows?: number } = {}): THREE.BufferGeometry {
+  const { folds = 3, depth = 0.04, flare = 0.15, tatter = 0.18, seed = 7, curl = 0.1, cols = 14, rows = 7 } = o;
+  const r = rnd(seed);
+  const geo = new THREE.PlaneGeometry(w, h, cols, rows);
+  const p = geo.getAttribute('position') as THREE.BufferAttribute;
+  const cut: number[] = Array.from({ length: cols + 1 }, () => r());
+  for (let i = 0; i < p.count; i++) {
+    const px = p.getX(i);
+    const py = p.getY(i);
+    const down = (h / 2 - py) / h;
+    const col = Math.round(((px + w / 2) / w) * cols);
+    const tear = down > 0.7 ? Math.pow((down - 0.7) / 0.3, 1.5) * tatter * h * (0.3 + cut[col]! * 1.2) : 0;
+    p.setX(i, px * (1 + flare * down));
+    p.setY(i, py + tear);
+    p.setZ(i, Math.sin((px / w) * Math.PI * 2 * folds + cut[col]! * 0.6) * depth * (0.3 + down) - down * curl);
+  }
+  geo.computeVertexNormals();
+  geo.translate(0, -h / 2, 0);
+  geo.deleteAttribute('uv');
+  return geo;
+}
+
+/** Heavy, layered, tattered cloak hung from the cape pivot (top centre). */
+export function heavyCape(k: K, w: number, h: number, hex: string, o: { seed?: number; inner?: string | null; tatter?: number; folds?: number; collar?: string | null } = {}): void {
+  const seed = o.seed ?? 31;
+  k.add(capeGeo(w, h, { folds: o.folds ?? 4, depth: 0.06, flare: 0.5, tatter: o.tatter ?? 0.34, seed, curl: 0.2, cols: 16, rows: 8 }), hex, 0, 0, 0);
+  if (o.inner !== null) k.add(capeGeo(w * 0.86, h * 0.82, { folds: 3, depth: 0.05, flare: 0.4, tatter: 0.4, seed: seed + 5, curl: 0.12, cols: 12, rows: 6 }), o.inner ?? shade(hex, -0.25), 0, -0.02, 0.025);
+  if (o.collar) k.add(new THREE.CylinderGeometry(w * 0.42, w * 0.5, 0.08, 12, 1, true, Math.PI * 0.6, Math.PI * 0.8), o.collar, 0, -0.01, 0.1, 0, 0, 0, 1, 1, 0.6);
+}
+
+/** Flat glowing sigil (chest emblems, rune marks) built from a list of strokes in its plane. */
+export function sigilParts(strokes: [number, number, number, number][], w: number, x: number, y: number, z: number, ry = 0, rx = 0): GlowPart[] {
+  return strokes.map(([ax, ay, bx, by]) => {
+    const len = Math.hypot(bx - ax, by - ay);
+    const g = new THREE.BoxGeometry(w, len, 0.004);
+    g.rotateZ(Math.atan2(-(bx - ax), by - ay));
+    g.translate((ax + bx) / 2, (ay + by) / 2, 0);
+    g.rotateX(rx);
+    g.rotateY(ry);
+    return [g, x, y, z] as GlowPart;
+  });
 }

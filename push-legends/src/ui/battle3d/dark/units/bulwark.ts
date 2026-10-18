@@ -1,45 +1,55 @@
 import * as THREE from 'three';
 import { PAL } from '../../../art/darkArt';
 import { shapeFrom, type K } from '../../../base3d/sculpt';
-import { capGeo, cbox, frustumGeo, HEAD_R, HEAD_Y, metal, prismGeo } from '../parts';
-import { band, CHEST_SZ, copTop, eyeSlit, flat, gouge, grip, knight, mtl, rivet, scratch, shellGeo, spaulder, type KnightParts } from './_armored';
+import { capGeo, cbox, HEAD_R, HEAD_Y, metal, prismGeo } from '../parts';
+import { band, bladedPauldron, CHEST_SZ, chestLines, finGeo, flat, GlowBatch, gouge, grip, hoop, knight, lineGeo, mtl, rivet, scratch, shellGeo, type KnightParts } from './_armored';
 import type { UnitDef } from './types';
 
 /**
- * The Bulwark (card: aegis_guardian, rare). A walking wall: a hulking knight in weathered steel
- * behind a huge iron tower shield painted with a blood-red portcullis, a frog-mouthed helm sunk
- * between massive pauldrons, and a short flanged mace for the gaps in the line.
+ * The Bulwark (card: aegis_guardian, rare). A walking wall: a hulking knight in glossy black iron
+ * behind a huge tower pavise whose raised portcullis has forge-fire burning behind its bars, a
+ * frog-mouthed helm crowned with battlements and sunk between massive spiked pauldrons, and a
+ * short flanged mace for the gaps in the line. Accent: molten orange.
  */
-const P = metal('#7b8189', 0.75);
-const D = PAL.blackSteel;
+const P = metal('#30333a', 0.72);
+const D = metal('#1a1b20', 0.62);
 const T = PAL.iron;
-const HI = mtl(P, 0.2);
-const FACE = metal('#596068', 0.45);
+const HI = metal('#8a929b', 0.85);
+const FACE = metal('#24262c', 0.6);
 const SHADOW = '#060607';
+const MOLTEN = '#ff7a1a';
 
 function frogHelm(k: K, glow: THREE.Object3D): number {
   const r = HEAD_R;
   const hy = HEAD_Y - 0.03;
   k.ball(r * 0.9, 0, hy, 0, '#08080a', 1, 1.05, 1.05, 8);
-  // Lower bowl: a jutting prow with a sharp ridge, flaring down onto the breastplate
-  k.add(flat(new THREE.LatheGeometry([[1.34, -1.3], [1.26, -0.72], [1.15, -0.1], [1.02, 0.17]].map(([a, y]) => new THREE.Vector2(a! * r, hy + y! * r)), 8)), P, 0, 0, r * 0.2, 0, 0, 0, 1, 1, 1.24);
-  // Upper skull set back; its brow overhangs the slit (the "frog mouth")
-  k.add(flat(capGeo(r * 1.1, Math.PI * 0.5, 8, 3)), P, 0, hy + r * 0.27, -r * 0.08, 0, 0, 0, 1, 0.98, 1.1);
-  k.add(flat(shellGeo([[r * 1.2, hy + r * 0.22], [r * 1.18, hy + r * 0.27], [r * 1.08, hy + r * 0.36]], 0, 1.25, 6, 1.1)), D, 0, 0, -r * 0.06);
-  // The slit: a black gap with two faint embers deep inside
-  cbox(k, r * 1.55, r * 0.075, r * 0.5, 0, hy + r * 0.22, r * 0.95, SHADOW);
-  eyeSlit(k, glow, PAL.ember, hy + r * 0.215, r * 1.04, 0, r * 0.07, r * 0.32, 3, 0, r * 0.32);
-  // Low comb along the crown and a riveted seam
-  k.add(frustumGeo(0.022, r * 0.28, r * 1.9, 0.5, 0.85), D, 0, hy + r * 1.24, -r * 0.12);
+  // Heavy bevor flaring onto the collar
+  k.add(flat(new THREE.LatheGeometry([[1.32, -1.32], [1.2, -0.82], [1.1, -0.3], [1.06, 0.12]].map(([a, y]) => new THREE.Vector2(a! * r, hy + y! * r)), 10)), P, 0, 0, r * 0.04, 0, 0, 0, 1, 1, 1.12);
+  // Domed skull
+  k.add(flat(capGeo(r * 1.1, Math.PI * 0.55, 10, 4)), P, 0, hy + r * 0.1, -r * 0.04, 0, 0, 0, 1, 1.12, 1.08);
+  // Sharp six-sided prow visor jutting forward under the slit
+  k.add(flat(new THREE.ConeGeometry(r * 0.82, r * 1.55, 6)), D, 0, hy - r * 0.3, r * 0.78, Math.PI / 2, Math.PI / 6, 0, 1, 1, 0.72);
+  k.add(flat(new THREE.ConeGeometry(r * 0.1, r * 1.5, 4)), HI, 0, hy - r * 0.02, r * 0.88, Math.PI / 2 + 0.3, 0, 0, 1, 1, 0.5);
+  // Overhanging brow
+  k.add(flat(shellGeo([[r * 1.26, hy + r * 0.36], [r * 1.22, hy + r * 0.43], [r * 1.1, hy + r * 0.54]], 0, 1.25, 8, 1.1)), D, 0, 0, -r * 0.04);
+  // The slit: a black gap with molten light burning inside it
+  cbox(k, r * 1.5, r * 0.12, 0.03, 0, hy + r * 0.29, r * 1.12, SHADOW);
+  const gb = new GlowBatch();
+  for (const sx of [-1, 1]) gb.add(new THREE.BoxGeometry(r * 0.52, r * 0.06, 0.008), sx * r * 0.36, hy + r * 0.29, r * 1.12 + 0.018, 0, sx * 0.3, 0);
+  gb.flush(glow, MOLTEN, 5);
+  // Battlemented comb along the crown, edged in bright steel
+  const c = r * 1.5;
+  k.add(finGeo(shapeFrom([[-c * 0.62, 0], [c * 0.7, 0], [c * 0.7, c * 0.3], [c * 0.42, c * 0.3], [c * 0.42, c * 0.48], [c * 0.16, c * 0.48], [c * 0.16, c * 0.3], [-c * 0.1, c * 0.3], [-c * 0.1, c * 0.52], [-c * 0.36, c * 0.52], [-c * 0.36, c * 0.3], [-c * 0.62, c * 0.3]]), 0.032, 0, hy + r * 1.05, -r * 0.08, 0, 0.005), D, 0, 0, 0);
+  k.add(lineGeo([[0, hy + r * 1.05 + c * 0.3 + 0.004, r * 0.85], [0, hy + r * 1.05 + c * 0.3 + 0.004, -r * 1.1]], 0.005), HI, 0, 0, 0);
   for (let i = 0; i < 7; i++) {
     const a = (i / 6 - 0.5) * 2.6;
-    rivet(k, Math.sin(a) * r * 1.12, hy + r * 0.12, r * 0.14 + Math.cos(a) * r * 1.12 * 1.14, T, 0.009);
+    rivet(k, Math.sin(a) * r * 1.13, hy + r * 0.12, -r * 0.04 + Math.cos(a) * r * 1.13 * 1.1, HI, 0.009);
   }
   // Breaths punched in the right side of the prow, and a deep dent on the left
-  for (let i = 0; i < 6; i++) cbox(k, r * 0.07, r * 0.07, 0.02, r * (0.42 + (i % 2) * 0.16), hy - r * (0.35 + Math.floor(i / 2) * 0.18), r * 1.1, SHADOW, 0, 0.55, 0);
-  k.ball(r * 0.25, -r * 0.65, hy - r * 0.4, r * 0.95, mtl(P, -0.45), 1, 0.8, 0.4, 6);
+  for (let i = 0; i < 6; i++) cbox(k, r * 0.06, r * 0.06, 0.02, r * (0.5 + (i % 2) * 0.15), hy - r * (0.42 + Math.floor(i / 2) * 0.17), r * 1.06 - (i % 2) * r * 0.1, SHADOW, 0, 0.7, 0);
+  k.ball(r * 0.22, -r * 0.62, hy + r * 0.75, r * 0.72, mtl(P, -0.45, 0.6), 1, 0.8, 0.4, 6);
   scratch(k, r * 0.7, -r * 0.2, hy + r * 0.75, r * 0.95, 0.3, -0.2);
-  return hy + r * 1.38;
+  return hy + r * 1.05 + r * 1.5 * 0.52;
 }
 
 const FLANGE = shapeFrom([[0, -0.1], [0.045, -0.075], [0.072, -0.01], [0.06, 0.07], [0, 0.1]]);
@@ -63,7 +73,7 @@ function mace(k: K): void {
  * Tower shield: a curved iron pavise taller than the knight's waist-to-chin, framed in thick
  * blackened bands, with a riveted spine, a viewing notch, ground spikes and a painted portcullis.
  */
-function towerShield(k: K): void {
+function towerShield(k: K, g: THREE.Group): void {
   const R = 1.05;
   const half = 0.37;
   const y0 = -0.74;
@@ -94,14 +104,21 @@ function towerShield(k: K): void {
       const [x, , z] = at(a, y, 0.02);
       rivet(k, x, y, z, PAL.steel, 0.014);
     }
-  // Painted portcullis over the upper two thirds: blood-red bars with spiked feet
+  // Raised iron portcullis over the upper two thirds, forge-fire burning in the gaps behind it
+  const fire = new GlowBatch();
   for (const a of [-0.25, -0.085, 0.085, 0.25]) {
-    const [x, , z] = at(a, 0.2, 0.007);
-    cbox(k, 0.04, 0.5, 0.006, x, 0.24, z, PAL.blood, 0, a, 0);
-    const [fx, , fz] = at(a, -0.05, 0.007);
-    k.add(new THREE.ConeGeometry(0.035, 0.1, 3), PAL.blood, fx, -0.05, fz, Math.PI, a, 0, 1, 1, 0.12);
+    const [x, , z] = at(a, 0.2, 0.012);
+    cbox(k, 0.04, 0.52, 0.016, x, 0.23, z, P, 0, a, 0);
+    cbox(k, 0.008, 0.5, 0.018, x, 0.23, z + 0.002, HI, 0, a, 0);
+    const [fx, , fz] = at(a, -0.06, 0.012);
+    k.add(new THREE.ConeGeometry(0.035, 0.11, 4), P, fx, -0.07, fz, Math.PI, a, 0, 1, 1, 0.3);
   }
-  for (const y of [0.3, 0.44]) k.add(shellGeo([[R + 0.006, y - 0.02], [R + 0.006, y + 0.02]], 0, 0.3, 4), PAL.blood, cx, 0, cz);
+  for (const a of [-0.335, -0.168, 0, 0.168, 0.335]) {
+    const [x, , z] = at(a, 0.2, 0.003);
+    fire.add(new THREE.BoxGeometry(a === 0 || Math.abs(a) > 0.3 ? 0.026 : 0.034, 0.46, 0.004), x, 0.22, z, 0, a, 0);
+  }
+  fire.flush(g, MOLTEN, 2.4);
+  for (const y of [0.3, 0.44]) k.add(shellGeo([[R + 0.008, y - 0.022], [R + 0.022, y - 0.02], [R + 0.022, y + 0.02], [R + 0.008, y + 0.022]], 0, 0.31, 6), P, cx, 0, cz);
   // Ground spikes along the foot so it can be planted
   for (const a of [-0.26, 0, 0.26]) {
     const [x, , z] = at(a, y0, 0.002);
@@ -140,20 +157,16 @@ export const bulwark: UnitDef = {
       bulk: 1.36,
       col: { plate: P, dark: D, trim: T, mail: PAL.iron, cloth: PAL.cloth, leather: PAL.leatherDark },
       helm: frogHelm,
-      pauldron: (k, s) => {
-        const ps = { size: 0.2, lames: 4, plate: P, dark: D, trim: T, haute: 0.17, tilt: 0.45, stretch: [1.05, 0.95, 1.15] as [number, number, number], rivets: 4, facet: true };
-        spaulder(k, s, ps);
-        // Reinforcing ridge over the cop
-        const [tx, ty] = copTop(ps, s);
-        k.add(frustumGeo(0.03, 0.035, 0.36, 0.6, 0.9), HI, tx, ty + 0.01, 0, 0, 0, -s * 0.45);
-      },
+      pauldron: (k, s) => bladedPauldron(k, s, { size: 0.22, lames: 4, plate: P, dark: D, edge: HI, tilt: 0.45, stretch: [1.08, 0.9, 1.18], spikes: 3, haute: 0.2, point: 0.03 }),
       weapon: (k) => mace(k),
       shield: towerShield,
       shieldTilt: 0.15,
       shieldOffset: [0.05, 0.12],
       tabard: { front: null, back: PAL.crimson, len: 0.5, w: 0.24, seed: 41, tatter: 0.4 },
       faulds: 4,
+      edge: HI,
       extra: (p: KnightParts) => {
+        chestLines(p, HI, { abs: false });
         // Heavy chain slung round the hips
         for (let i = 0; i < 9; i++) {
           const a = -1.2 + i * 0.3;
@@ -170,6 +183,15 @@ export const bulwark: UnitDef = {
           const y = 1.25 - i * 0.075;
           p.torso.add(shellGeo([[p.chestR(y - 0.08) + 0.014, y - 0.08], [p.chestR(y) + 0.008, y]], Math.PI, 1.3, 6, CHEST_SZ * 1.02), i % 2 ? P : D, 0, 0, 0.004);
         }
+        // A furnace grille in the backplate, molten light behind its bars (reads from behind)
+        {
+          const rg = new GlowBatch();
+          const [bx, by, bz] = p.onChest(Math.PI, 1.36, 0.012);
+          p.torso.add(flat(new THREE.CylinderGeometry(0.085, 0.085, 0.016, 8)), D, bx, by, bz + 0.004, Math.PI / 2 + 0.1, 0, Math.PI / 8);
+          hoop(p.torso, 0.085, 0.008, bx, by, bz - 0.004, HI, Math.PI / 2 + 0.1, 0, 0, 8);
+          for (const dy of [-0.04, 0, 0.04]) rg.add(new THREE.BoxGeometry(0.11 - Math.abs(dy) * 0.9, 0.016, 0.01), bx, by + dy, bz - 0.006, 0.1, 0, 0);
+          rg.flush(p.frame, MOLTEN, 3);
+        }
         // Old wounds in the plate
         const [x, y, z] = p.onChest(0.3, 1.27, 0.006);
         gouge(p.torso, 0.18, x, y, z, -0.6, p.chestYaw(0.3));
@@ -183,7 +205,7 @@ export const bulwark: UnitDef = {
     // Shield planted upright in front, mace raised over it
     pose: (rig) => {
       rig.armR?.rotation.set(-1.25, 0, 0.32);
-      rig.armL?.rotation.set(-0.3, 0, 0.04);
+      rig.armL?.rotation.set(-0.08, 0, 0.04);
       rig.legs.forEach((l, i) => (l.rotation.x = i === 0 ? 0.25 : -0.2));
       rig.body.rotation.y = 0.1;
       rig.neck?.rotation.set(0.06, -0.12, 0);

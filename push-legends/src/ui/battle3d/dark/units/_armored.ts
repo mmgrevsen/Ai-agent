@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../../../art/darkArt';
-import { K, shapeFrom, shade } from '../../../base3d/sculpt';
+import { K, shapeFrom, shade, taperTube, type V } from '../../../base3d/sculpt';
 import { addGlow, addMesh, newRig, pivot, type Rig } from '../../rig';
 import { capGeo, cbox, frustumGeo, HEAD_Y, metal, prismGeo, ragGeo } from '../parts';
 
@@ -194,7 +195,7 @@ export interface KnightSpec {
   shieldOffset?: [number, number];
   /** Left-hand item that is not a shield (drawn in the hand group). */
   offhand?: (k: K, g: THREE.Group) => void;
-  cape?: { color: string; w?: number; h?: number; seed?: number; tatter?: number; folds?: number; depth?: number };
+  cape?: { color: string; w?: number; h?: number; seed?: number; tatter?: number; folds?: number; depth?: number; flare?: number; curl?: number; /** Heavy drape over the back of the shoulders, in the cape colour. */ mantle?: boolean; /** Gilded / steel edging along the cape's top. */ trim?: string };
   tabard?: { front: string | null; back?: string | null; len?: number; w?: number; seed?: number; tatter?: number };
   /** Number of fauld lames below the cuirass (default 3). */
   faulds?: number;
@@ -202,6 +203,8 @@ export interface KnightSpec {
   mailSkirt?: boolean;
   /** Tassets over the thighs (default true). */
   tassets?: boolean;
+  /** Thin raised edging (gold or bright steel) along the faulds and plate edges. */
+  edge?: string;
   /** Arm pivot spread (× 0.26 · bulk). */
   shoulderW?: number;
   /** Bespoke details (draw into the kits, attach glows to the groups). */
@@ -344,12 +347,18 @@ export function knight(spec: KnightSpec): Rig {
     capeKit = new K();
     const cs = spec.cape;
     capeKit.add(
-      ragGeo((cs.w ?? 0.58) * b, cs.h ?? 1.4, { folds: cs.folds ?? 3, depth: cs.depth ?? 0.05, flare: 0.4, tatter: cs.tatter ?? 0.3, seed: cs.seed ?? 31, curl: 0.16 }),
+      ragGeo((cs.w ?? 0.58) * b, cs.h ?? 1.4, { folds: cs.folds ?? 3, depth: cs.depth ?? 0.05, flare: cs.flare ?? 0.4, tatter: cs.tatter ?? 0.3, seed: cs.seed ?? 31, curl: cs.curl ?? 0.16 }),
       cs.color,
       0,
       0,
       0,
     );
+    if (cs.trim) capeKit.add(new THREE.CylinderGeometry(0.016, 0.016, (cs.w ?? 0.58) * b * 0.96, 6), cs.trim, 0, -0.012, 0.006, 0, 0, Math.PI / 2);
+    if (cs.mantle) {
+      // Heavy cloth draped over the back of the shoulders, folding into the cape
+      tk.add(shellGeo(scaleP([[0.3, 1.36], [0.29, 1.47], [0.25, 1.56], [0.17, 1.63]], b), Math.PI, 1.75, 12, 0.86, 0, -0.06), cs.color, 0, 0, -0.006);
+      tk.add(shellGeo(scaleP([[0.305, 1.355], [0.3, 1.39]], b), Math.PI, 1.72, 12, 0.87, 0, -0.06), shade(cs.color, -0.3), 0, 0, -0.008);
+    }
     rig.cape = cp;
   }
 
@@ -374,7 +383,7 @@ function torsoKit(k: K, b: number, c: PlateColors, spec: KnightSpec, prof: [numb
   // Padded core so no gap ever shows (waist, under the arms)
   k.add(prismGeo(0.16 * b, 0.5, 8, 1.2), c.cloth, 0, 1.25, 0, 0, 0, 0, 1, 1, 0.8);
   // Cuirass: faceted oval with a keel down the front and the spine
-  k.lathe(prof, 0, 0, 0.008, c.plate, 8, 1, CUIRASS_SZ);
+  k.lathe(prof, 0, 0, 0.008, c.plate, 12, 1, CUIRASS_SZ);
   // Keel highlight
   const fz = (y: number) => profR(prof, y) * CUIRASS_SZ + 0.012;
   for (const [y0, y1] of [
@@ -389,13 +398,14 @@ function torsoKit(k: K, b: number, c: PlateColors, spec: KnightSpec, prof: [numb
   // Arm openings: dark gussets under the shoulders
   for (const s of [-1, 1]) k.ball(0.075 * b, s * 0.2 * b, 1.46, 0, c.mail, 0.8, 1, 1, 6);
   // Gorget: two lames round the neck
-  k.lathe(scaleP([[0.17, 1.55], [0.155, 1.6], [0.1, 1.66], [0.088, 1.68]], b), 0, 0, 0, c.dark, 8, 1, 0.92);
-  k.lathe(scaleP([[0.098, 1.63], [0.09, 1.7], [0.08, 1.73]], b), 0, 0, 0, c.plate, 8, 1, 0.95);
+  k.lathe(scaleP([[0.17, 1.55], [0.155, 1.6], [0.1, 1.66], [0.088, 1.68]], b), 0, 0, 0, c.dark, 12, 1, 0.92);
+  k.lathe(scaleP([[0.098, 1.63], [0.09, 1.7], [0.08, 1.73]], b), 0, 0, 0, c.plate, 12, 1, 0.95);
   // Faulds: lames stepping out over the hips
   const nf = spec.faulds ?? 3;
   for (let i = 0; i < nf; i++) {
     const y = 1.07 - i * 0.065;
-    k.add(shellGeo(scaleP([[0.212 + i * 0.016, y - 0.085], [0.185 + i * 0.016, y]], b), 0, Math.PI, 8, 0.82), i % 2 ? c.dark : c.plate, 0, 0, 0);
+    k.add(shellGeo(scaleP([[0.212 + i * 0.016, y - 0.085], [0.185 + i * 0.016, y]], b), 0, Math.PI, 12, 0.82, 0, i === nf - 1 ? 0.03 : 0), i % 2 ? c.dark : c.plate, 0, 0, 0);
+    if (spec.edge) k.add(arcLine(scaleP([[0.212 + i * 0.016 + 0.003, y - 0.085]], b)[0]![0], y - 0.085, 0, Math.PI, 0.82, 0.006, 12), spec.edge, 0, 0, 0);
   }
   // Mail skirt
   if (spec.mailSkirt ?? true) k.lathe(scaleP([[0.235, 0.8], [0.22, 0.9], [0.19, 1.0]], b), 0, 0, 0, c.mail, 8, 1, 0.84);
@@ -453,12 +463,12 @@ function armKit(k: K, s: number, b: number, c: PlateColors): void {
   // Mail sleeve under the plate
   k.add(prismGeo(w * 0.92, 0.36, 6), c.mail, 0, -0.16, 0);
   // Rerebrace
-  k.lathe([[w * 1.02, -0.31], [w * 1.12, -0.2], [w * 1.08, -0.1]], 0, 0, 0, c.plate, 8);
+  k.lathe([[w * 1.02, -0.31], [w * 1.12, -0.2], [w * 1.08, -0.1]], 0, 0, 0, c.plate, 10);
   // Couter: cup on the elbow with a fan on the outside
   k.add(capGeo(w * 1.28, Math.PI * 0.5, 8, 3), c.plate, 0, -0.33, -0.012, -Math.PI / 2 - 0.25, 0, 0);
   k.plate(FAN, 0.014, 0, s * w * 1.05, -0.33, -0.01, c.dark, 0, s * Math.PI / 2, 0, 0.95);
   // Vambrace with a ridge
-  k.lathe([[w * 0.98, -0.585], [w * 1.04, -0.5], [w * 1.12, -0.41], [w * 1.04, -0.35]], 0, 0, 0, c.plate, 8);
+  k.lathe([[w * 0.98, -0.585], [w * 1.04, -0.5], [w * 1.12, -0.41], [w * 1.04, -0.35]], 0, 0, 0, c.plate, 10);
   cbox(k, 0.01, 0.2, 0.01, 0, -0.47, w * 1.1, hi, -0.06);
   // Gauntlet: flared cuff, knuckle plate, curled fingers and thumb
   k.lathe([[w * 0.95, -0.61], [w * 1.38, -0.5]], 0, 0, 0, c.dark, 8);
@@ -476,7 +486,7 @@ function legKit(k: K, s: number, b: number, c: PlateColors, tassets: boolean): v
   // Padded hose / mail under the plate (fills the knee and hip gaps)
   k.add(prismGeo(0.072 * lb, 0.62, 6, 1.15), c.mail, 0, -0.38, 0);
   // Cuisse
-  k.lathe(scaleP([[0.074, -0.47], [0.094, -0.36], [0.104, -0.2], [0.1, -0.05], [0.082, 0.04]], lb), 0, 0, 0.006, c.plate, 8, 1, 1.06);
+  k.lathe(scaleP([[0.074, -0.47], [0.094, -0.36], [0.104, -0.2], [0.1, -0.05], [0.082, 0.04]], lb), 0, 0, 0.006, c.plate, 10, 1, 1.06);
   cbox(k, 0.01, 0.36, 0.01, 0, -0.25, 0.104 * lb * 1.06 + 0.004, hi, 0.06);
   // Poleyn: knee cop, side fan and lames
   k.lathe(scaleP([[0.078, -0.455], [0.083, -0.43]], lb), 0, 0, 0.008, c.dark, 8, 1, 1.05);
@@ -484,7 +494,7 @@ function legKit(k: K, s: number, b: number, c: PlateColors, tassets: boolean): v
   k.plate(FAN, 0.014, 0, s * 0.062 * lb, -0.51, 0.012, c.dark, 0, s * -Math.PI / 2 + Math.PI, 0, 1.05);
   k.lathe(scaleP([[0.072, -0.585], [0.077, -0.56]], lb), 0, 0, 0.006, c.dark, 8, 1, 1.05);
   // Greave with a calf swell and a front ridge
-  k.lathe(scaleP([[0.054, -0.935], [0.06, -0.86], [0.075, -0.74], [0.078, -0.66], [0.068, -0.57]], lb), 0, 0, 0, c.plate, 8, 1, 1.1);
+  k.lathe(scaleP([[0.054, -0.935], [0.06, -0.86], [0.075, -0.74], [0.078, -0.66], [0.068, -0.57]], lb), 0, 0, 0, c.plate, 10, 1, 1.1);
   cbox(k, 0.01, 0.3, 0.01, 0, -0.75, 0.078 * lb * 1.1 + 0.002, hi, -0.08);
   // Sabaton: sole, instep and overlapping lames ending in a blunt point
   k.add(frustumGeo(0.105 * lb, 0.045, 0.27, 0.9, 0.92), shade(c.dark, -0.25), 0, -0.977, 0.05);
@@ -598,3 +608,238 @@ export function eyeSlit(k: K, glow: THREE.Object3D, hex: string | null, y: numbe
 }
 
 export { HEAD_Y };
+
+// --- Ornate plate details (sharp, layered, gilded) -----------------------------------------------
+
+/** Thin tube through points: raised trim, inlay lines, edging. */
+export function lineGeo(points: V[], r: number, radial = 3): THREE.BufferGeometry {
+  return taperTube(points, r, r, radial, Math.max(2, (points.length - 1) * 2));
+}
+
+/** Thin tube along an elliptical arc round the y axis (edging on faulds, lames, rims). */
+export function arcLine(r: number, y: number, phiC: number, half: number, sz: number, t: number, seg = 10): THREE.BufferGeometry {
+  const pts: V[] = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = phiC - half + (i / seg) * half * 2;
+    pts.push([Math.sin(a) * r, y, Math.cos(a) * r * sz]);
+  }
+  return taperTube(pts, t, t, 3, seg);
+}
+
+/**
+ * Crescent horn or curved blade: a tapered tube through points, flattened along one axis
+ * (flatAxis) so it reads as a sharp blade edge-on and a crescent face-on.
+ */
+export function crescentGeo(points: V[], r0: number, r1: number, flatAxis: 'x' | 'y' | 'z', flatten = 0.35, radial = 6): THREE.BufferGeometry {
+  const g = taperTube(points, r0, r1, radial, 10);
+  const c = points[0]!;
+  g.translate(-c[0], -c[1], -c[2]);
+  g.scale(flatAxis === 'x' ? flatten : 1, flatAxis === 'y' ? flatten : 1, flatAxis === 'z' ? flatten : 1);
+  g.translate(c[0], c[1], c[2]);
+  return g;
+}
+
+/**
+ * Upright fin plate (helm crests, pauldron flanges): a bevelled flat shape drawn in its own xy
+ * plane, turned to lie in the yz plane (shape +x points to the back, −z), leaned outward about
+ * z by `lean` and placed at (x, y, z).
+ */
+export function finGeo(shape: THREE.Shape, depth: number, x: number, y: number, z: number, lean = 0, bevel = 0.004, s = 1): THREE.BufferGeometry {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 6 });
+  g.translate(0, 0, -depth / 2);
+  g.scale(s, s, 1);
+  g.rotateY(Math.PI / 2);
+  g.rotateZ(lean);
+  g.translate(x, y, z);
+  return flat(g);
+}
+
+export interface BladedPauldronSpec {
+  /** Cop radius. */
+  size: number;
+  plate: string;
+  dark: string;
+  /** Raised edging along the cop brim and every lame (gold, bright steel) or null. */
+  edge: string | null;
+  lames: number;
+  tilt?: number;
+  stretch?: [number, number, number];
+  /** Swept fin rising from the top of the cop to a point at the back (height; 0 = none). */
+  fin?: number;
+  /** Crescent horns curving up from the cop (length; 0 = none). */
+  horns?: number;
+  /** Spikes along the outer edge of the cop. */
+  spikes?: number;
+  /** How far the lames' outer centres rise into points. */
+  point?: number;
+  /** Raised neck guard. */
+  haute?: number;
+}
+
+/**
+ * Sharp layered pauldron: a faceted cop tilted out over the shoulder, pointed lames stepping down
+ * the arm, each with a raised edge, plus optional swept fin, crescent horns and spikes. In arm-pivot
+ * coordinates; s = +1 right, −1 left.
+ */
+export function bladedPauldron(k: K, s: number, p: BladedPauldronSpec): void {
+  const R = p.size;
+  const tilt = p.tilt ?? 0.5;
+  const [sx, sy, sz] = p.stretch ?? [1.05, 0.82, 1.2];
+  const cx = s * 0.03;
+  const cy = -0.025;
+  k.add(flat(capGeo(R, Math.PI * 0.5, 12, 4)), p.plate, cx, cy, 0, 0, 0, -s * tilt, sx, sy, sz);
+  // A second, raised plate over the top of the cop (layered look)
+  k.add(flat(capGeo(R * 0.78, Math.PI * 0.32, 10, 2)), p.dark, cx + s * R * 0.12, cy + R * 0.22, 0, 0, 0, -s * (tilt + 0.1), sx, sy * 1.25, sz * 0.95);
+  if (p.edge) hoop(k, R * sx * 0.985, 0.009, cx, cy, 0, p.edge, 0, 0, -s * tilt, 12, 1, sz / sx);
+  // Pointed lames down the outside of the arm
+  const pt = p.point ?? 0.035;
+  for (let i = 0; i < p.lames; i++) {
+    const y = -0.07 - i * 0.055;
+    const rl = R * 0.86 - i * 0.008;
+    const half = 1.55;
+    const g = shellGeo(
+      [
+        [rl * 1.1, y - 0.075],
+        [rl * 0.99, y - 0.03],
+        [rl * 0.92, y + pt],
+      ],
+      s * Math.PI / 2,
+      half,
+      10,
+      1.1,
+      pt * 1.4,
+      -0.02,
+    );
+    const lean = -s * (0.1 + i * 0.035);
+    const ox = s * (0.02 + i * 0.005);
+    k.add(flat(g), i % 2 ? p.plate : p.dark, ox, 0, 0, 0, 0, lean);
+    if (p.edge && i === p.lames - 1) {
+      // Edge along the bottom of the lowest lame (it dips at the sides like the plate)
+      const pts: V[] = [];
+      for (let j = 0; j <= 8; j++) {
+        const a = s * Math.PI / 2 - half + (j / 8) * half * 2;
+        const f = Math.abs(j / 8 - 0.5) * 2;
+        pts.push([Math.sin(a) * rl * 1.105, y - 0.075 - 0.02 * f, Math.cos(a) * rl * 1.105 * 1.1]);
+      }
+      k.add(lineGeo(pts, 0.006), p.edge, ox, 0, 0, 0, 0, lean);
+    }
+  }
+  const [tx, ty] = copTop({ size: R, lames: 0, plate: '', dark: '', trim: '', tilt, stretch: [sx, sy, sz] }, s);
+  if (p.fin) {
+    // Swept flange rising off the cop and ending in a point behind the shoulder
+    const f = p.fin;
+    const shape = shapeFrom([
+      [-R * 0.95, 0],
+      [R * 0.95, 0],
+      [R * 1.25, f * 0.95],
+      [R * 1.05, f],
+      [R * 0.55, f * 0.55],
+      [0, f * 0.38],
+      [-R * 0.6, f * 0.3],
+    ]);
+    k.add(finGeo(shape, 0.018, tx - s * 0.01, ty - f * 0.15, 0.01, -s * (tilt * 0.55)), p.plate, 0, 0, 0);
+    if (p.edge) {
+      const tz = 0.01;
+      const lx = (v: number) => tx - s * 0.01 + Math.sin(-s * tilt * 0.55) * -v;
+      k.add(lineGeo([[lx(f * 0.24), ty - f * 0.15 + f * 0.3, tz + R * 0.6], [lx(f * 0.4), ty - f * 0.15 + f * 0.4, tz], [lx(f * 0.7), ty - f * 0.15 + f * 0.6, tz - R * 0.6], [lx(f), ty - f * 0.15 + f * 0.98, tz - R * 1.1]], 0.006), p.edge, 0, 0, 0);
+    }
+  }
+  if (p.horns) {
+    // Crescent horns: one big, one small behind it, curving up and in
+    const L = p.horns;
+    for (const [sc, dz] of [[1, 0.03], [0.62, -0.09]] as const) {
+      const l = L * sc;
+      const x0 = tx + s * R * 0.3;
+      const y0 = ty - 0.02;
+      k.add(
+        crescentGeo(
+          [
+            [x0, y0, dz],
+            [x0 + s * l * 0.32, y0 + l * 0.3, dz - 0.01],
+            [x0 + s * l * 0.36, y0 + l * 0.68, dz - 0.03],
+            [x0 + s * l * 0.12, y0 + l, dz - 0.05],
+          ],
+          0.036 * Math.sqrt(sc),
+          0.002,
+          'z',
+          0.42,
+          5,
+        ),
+        p.dark,
+        0,
+        0,
+        0,
+      );
+    }
+  }
+  if (p.spikes) {
+    for (let i = 0; i < p.spikes; i++) {
+      const a = ((i + 0.5) / p.spikes - 0.5) * 2.0;
+      const lx = R * sx * 0.75;
+      const lz = Math.sin(a) * R * sz * 0.8;
+      const ct = Math.cos(tilt);
+      const st = Math.sin(tilt);
+      k.add(new THREE.ConeGeometry(0.022, 0.16, 5), p.dark, cx + s * lx * ct, cy - lx * st * 0.4 + R * 0.45, lz, 0, 0, -s * (tilt + 0.5));
+    }
+  }
+  if (p.haute) k.add(finGeo(shapeFrom([[-R * 0.7, 0], [R * 0.8, 0], [R * 0.95, p.haute], [R * 0.2, p.haute * 0.8], [-R * 0.6, p.haute * 0.55]]), 0.02, -s * R * 0.42, 0.02, 0, -s * 0.12), p.dark, 0, 0, 0);
+}
+
+/**
+ * Gilded V lines over the breastplate (the sternum and pectoral plates of the reference armour)
+ * and pointed abdominal lames below them. `edge` is the inlay colour.
+ */
+export function chestLines(p: KnightParts, edge: string, opts: { v?: boolean; abs?: boolean; r?: number } = {}): void {
+  const r = opts.r ?? 0.0055;
+  const at = (a: number, y: number): V => p.onChest(a, y, 0.006);
+  if (opts.v ?? true) {
+    for (const s of [-1, 1]) {
+      // Collarbone to sternum point, then the pectoral plate's lower edge sweeping out
+      p.torso.add(lineGeo([at(s * 1.0, 1.53), at(s * 0.62, 1.47), at(s * 0.3, 1.39), at(s * 0.02, 1.3)], r), edge, 0, 0, 0);
+      p.torso.add(lineGeo([at(s * 0.06, 1.28), at(s * 0.45, 1.32), at(s * 0.85, 1.38), at(s * 1.15, 1.43)], r), edge, 0, 0, 0);
+    }
+  }
+  if (opts.abs ?? true) {
+    for (let i = 0; i < 2; i++) {
+      const y = 1.22 - i * 0.07;
+      const pts: V[] = [];
+      for (let j = 0; j <= 6; j++) {
+        const t = j / 6 - 0.5;
+        pts.push(at(t * 1.5, y - (0.5 - Math.abs(t)) * 0.05));
+      }
+      p.torso.add(lineGeo(pts, r * 0.9), edge, 0, 0, 0);
+    }
+  }
+}
+
+/**
+ * Collects glowing pieces of one colour and adds them as a single mesh (one draw call instead of
+ * one per eye, rune and crack).
+ */
+export class GlowBatch {
+  private geos: THREE.BufferGeometry[] = [];
+  add(geo: THREE.BufferGeometry, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1): this {
+    const g = geo.index ? geo.toNonIndexed() : geo;
+    if (g !== geo) geo.dispose();
+    for (const n of Object.keys(g.attributes)) if (n !== 'position' && n !== 'normal') g.deleteAttribute(n);
+    if (!g.getAttribute('normal')) g.computeVertexNormals();
+    g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz)));
+    this.geos.push(g);
+    return this;
+  }
+  /** Adds the batch to `parent` (nothing when empty). */
+  flush(parent: THREE.Object3D, hex: string, lum = 4): THREE.Mesh | null {
+    if (!this.geos.length) return null;
+    const merged = mergeGeometries(this.geos, false)!;
+    this.geos.forEach((g) => g.dispose());
+    this.geos = [];
+    return addGlow(parent, merged, hex, 0, 0, 0, lum);
+  }
+}
+
+/** Thin extruded copy of a flat shape (glowing inlays that show on both faces of a blade). */
+export function slabGeo(shape: THREE.Shape, depth: number): THREE.BufferGeometry {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 4 });
+  g.translate(0, 0, -depth / 2);
+  return g;
+}

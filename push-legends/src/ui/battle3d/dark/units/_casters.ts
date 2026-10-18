@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { K, shade, taperTube, type V } from '../../../base3d/sculpt';
-import { armBase, latheArc, legBase, skirtHalf, span, type Hunter } from './_hunters';
+import { K, shade, shapeFrom, taperTube, type V } from '../../../base3d/sculpt';
+import { metal } from '../parts';
+import { armBase, glow, type GlowPart, HR, hood, latheArc, legBase, SHADOW, skirtHalf, slitEyes, span, surfGeo, surfLine, visorSurf, type Hunter } from './_hunters';
 
 /**
  * Shared pieces for the robed spellcasters (Ashen Herald, Rime Widow, Storm Heretic): ankle-length
@@ -35,6 +36,8 @@ export interface RobeLook {
   innerGap?: number;
   /** Colour of a burnt / frost-rimed band at the hem (null = none). */
   hem?: string | null;
+  /** Radial segments per half (default 7; more = smoother hem). */
+  seg?: number;
 }
 
 /** Ankle-length layered robe in two halves per layer, on the leg pivots. */
@@ -55,7 +58,7 @@ export function robeLegs(h: Hunter, o: RobeLook): void {
         [f * 0.64, -0.2],
         [0.17 * h.b, 0.06],
       ],
-      { frontGap: o.innerGap ?? 0.06, backGap: 0.02, tatter: o.tatter ?? 0.12, seed: o.seed ?? 5, seg: 7, depth: 0.82 },
+      { frontGap: o.innerGap ?? 0.06, backGap: 0.02, tatter: o.tatter ?? 0.12, seed: o.seed ?? 5, seg: o.seg ?? 7, depth: 0.82 },
     );
     if (o.hem) {
       // Short ragged band just outside the lowest layer: scorched or frost-rimed hem
@@ -72,7 +75,7 @@ export function robeLegs(h: Hunter, o: RobeLook): void {
           [r0 * 0.965, y0 + 0.1],
           [r0 * 0.93, y0 + 0.17],
         ],
-        { frontGap: outerHem ? (o.outerGap ?? 0.42) + 0.01 : (o.innerGap ?? 0.06) + 0.01, backGap: 0.03, tatter: (o.tatter ?? 0.12) * 1.6, seed: (o.seed ?? 5) + 11, seg: 7, depth: outerHem ? 0.865 : 0.825 },
+        { frontGap: outerHem ? (o.outerGap ?? 0.42) + 0.01 : (o.innerGap ?? 0.06) + 0.01, backGap: 0.03, tatter: (o.tatter ?? 0.12) * 1.6, seed: (o.seed ?? 5) + 11, seg: o.seg ?? 7, depth: outerHem ? 0.865 : 0.825 },
       );
     }
     if (o.outer)
@@ -87,7 +90,7 @@ export function robeLegs(h: Hunter, o: RobeLook): void {
           [f * 0.72, -0.18],
           [0.19 * h.b, 0.08],
         ],
-        { frontGap: o.outerGap ?? 0.42, backGap: 0.04, tatter: (o.tatter ?? 0.12) * 1.5, seed: (o.seed ?? 5) + 3, seg: 7, depth: 0.86 },
+        { frontGap: o.outerGap ?? 0.42, backGap: 0.04, tatter: (o.tatter ?? 0.12) * 1.5, seed: (o.seed ?? 5) + 3, seg: o.seg ?? 7, depth: 0.86 },
       );
   }
 }
@@ -265,4 +268,245 @@ export function sparkGeo(r: number): THREE.BufferGeometry {
 export function crackGeo(a: V, b: V, seed: number, w = 0.004, kinks = 4): THREE.BufferGeometry {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   return boltGeo(jag(a, b, kinks, len * 0.12, seed), w, w * 0.5);
+}
+
+// --- Wraith-knight armour (client reference set: hooded, spiked, glowing sigils) -----------------------
+
+/** Glossy near-black caster plate (registered as metal: the shader adds engraved filigree). */
+export const CPLATE = metal('#25262d', 0.74);
+/** Raised ridges and plate edges. */
+export const CPLATE_HI = metal('#4b4f59', 0.8);
+/** Recessed under-plates. */
+export const CPLATE_DK = metal('#17181d', 0.66);
+
+export interface VisorHoodLook {
+  cloth: string;
+  edge?: string;
+  /** Visor plate colours. */
+  plate: string;
+  hi: string;
+  /** Edge trim on the visor (default muted gold). */
+  trim?: string;
+  /** Glowing eye slits. */
+  eye: string;
+  eyeLum?: number;
+  /** Forward projection of the pointed visor (head radii). */
+  keel?: number;
+  /** Rise of the hood's pointed peak (head radii, 0 = rounded hood). */
+  peak?: number;
+  /** Forward hook of the peak. */
+  hook?: number;
+  size?: number;
+  open?: number;
+  tail?: number;
+  forward?: number;
+}
+
+/**
+ * Deep hood over a sharply pointed closed visor with two narrow glowing slits (the wraith knight's
+ * face): the visor sits back in the hood's shadow, its keel catching the light. Returns the top.
+ */
+export function visorHood(h: Hunter, o: VisorHoodLook): { top: number; surf: (phi: number, t: number) => V } {
+  const k = h.head;
+  const r = HR;
+  const size = o.size ?? 1.1;
+  let top = hood(k, { cloth: o.cloth, edge: o.edge, open: o.open ?? 0.74, tail: o.tail ?? 0.5, size, forward: o.forward ?? 0.3, faceZ: -0.15, overhang: 0.42 });
+  const f = visorSurf({ size: 0.9, keel: o.keel ?? 0.55, keelT: 0.42, chin: 0.55, cheek: 0.22, z: 0.0 });
+  k.add(surfGeo(f, 10, 7, -1.45, 2.9, 0.02, 0.86), o.plate, 0, 0, 0);
+  // Medial ridge down the keel and a brow ridge over the slits
+  surfLine(k, f, [[0, 0.05], [0, 0.3], [0, 0.45], [0, 0.82]], 0.007, o.hi, 0.001);
+  for (const s of [-1, 1]) surfLine(k, f, [[s * 0.08, 0.64], [s * 0.45, 0.6], [s * 0.8, 0.66]], 0.005, o.hi, 0.001);
+  // Gold edging round the visor's face so its pointed shape reads inside the hood's shadow
+  for (const s of [-1, 1]) surfLine(k, f, [[s * 0.05, 0.04], [s * 0.6, 0.12], [s * 1.05, 0.34], [s * 1.2, 0.62], [s * 0.9, 0.84], [s * 0.05, 0.86]], 0.0045, o.trim ?? '#8f7130', 0.001);
+  slitEyes(h.headGroup, k, f, o.eye, { phi: 0.36, t: 0.53, w: r * 0.42, h: r * 0.07, tilt: 0.38, lum: o.eyeLum ?? 6 });
+  const peak = o.peak ?? 0;
+  if (peak > 0) {
+    const hook = o.hook ?? 0.3;
+    const R = r * size;
+    k.add(
+      taperTube(
+        [
+          [0, top - R * 0.5, -R * 0.2],
+          [0, top + R * peak * 0.35, -R * 0.12],
+          [0, top + R * peak * 0.75, R * hook * 0.4],
+          [0, top + R * peak, R * hook],
+        ],
+        R * 0.5,
+        0.004,
+        6,
+        8,
+      ),
+      o.cloth,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.85,
+      1,
+      1,
+    );
+    top += R * peak;
+  }
+  return { top, surf: f };
+}
+
+/** Crescent blade outline in its plane: grows along +y, bends towards +x, pointed tip. */
+export function crescentShape(len: number, w: number, bend: number, n = 7): THREE.Shape {
+  const spine: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    spine.push([bend * len * t * t, len * t]);
+  }
+  const outer: [number, number][] = [];
+  const inner: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const p = spine[i]!;
+    const q = spine[Math.min(n, i + 1)]!;
+    const pr = spine[Math.max(0, i - 1)]!;
+    let dx = q[0] - pr[0];
+    let dy = q[1] - pr[1];
+    const l = Math.hypot(dx, dy) || 1;
+    dx /= l;
+    dy /= l;
+    const ww = (w / 2) * Math.pow(1 - t, 0.75);
+    outer.push([p[0] + dy * ww, p[1] - dx * ww]);
+    inner.push([p[0] - dy * ww, p[1] + dx * ww]);
+  }
+  return shapeFrom([...outer, ...inner.slice(0, n).reverse()]);
+}
+
+/** Bevelled crescent blade (pauldron horns, crown points, staff hooks). */
+export function crescentGeo(len: number, w: number, bend: number, thick = 0.01): THREE.BufferGeometry {
+  const g = new THREE.ExtrudeGeometry(crescentShape(len, w, bend), { depth: thick, bevelEnabled: true, bevelThickness: thick * 0.45, bevelSize: thick * 0.45, bevelSegments: 1, curveSegments: 4 });
+  g.translate(0, 0, -thick / 2);
+  g.deleteAttribute('uv');
+  return g;
+}
+
+export interface SpikedPauldronLook {
+  r?: number;
+  lames?: number;
+  plate: string;
+  hi: string;
+  trim?: string | null;
+  /** Crescent blades sweeping up off the top cop: [length, bend, x offset, roll] each. */
+  blades?: [number, number, number, number][];
+  bladeHex?: string;
+  /** Short thorns along the lowest lame. */
+  thorns?: number;
+  tilt?: number;
+}
+
+/**
+ * Layered pauldron of overlapping curved lames (gold-rimmed) crowned with crescent blades that
+ * sweep up and out (the wraith knight's horned shoulders). Drawn into an arm kit.
+ */
+export function spikedPauldron(k: K, s: number, o: SpikedPauldronLook): void {
+  const r0 = o.r ?? 0.15;
+  const n = o.lames ?? 3;
+  const th = Math.PI * 0.42;
+  for (let i = 0; i < n; i++) {
+    const r = r0 * (1 - i * 0.07);
+    const x = s * (0.035 + i * 0.018);
+    const y = 0.05 - i * 0.06;
+    const rz = -s * (0.32 + i * 0.14 + (o.tilt ?? 0));
+    const sc: [number, number, number] = [1.12, 0.62, 1.2];
+    k.add(new THREE.SphereGeometry(r, 12, 3, 0, Math.PI * 2, 0, th), i % 2 ? o.hi : o.plate, x, y, 0, 0, 0, rz, ...sc);
+    if (o.trim !== null) {
+      const rim = new THREE.TorusGeometry(r * Math.sin(th), 0.006 / sc[1], 3, 11).rotateX(Math.PI / 2).translate(0, r * Math.cos(th), 0);
+      k.add(rim, o.trim ?? '#8f7130', x, y, 0, 0, 0, rz, ...sc);
+    }
+  }
+  // Ridge over the top cop
+  k.add(new THREE.ConeGeometry(0.02, r0 * 1.9, 4), o.hi, s * 0.06, 0.1, 0, Math.PI / 2, 0, -s * 0.32, 1, 1, 0.4);
+  for (const [len, bend, dx, roll] of o.blades ?? []) {
+    k.add(crescentGeo(len, len * 0.22, bend, 0.012), o.bladeHex ?? o.hi, s * (0.08 + dx), 0.08, -0.02 - dx * 0.3, roll, s > 0 ? 0 : Math.PI, -0.25);
+  }
+  for (let i = 0; i < (o.thorns ?? 0); i++) {
+    const a = -0.9 + (1.8 * i) / Math.max(1, (o.thorns ?? 1) - 1);
+    k.add(new THREE.ConeGeometry(0.013, 0.08, 4), o.hi, s * (0.15 + Math.cos(a) * 0.02), -0.07, Math.sin(a) * 0.13, Math.sin(a) * 0.5, 0, -s * 1.9);
+  }
+}
+
+/** Glowing sigil from strokes [ax, ay, bx, by] in a plane facing +z (merged glow). */
+export function sigil(parent: THREE.Object3D, hex: string, lum: number, strokes: [number, number, number, number][], w: number, x: number, y: number, z: number, rx = 0): THREE.Mesh {
+  const parts: GlowPart[] = strokes.map(([ax, ay, bx, by]) => {
+    const len = Math.hypot(bx - ax, by - ay);
+    const g = new THREE.BoxGeometry(w, len + w * 0.6, 0.004);
+    g.rotateZ(Math.atan2(-(bx - ax), by - ay));
+    g.translate((ax + bx) / 2, (ay + by) / 2, 0);
+    g.rotateX(rx);
+    return [g, x, y, z] as GlowPart;
+  });
+  return glow(parent, hex, lum, parts);
+}
+
+/** Small bone skull (belt trophies): cranium, cheekbones, jaw and black eye sockets. */
+export function skull(k: K, x: number, y: number, z: number, sc: number, bone: string, rx = 0, ry = 0): void {
+  const c = Math.cos(ry);
+  const sn = Math.sin(ry);
+  const at = (dx: number, dy: number, dz: number): V => [x + dx * c + dz * sn, y + dy * Math.cos(rx) - dz * Math.sin(rx), z - dx * sn + dz * c];
+  k.add(new THREE.SphereGeometry(sc, 8, 6), bone, ...at(0, sc * 0.2, 0), rx, ry, 0, 0.88, 0.95, 1);
+  k.add(new THREE.BoxGeometry(sc * 1.1, sc * 0.55, sc * 0.9), shade(bone, -0.1), ...at(0, -sc * 0.45, sc * 0.12), rx, ry, 0);
+  k.add(new THREE.BoxGeometry(sc * 0.8, sc * 0.35, sc * 0.7), shade(bone, -0.2), ...at(0, -sc * 0.85, sc * 0.1), rx, ry, 0);
+  for (const s of [-1, 1]) k.add(new THREE.SphereGeometry(sc * 0.26, 5, 4), SHADOW, ...at(s * sc * 0.34, -sc * 0.12, sc * 0.72), rx, ry, 0, 1, 0.85, 0.6);
+  k.add(new THREE.ConeGeometry(sc * 0.12, sc * 0.25, 3), SHADOW, ...at(0, -sc * 0.42, sc * 0.6), rx + Math.PI, ry, 0);
+}
+
+/**
+ * Torn shoulder capelet open at the front (unlike a full mantle) so the breastplate and its sigil
+ * show between the two halves, as in the wraith-knight reference. On the torso kit.
+ */
+export function capelet(k: K, b: number, hex: string, o: { bottom?: number; width?: number; gap?: number; tatter?: number; seed?: number; seg?: number } = {}): K {
+  const y0 = o.bottom ?? 1.27;
+  const w = (o.width ?? 0.35) * b;
+  const gap = o.gap ?? 0.9;
+  return k.add(
+    latheArc(
+      [
+        [w, y0],
+        [w * 0.97, y0 + 0.1],
+        [w * 0.86, 1.5],
+        [w * 0.62, 1.6],
+        [0.1, 1.68],
+      ],
+      o.seg ?? 12,
+      gap,
+      Math.PI * 2 - gap * 2,
+      o.tatter ?? 0.12,
+      o.seed ?? 11,
+    ),
+    hex,
+    0,
+    0,
+    -0.01,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0.72,
+  );
+}
+
+/** Glowing seam along the torn hem of a robe half on a leg pivot (smouldering or frost-lit edge). */
+export function hemGlow(h: Hunter, hex: string, lum: number, o: { r: number; y: number; gap?: number; depth?: number; seed?: number; w?: number }): void {
+  h.rig.legs.forEach((leg, li) => {
+    const s = li === 0 ? -1 : 1;
+    const gf = o.gap ?? 0.45;
+    const start = s > 0 ? gf : Math.PI + 0.05;
+    const len = Math.PI - gf - 0.05;
+    const r = rnd((o.seed ?? 3) + li * 13);
+    const pts: V[] = [];
+    const n = 9;
+    for (let i = 0; i <= n; i++) {
+      const phi = start + (len * i) / n;
+      const y = o.y + (r() - 0.3) * 0.05;
+      pts.push([-s * h.legX + Math.sin(phi) * o.r, y, Math.cos(phi) * o.r * (o.depth ?? 0.86)]);
+    }
+    glow(leg, hex, lum, [[boltGeo(pts, o.w ?? 0.006, (o.w ?? 0.006) * 0.6), 0, 0, 0]]);
+  });
 }
