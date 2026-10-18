@@ -56,6 +56,7 @@ interface Giant {
   head: 'stone' | 'horns' | 'helm' | 'skull' | 'maw' | 'antlers' | 'tusks';
   arm: 'fists' | 'club' | 'chain';
   spikes?: string;
+  mantle?: string;
   h: number;
 }
 
@@ -134,11 +135,11 @@ const CARDS: Record<string, Body> = {
 const GOLEM: Giant = { skin: PAL.obsidian, crack: PAL.ember, eye: PAL.fire, head: 'stone', arm: 'fists', h: 1.02 };
 
 const BOSSES: Record<string, Giant | { lord: Body; size: number } | 'heart'> = {
-  treant: { skin: '#2a2420', crack: '#9ccf3f', eye: '#c6ff00', head: 'antlers', arm: 'fists', h: 1.62 },
+  treant: { skin: '#2a2420', crack: '#9ccf3f', eye: '#c6ff00', head: 'antlers', arm: 'fists', mantle: '#1f2a18', h: 1.62 },
   magma_titan: { skin: PAL.obsidian, crack: PAL.ember, eye: PAL.fire, head: 'horns', arm: 'fists', h: 1.32 },
-  troll: { skin: '#2a2e24', crack: '#6e7d4a', eye: '#c6e07a', head: 'tusks', arm: 'club', h: 1.32 },
-  yeti: { skin: '#4a5057', crack: '#86d6ff', eye: PAL.frost, head: 'horns', arm: 'fists', h: 1.32 },
-  overseer: { skin: '#2b2828', crack: PAL.ember, eye: PAL.ember, head: 'helm', arm: 'chain', h: 1.32 },
+  troll: { skin: '#2a2e24', crack: '#6e7d4a', eye: '#c6e07a', head: 'tusks', arm: 'club', mantle: '#1c2018', h: 1.32 },
+  yeti: { skin: '#3c4248', crack: '#86d6ff', eye: PAL.frost, head: 'horns', arm: 'fists', mantle: '#5a6168', h: 1.32 },
+  overseer: { skin: '#2b2828', crack: PAL.ember, eye: PAL.ember, head: 'helm', arm: 'chain', mantle: PAL.crimson, h: 1.32 },
   warden: { skin: '#272430', crack: '#58d68d', eye: '#58d68d', head: 'skull', arm: 'chain', h: 1.32 },
   shardmaw: { skin: '#221a2a', crack: PAL.void2, eye: PAL.void2, head: 'maw', arm: 'fists', spikes: '#3a2452', h: 1.32 },
   ice_queen: { lord: { body: '#1d2633', trim: '#3a5068', eye: PAL.frost, rim: FACTIONS.frost.rim, head: 'veil', weapon: 'staff', glow: PAL.frost, robe: true }, size: 1.8 },
@@ -154,7 +155,7 @@ function worldTones(world: number): { base: string; sec: string; rim: string; ey
   const p = getWorld(world).enemyPalette;
   const [r, g, b] = hexToRgb(p.accent);
   const eyeC = r + g + b > 690 ? mix(p.primary, '#ffffff', 0.35) : p.accent;
-  return { base: mix(p.primary, PAL.charcoal, 0.7), sec: mix(p.secondary, PAL.charcoal, 0.62), rim: mix(p.primary, PAL.steel, 0.55), eye: eyeC };
+  return { base: mix(p.primary, PAL.charcoal, 0.78), sec: mix(p.secondary, PAL.charcoal, 0.76), rim: mix(p.primary, PAL.steel, 0.55), eye: eyeC };
 }
 
 // --- Humanoid -----------------------------------------------------------------------------------
@@ -495,14 +496,19 @@ function phoenix(ctx: Ctx, o: DrawOpts): void {
     const tx = x + dx * len;
     const ty = y + dy * len;
     shape(ctx, [x - dy * w, y + dx * w, tx, ty, x + dy * w, y - dx * w], c, 0.5);
-    seg(ctx, [x + dx * len * 0.6, y + dy * len * 0.6, tx, ty], PAL.fire, 0.9);
+    seg(ctx, [x + dx * len * 0.7, y + dy * len * 0.7, tx, ty], mix(PAL.ember, c, 0.25), 0.7);
   };
   for (const [a, l] of [[2.75, 22], [2.55, 20], [2.95, 18]] as const) feather(-7, -27, a + Math.sin(o.t * 4 + a) * 0.08, l, 1.6, '#1b1210');
   const wing = (k: number, c: string) => {
-    for (let i = 0; i < 5; i++) feather(1, -32, -1.45 - i * 0.28 + flap * 0.45 * k, 21 - i * 2, 2.2, c);
+    const ty = -54 + flap * 12 * k;
+    const tx = -6 + flap * 3 * k;
+    const edge = [tx, ty, tx - 4, ty + 6, tx - 2, ty + 8, tx - 9, ty + 12, tx - 6, ty + 14, tx - 14, ty + 18, tx - 9, ty + 19, -12, -27];
+    shape(ctx, [3, -32, 1, ty + 10, ...edge, -5, -27], c, 0.6);
+    seg(ctx, edge.slice(0, 14), PAL.ember, 0.8);
   };
   wing(1, '#130e0d');
-  shape(ctx, [-9, -27, 0, -35, 7, -34, 5, -25.5, -4, -23.5], '#241917');
+  shape(ctx, [-11, -27, -2, -36, 7, -35, 6, -25, -4, -22.5], '#241917');
+  halo(ctx, 1, -29, 7, PAL.fire, 0.35);
   shape(ctx, [5, -33, 9, -38, 11.5, -36.5, 15.5 + sw * 2, -34.5, 10.5, -32.5, 7, -30], '#241917');
   shape(ctx, [8.5, -37.5, 4, -41.5, 6, -38.5, 3, -39, 8, -36], PAL.ember, 0);
   eye(ctx, 10.6, -35.6, PAL.fire, 0.7);
@@ -573,12 +579,18 @@ function giant(ctx: Ctx, g: Giant, o: DrawOpts): void {
   ctx.stroke();
   ctx.restore();
   halo(ctx, 0, -37, 9, g.crack, 0.25 + sw * 0.3);
+  if (g.mantle) shape(ctx, [-14, -40, -12, -47, -7, -52, 1, -54, 9, -53, 15, -47, 14, -40, 11, -43, 9, -39, 6, -43, 3, -38.5, 0, -43, -3, -38.5, -6, -43, -9, -39, -11, -43], g.mantle, 0.6);
   // Head, set low between the shoulders.
   const hx = 6.5;
-  const hy = -50;
+  const hy = -51;
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.scale(1.35, 1.35);
+  ctx.translate(-hx, -hy);
   if (g.head === 'antlers') {
-    seg(ctx, [hx - 2, hy - 2, hx - 5, hy - 12, hx - 9, hy - 16, hx - 5, hy - 12, hx - 3, hy - 18], dark, 1.6, 'butt');
-    seg(ctx, [hx + 2, hy - 2, hx + 4, hy - 13, hx + 9, hy - 17, hx + 4, hy - 13, hx + 2, hy - 19], dark, 1.6, 'butt');
+    for (const [a, b2, c2, d] of [[-2, -6, -11, -1], [2, 5, 11, 1], [-1, -3, -6, 4]] as const) {
+      seg(ctx, [hx + a, hy - 2, hx + b2, hy - 12, hx + c2, hy - 18, hx + b2, hy - 12, hx + b2 + d, hy - 21], mix(g.skin, PAL.ashLight, 0.35), 1.8, 'butt');
+    }
   }
   if (g.head === 'horns') shape(ctx, [hx - 3, hy - 3, hx - 7, hy - 10, hx - 9, hy - 9, hx - 5, hy - 1], PAL.boneDark, 0.5);
   shape(ctx, [hx - 4, hy + 4, hx - 4.5, hy - 3, hx, hy - 5.5, hx + 5, hy - 3.5, hx + 5.5, hy + 2, hx + 2, hy + 5], g.head === 'skull' ? PAL.boneDark : lite);
@@ -591,6 +603,7 @@ function giant(ctx: Ctx, g: Giant, o: DrawOpts): void {
   }
   eye(ctx, hx + 3, hy - 0.5, g.eye, 0.85);
   if (g.head !== 'helm') eye(ctx, hx + 0.6, hy - 0.5, g.eye, 0.6);
+  ctx.restore();
   // Front arm with a slam on attack.
   ctx.save();
   ctx.translate(10, -45);
@@ -630,7 +643,7 @@ function heart(ctx: Ctx, o: DrawOpts): void {
 
 function heroBody(capeId: string): Body {
   const cape = COSMETIC_BY_ID.get(capeId)?.color ?? PAL.crimson;
-  return { body: '#3a3f46', trim: mix(cape, PAL.charcoal, 0.45), eye: PAL.ember, rim: '#e6c9a0', head: 'helm', weapon: 'greatsword', cape: mix(cape, PAL.charcoal, 0.55), plate: true, gold: true, bulk: 1.12 };
+  return { body: '#3a3f46', trim: mix(cape, PAL.charcoal, 0.6), eye: PAL.ember, rim: '#e6c9a0', head: 'helm', weapon: 'greatsword', cape: mix(cape, PAL.charcoal, 0.68), plate: true, gold: true, bulk: 1.12 };
 }
 
 function drawEnemy(ctx: Ctx, role: EnemyRole, world: number, o: DrawOpts): void {

@@ -292,7 +292,6 @@ export function knight(spec: KnightSpec): Rig {
   addMesh(rig, rig.armL!, armL);
   if (capeKit && rig.cape) addMesh(rig, rig.cape, capeKit);
   rig.height = (top + 0.04) * tall;
-  /*SIDETEST*/ rig.body.rotation.y = 1.07;
   return rig;
 }
 
