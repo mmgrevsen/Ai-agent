@@ -7,6 +7,7 @@ import '../../core/util/format.dart';
 import '../../core/widgets/charts.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/body_repository.dart';
@@ -19,71 +20,113 @@ final weightTrendProvider = Provider<WeightTrend?>((ref) {
   return rows == null ? null : BodyRepository.trendOf(rows);
 });
 
+class _WeighInResult {
+  const _WeighInResult({this.kg, this.day, this.delete = false});
+  final double? kg;
+  final DateTime? day;
+  final bool delete;
+}
+
 /// Prompts for a weigh-in and saves it.
 Future<void> showLogWeight(BuildContext context, WidgetRef ref, {BodyWeight? existing}) async {
   final units = ref.read(unitsProvider);
   final last = ref.read(weightTrendProvider)?.latest?.scaleKg;
-  final controller = TextEditingController(
-    text: existing != null ? number(units.toDisplay(existing.weightKg), maxDecimals: 2) : (last == null ? '' : number(units.toDisplay(last), maxDecimals: 1)),
-  );
-  var day = existing == null ? DateTime.now() : parseDayKey(existing.date);
-  final saved = await showModalBottomSheet<bool>(
+  final initial = existing?.weightKg ?? last;
+  final result = await showModalBottomSheet<_WeighInResult>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (c) => StatefulBuilder(
-      builder: (c, setState) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.xl),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(existing == null ? 'Log weight' : 'Edit weigh-in', style: c.text.titleLarge),
-            const SizedBox(height: Space.lg),
-            NumberField(controller: controller, label: 'Weight', unit: units.weightLabel, autofocus: true),
-            const SizedBox(height: Space.sm),
-            if (existing == null)
-              TextButton.icon(
-                onPressed: () async {
-                  final picked = await showDatePicker(context: c, initialDate: day, firstDate: DateTime(2000), lastDate: DateTime.now());
-                  if (picked != null) setState(() => day = picked);
-                },
-                icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                label: Text(relativeDay(day)),
-              ),
-            Text('For a consistent trend, weigh yourself in the morning after the bathroom, before eating.', style: c.text.bodySmall),
-            const SizedBox(height: Space.lg),
-            Row(children: [
-              if (existing != null)
-                TextButton(
-                  onPressed: () async {
-                    await ref.read(bodyRepositoryProvider).deleteWeight(existing.id);
-                    if (c.mounted) Navigator.pop(c, false);
-                  },
-                  style: TextButton.styleFrom(foregroundColor: c.colors.negative),
-                  child: const Text('Delete'),
-                ),
-              const Spacer(),
-              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
-            ]),
-          ]),
-        ),
-      ),
+    builder: (_) => _LogWeightSheet(
+      units: units,
+      editing: existing != null,
+      initialDisplay: initial == null ? null : number(units.toDisplay(initial), maxDecimals: existing != null ? 2 : 1),
+      initialDay: existing == null ? DateTime.now() : parseDayKey(existing.date),
     ),
   );
-  final v = parseNumber(controller.text);
-  controller.dispose();
-  if (saved != true || v == null) return;
-  final kg = units.fromDisplay(v);
+  if (result == null) return;
+  final repo = ref.read(bodyRepositoryProvider);
+  if (result.delete && existing != null) {
+    await repo.deleteWeight(existing.id);
+    return;
+  }
+  final kg = result.kg;
+  if (kg == null) return;
   if (kg < 25 || kg > 350) {
     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('That weight looks out of range — not saved.')));
     return;
   }
-  final repo = ref.read(bodyRepositoryProvider);
   if (existing != null) {
     await repo.updateWeight(existing.id, kg);
   } else {
+    final day = result.day ?? DateTime.now();
     final now = DateTime.now();
     await repo.addWeight(kg, at: dateOnly(day) == dateOnly(now) ? now : DateTime(day.year, day.month, day.day, 8));
+  }
+}
+
+class _LogWeightSheet extends StatefulWidget {
+  const _LogWeightSheet({required this.units, required this.editing, required this.initialDay, this.initialDisplay});
+  final Units units;
+  final bool editing;
+  final DateTime initialDay;
+  final String? initialDisplay;
+
+  @override
+  State<_LogWeightSheet> createState() => _LogWeightSheetState();
+}
+
+class _LogWeightSheetState extends State<_LogWeightSheet> {
+  late final _c = TextEditingController(text: widget.initialDisplay ?? '');
+  late DateTime _day = widget.initialDay;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final v = parseNumber(_c.text);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.xl),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(widget.editing ? 'Edit weigh-in' : 'Log weight', style: context.text.titleLarge),
+          const SizedBox(height: Space.lg),
+          NumberField(controller: _c, label: 'Weight', unit: widget.units.weightLabel, autofocus: true, onChanged: (_) => setState(() {})),
+          const SizedBox(height: Space.sm),
+          if (!widget.editing)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final picked = await showDatePicker(context: context, initialDate: _day, firstDate: DateTime(2000), lastDate: DateTime.now());
+                  if (picked != null) setState(() => _day = picked);
+                },
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                label: Text(relativeDay(_day)),
+              ),
+            ),
+          Text('For a consistent trend, weigh yourself in the morning after the bathroom, before eating.', style: context.text.bodySmall),
+          const SizedBox(height: Space.lg),
+          Row(children: [
+            if (widget.editing)
+              TextButton(
+                onPressed: () => Navigator.pop(context, const _WeighInResult(delete: true)),
+                style: TextButton.styleFrom(foregroundColor: context.colors.negative),
+                child: const Text('Delete'),
+              ),
+            const Spacer(),
+            FilledButton(
+              onPressed: v == null ? null : () => Navigator.pop(context, _WeighInResult(kg: widget.units.fromDisplay(v), day: _day)),
+              child: const Text('Save'),
+            ),
+          ]),
+        ]),
+      ),
+    );
   }
 }
 
@@ -216,19 +259,7 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
 
   Future<void> _setGoal(BuildContext context, double? current) async {
     final units = ref.read(unitsProvider);
-    final controller = TextEditingController(text: current == null ? '' : number(units.toDisplay(current)));
-    final v = await showDialog<double>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Goal weight'),
-        content: NumberField(controller: controller, label: 'Goal', unit: units.weightLabel, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseNumber(controller.text)), child: const Text('Save')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final v = await promptNumber(context, title: 'Goal weight', label: 'Goal', unit: units.weightLabel, initial: current == null ? null : double.parse(number(units.toDisplay(current))));
     if (v == null) return;
     final kg = units.fromDisplay(v);
     final profile = await ref.read(settingsRepositoryProvider).profile();

@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/states.dart';
+import '../../data/repositories/exercise_repository.dart';
 import '../../data/repositories/workout_repository.dart';
 import '../health/health_providers.dart';
 import 'workout_providers.dart';
@@ -213,7 +214,7 @@ class _TodayCard extends ConsumerWidget {
                 children: [
                   Expanded(child: Text(item.exercise.name, style: context.text.bodyLarge)),
                   Text(
-                    '${item.row.sets} × ${item.row.repMin}–${item.row.repMax}',
+                    item.exercise.tracking.usesReps ? '${item.row.sets} × ${item.row.repMin}–${item.row.repMax}' : '${item.row.sets} sets',
                     style: context.text.labelMedium,
                   ),
                 ],

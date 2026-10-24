@@ -66,5 +66,22 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Forma reads only the categories you turn on (sleep, resting heart rate, HRV, heart rate, steps, active energy, weight and workouts) to show recovery insights, import weigh-ins and workouts, and compare today with your usual range.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Forma saves the strength workouts you log to Apple Health, if you enable workout sharing.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to scan food barcodes and, if you choose, to photograph a meal for a nutrition estimate.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a meal photo for a nutrition estimate. Photos are not stored.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.forma</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

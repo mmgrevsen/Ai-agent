@@ -59,6 +59,7 @@ class SyncService {
   static const _singletons = {'profiles', 'user_preferences'};
   static const _localOnlyColumns = {'dirty'};
   static const batchSize = 200;
+  static const overlap = Duration(minutes: 2);
 
   List<TableInfo<Table, Object?>> get _tables => [
         for (final t in db.syncedTables)
@@ -129,8 +130,13 @@ class SyncService {
     var cursor = await db.readMeta(key);
     final columns = {for (final c in t.$columns) c.name: c};
     var total = 0;
+    // A transaction that commits late can carry a server timestamp just
+    // behind the cursor, so the first page re-reads a short overlap.
+    // Re-applying a row is idempotent; later pages use the exact cursor so
+    // paging always advances.
+    var since = cursor == null ? null : DateTime.tryParse(cursor)?.subtract(overlap).toUtc().toIso8601String() ?? cursor;
     while (true) {
-      final rows = await remote.pullSince(name, cursor, limit: 500);
+      final rows = await remote.pullSince(name, since, limit: 500);
       if (rows.isEmpty) break;
       await db.transaction(() async {
         for (final r in rows) {
@@ -173,8 +179,12 @@ class SyncService {
         }
       });
       total += rows.length;
-      cursor = rows.last['server_updated_at'] as String?;
-      if (cursor != null) await db.writeMeta(key, cursor);
+      final last = rows.last['server_updated_at'] as String?;
+      if (last != null && (cursor == null || last.compareTo(cursor) > 0)) {
+        cursor = last;
+        await db.writeMeta(key, last);
+      }
+      since = last;
       if (rows.length < 500) break;
     }
     return total;

@@ -1,0 +1,24 @@
+# Supabase CLI configuration (local development and function deploys).
+project_id = "forma"
+
+[api]
+schemas = ["public"]
+
+[auth]
+site_url = "app.forma://login-callback"
+additional_redirect_urls = ["app.forma://login-callback"]
+
+[auth.external.apple]
+enabled = false # enable after adding Apple Sign In credentials in the dashboard
+
+[functions.coach]
+verify_jwt = true
+
+[functions.food-photo]
+verify_jwt = true
+
+[functions.food-search]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

@@ -72,14 +72,16 @@ class FCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final card = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? c.surface,
+    // A Material (not a decorated box) so list tiles and ink inside the card
+    // paint their highlights correctly.
+    final card = Material(
+      color: color ?? c.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: borderColor ?? c.outline),
+        side: BorderSide(color: borderColor ?? c.outline),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
     if (onTap == null) return card;
     return Pressable(onTap: onTap, child: card);

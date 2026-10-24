@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forma/core/util/format.dart';
 import 'package:forma/domain/body/weight_trend.dart';
 import 'package:forma/domain/catalog.dart';
 import 'package:forma/domain/dates.dart';
@@ -33,6 +34,12 @@ void main() {
       expect(ramp.every((s) => s.kind == SetKind.warmup), isTrue);
       expect(warmupRamp(workingKg: 20, incrementKg: 2.5, minimumKg: 20), isEmpty);
     });
+  });
+
+  test('clock format', () {
+    expect(clock(const Duration(seconds: 75)), '1:15');
+    expect(clock(const Duration(hours: 1, minutes: 2, seconds: 3)), '1:02:03');
+    expect(clock(const Duration(seconds: -5)), '-0:05');
   });
 
   group('weight trend', () {

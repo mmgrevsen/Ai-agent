@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../data/repositories/nutrition_repository.dart';
 import '../../domain/nutrition/food.dart';
 import '../../domain/nutrition/nutrients.dart';
 
@@ -80,10 +81,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
       );
       if (ok != true) return;
     }
-    await ref.read(nutritionRepositoryProvider).saveFood(item);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved ${item.name}. Find it under “My foods”.')));
-    context.pop();
+    final food = await ref.read(nutritionRepositoryProvider).saveFood(item);
+    // Return the saved food so the caller can log a portion right away.
+    if (mounted) context.pop(food.toItem());
   }
 
   @override

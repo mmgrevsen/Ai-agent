@@ -10,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
 import '../../data/remote/food_api.dart';
@@ -97,6 +98,12 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${item.name} to ${choice.meal.label.toLowerCase()}')));
   }
 
+  /// Opens the custom food form; a saved food goes straight to the portion sheet.
+  Future<void> _createCustom({String? barcode}) async {
+    final created = await context.push<FoodItem>(barcode == null ? '/nutrition/custom' : '/nutrition/custom?barcode=$barcode');
+    if (created != null && mounted) await _pick(created);
+  }
+
   Future<void> _scan() async {
     final code = await Navigator.of(context, rootNavigator: true).push<String>(
       MaterialPageRoute(fullscreenDialog: true, builder: (_) => const BarcodeScanScreen()),
@@ -120,7 +127,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             ],
           ),
         );
-        if (create == true && mounted) context.go('/nutrition/custom?barcode=$code');
+        if (create == true && mounted) await _createCustom(barcode: code);
         return;
       }
       await _pick(item);
@@ -169,12 +176,12 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             ActionChip(
               avatar: const Icon(Icons.photo_camera_outlined, size: 18),
               label: const Text('Photo'),
-              onPressed: () => context.go('/nutrition/photo?meal=${_meal.name}&day=${dayKey(_day)}'),
+              onPressed: () => context.push('/nutrition/photo?meal=${_meal.name}&day=${dayKey(_day)}'),
             ),
             const SizedBox(width: Space.sm),
-            ActionChip(avatar: const Icon(Icons.edit_note_rounded, size: 18), label: const Text('New food'), onPressed: () => context.go('/nutrition/custom')),
+            ActionChip(avatar: const Icon(Icons.edit_note_rounded, size: 18), label: const Text('New food'), onPressed: _createCustom),
             const SizedBox(width: Space.sm),
-            ActionChip(avatar: const Icon(Icons.menu_book_outlined, size: 18), label: const Text('New recipe'), onPressed: () => context.go('/nutrition/recipes/new')),
+            ActionChip(avatar: const Icon(Icons.menu_book_outlined, size: 18), label: const Text('New recipe'), onPressed: () => context.push('/nutrition/recipes/new')),
           ]),
         ),
         if (_searching) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
@@ -193,7 +200,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
         title: _error != null ? 'Search unavailable' : 'No foods found',
         message: _error ?? 'Try a different spelling, scan the barcode, or add it as a custom food.',
         actionLabel: 'Create custom food',
-        onAction: () => context.go('/nutrition/custom'),
+        onAction: _createCustom,
       );
     }
     return ListView(padding: const EdgeInsets.only(bottom: 120), children: [
@@ -262,7 +269,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                 title: 'No recipes',
                 message: 'Combine foods into a recipe and log it by the serving.',
                 actionLabel: 'Create recipe',
-                onAction: () => context.go('/nutrition/recipes/new'),
+                onAction: () => context.push('/nutrition/recipes/new'),
               )
             : ListView(padding: const EdgeInsets.only(bottom: 120), children: [
                 for (final r in recipes)
@@ -274,7 +281,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                     trailing: IconButton(
                       tooltip: 'Edit recipe',
                       icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => context.go('/nutrition/recipes/${r.recipe.id}'),
+                      onPressed: () => context.push('/nutrition/recipes/${r.recipe.id}'),
                     ),
                     onTap: () => _logRecipe(r),
                   ),
@@ -282,19 +289,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       );
 
   Future<void> _logRecipe(RecipeWithIngredients r) async {
-    final controller = TextEditingController(text: '1');
-    final servings = await showDialog<double>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(r.recipe.name),
-        content: NumberField(controller: controller, label: 'Servings', autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseNumber(controller.text)), child: const Text('Add')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final servings = await promptNumber(context, title: r.recipe.name, label: 'Servings', initial: 1, confirmLabel: 'Add', min: 0.05, max: 50);
     if (servings == null || servings <= 0) return;
     await ref.read(nutritionRepositoryProvider).logRecipe(recipe: r, servings: servings, meal: _meal, day: _day);
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${r.recipe.name}')));

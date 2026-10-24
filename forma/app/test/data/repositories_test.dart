@@ -1,12 +1,12 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/data/db/app_database.dart';
+import 'package:forma/data/remote/food_api.dart';
 import 'package:forma/data/repositories/body_repository.dart';
 import 'package:forma/data/repositories/exercise_repository.dart';
 import 'package:forma/data/repositories/nutrition_repository.dart';
 import 'package:forma/data/repositories/settings_repository.dart';
 import 'package:forma/data/repositories/workout_repository.dart';
-import 'package:forma/data/remote/food_api.dart';
 import 'package:forma/domain/catalog.dart';
 import 'package:forma/domain/dates.dart';
 import 'package:forma/domain/nutrition/food.dart';
@@ -61,7 +61,7 @@ void main() {
 
   test('program generator only uses available, unrestricted exercises', () async {
     final library = await exercises.all();
-    final ctx = TrainingContext(available: const {'dumbbell', 'bench', 'pullup_bar'}, restrictions: const [], increments: const {});
+    const ctx = TrainingContext(available: {'dumbbell', 'bench', 'pullup_bar'}, restrictions: [], increments: {});
     final program = const ProgramGenerator().generate(library: library, context: ctx, daysPerWeek: 3, goal: TrainingGoal.muscle, experience: 'beginner');
     expect(program.templates, hasLength(2));
     expect(program.templates.expand((t) => t.weekdays).toList()..sort(), [1, 3, 5]);

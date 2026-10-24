@@ -50,6 +50,6 @@ class FakeRemote implements RemoteStore {
         .where((r) => table != 'exercises' || r['is_custom'] == true)
         .toList()
       ..sort((a, b) => (a['server_updated_at'] as String).compareTo(b['server_updated_at'] as String));
-    return rows.take(limit).map((r) => Map<String, dynamic>.from(r)).toList();
+    return rows.take(limit).map(Map<String, dynamic>.from).toList();
   }
 }

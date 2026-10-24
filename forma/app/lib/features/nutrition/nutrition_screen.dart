@@ -8,6 +8,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/nutrition_repository.dart';
@@ -267,22 +268,8 @@ class _MealCard extends ConsumerWidget {
     }
   }
 
-  Future<String?> _askName(BuildContext context, String initial) async {
-    final controller = TextEditingController(text: initial);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Save meal'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Name')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: const Text('Save')),
-        ],
-      ),
-    );
-    controller.dispose();
-    return name == null || name.isEmpty ? null : name;
-  }
+  Future<String?> _askName(BuildContext context, String initial) =>
+      promptText(context, title: 'Save meal', label: 'Name', initial: initial);
 }
 
 class _EntryTile extends ConsumerWidget {
@@ -453,51 +440,85 @@ class _EntryEditorState extends ConsumerState<_EntryEditor> {
 
 /// Manual entry of calories and macros without a food.
 Future<void> showQuickAdd(BuildContext context, WidgetRef ref, {required MealSlot meal, required DateTime day}) async {
-  final name = TextEditingController(text: 'Quick add');
-  final kcalC = TextEditingController();
-  final p = TextEditingController();
-  final cc = TextEditingController();
-  final f = TextEditingController();
-  final ok = await showModalBottomSheet<bool>(
+  final result = await showModalBottomSheet<(String, Nutrients)>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (c) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
+    builder: (_) => _QuickAddSheet(meal: meal),
+  );
+  if (result == null) return;
+  await ref.read(nutritionRepositoryProvider).logQuick(
+        name: result.$1,
+        nutrients: result.$2,
+        meal: meal,
+        day: day,
+        provenance: Provenance.recorded,
+      );
+}
+
+class _QuickAddSheet extends StatefulWidget {
+  const _QuickAddSheet({required this.meal});
+  final MealSlot meal;
+
+  @override
+  State<_QuickAddSheet> createState() => _QuickAddSheetState();
+}
+
+class _QuickAddSheetState extends State<_QuickAddSheet> {
+  final _name = TextEditingController(text: 'Quick add');
+  final _kcal = TextEditingController();
+  final _protein = TextEditingController();
+  final _carbs = TextEditingController();
+  final _fat = TextEditingController();
+
+  @override
+  void dispose() {
+    for (final c in [_name, _kcal, _protein, _carbs, _fat]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = parseNumber(_kcal.text) != null || parseNumber(_protein.text) != null;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.xl),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('Quick add · ${meal.label}', style: c.text.titleLarge),
+          Text('Quick add · ${widget.meal.label}', style: context.text.titleLarge),
           const SizedBox(height: Space.lg),
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'Description')),
+          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Description')),
           const SizedBox(height: Space.sm),
-          NumberField(controller: kcalC, label: 'Calories', unit: 'kcal', autofocus: true),
+          NumberField(controller: _kcal, label: 'Calories', unit: 'kcal', autofocus: true, onChanged: (_) => setState(() {})),
           const SizedBox(height: Space.sm),
           Row(children: [
-            Expanded(child: NumberField(controller: p, label: 'Protein', unit: 'g')),
+            Expanded(child: NumberField(controller: _protein, label: 'Protein', unit: 'g', onChanged: (_) => setState(() {}))),
             const SizedBox(width: Space.sm),
-            Expanded(child: NumberField(controller: cc, label: 'Carbs', unit: 'g')),
+            Expanded(child: NumberField(controller: _carbs, label: 'Carbs', unit: 'g')),
             const SizedBox(width: Space.sm),
-            Expanded(child: NumberField(controller: f, label: 'Fat', unit: 'g')),
+            Expanded(child: NumberField(controller: _fat, label: 'Fat', unit: 'g')),
           ]),
           const SizedBox(height: Space.xs),
-          Text('Leave a field empty if you don\'t know it — it won\'t be counted as zero.', style: c.text.bodySmall),
+          Text('Leave a field empty if you don\'t know it — it won\'t be counted as zero.', style: context.text.bodySmall),
           const SizedBox(height: Space.lg),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Add')),
+          FilledButton(
+            onPressed: !hasValue
+                ? null
+                : () => Navigator.pop(context, (
+                      _name.text.trim().isEmpty ? 'Quick add' : _name.text.trim(),
+                      Nutrients(
+                        kcal: parseNumber(_kcal.text),
+                        proteinG: parseNumber(_protein.text),
+                        carbsG: parseNumber(_carbs.text),
+                        fatG: parseNumber(_fat.text),
+                      ),
+                    )),
+            child: const Text('Add'),
+          ),
         ]),
       ),
-    ),
-  );
-  if (ok == true && (parseNumber(kcalC.text) != null || parseNumber(p.text) != null)) {
-    await ref.read(nutritionRepositoryProvider).logQuick(
-          name: name.text.trim().isEmpty ? 'Quick add' : name.text.trim(),
-          nutrients: Nutrients(kcal: parseNumber(kcalC.text), proteinG: parseNumber(p.text), carbsG: parseNumber(cc.text), fatG: parseNumber(f.text)),
-          meal: meal,
-          day: day,
-          provenance: Provenance.recorded,
-        );
-  }
-  for (final c in [name, kcalC, p, cc, f]) {
-    c.dispose();
+    );
   }
 }

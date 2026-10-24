@@ -9,6 +9,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
 import '../../data/remote/food_api.dart';
@@ -82,19 +83,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
       builder: (_) => const _IngredientSearch(),
     );
     if (item == null || !mounted) return;
-    final controller = TextEditingController(text: number(item.servings.firstOrNull?.grams ?? 100));
-    final grams = await showDialog<double>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(item.name),
-        content: NumberField(controller: controller, label: 'Amount', unit: 'g', autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseNumber(controller.text)), child: const Text('Add')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final grams = await promptNumber(context, title: item.name, label: 'Amount', unit: 'g', initial: item.servings.firstOrNull?.grams ?? 100, confirmLabel: 'Add', min: 0.1, max: 10000);
     if (grams == null || grams <= 0) return;
     final food = await ref.read(nutritionRepositoryProvider).saveFood(item);
     setState(() => _ingredients.add((food, grams)));

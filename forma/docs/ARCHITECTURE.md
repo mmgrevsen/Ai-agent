@@ -49,7 +49,9 @@ The app is fully usable offline and without an account. When the user signs in,
 * `updated_at` (client clock) decides conflicts — last write wins — enforced on
   the server by a trigger that ignores stale updates.
 * `server_updated_at` (server clock, set by trigger) is the pull cursor, so
-  client clock skew cannot make the client miss changes.
+  client clock skew cannot make the client miss changes. The first page of
+  each pull re-reads a two-minute overlap to catch transactions that commit
+  late; re-applying a row is idempotent.
 * Deletes are soft (`deleted_at`) so they propagate.
 
 **Supabase.** Auth, Postgres with row-level security on every user table

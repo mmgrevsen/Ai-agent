@@ -101,6 +101,8 @@ class TimeSeriesChart extends StatelessWidget {
                 interval: math.max(1, (maxX / 4).roundToDouble()),
                 getTitlesWidget: (v, meta) => SideTitleWidget(
                   meta: meta,
+                  // Keep the first and last labels inside the chart bounds.
+                  fitInside: SideTitleFitInsideData.fromTitleMeta(meta),
                   child: Text(DateFormat('d MMM').format(addDays(origin, v.round())), style: labelStyle),
                 ),
               ),

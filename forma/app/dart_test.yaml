@@ -1,0 +1,5 @@
+tags:
+  screenshots:
+    # Renders screens to PNG for visual review. Not part of the default run:
+    #   flutter test test/screenshots --run-skipped --dart-define=SHOT_DIR=build/screenshots
+    skip: "Visual review aid; run with --run-skipped"

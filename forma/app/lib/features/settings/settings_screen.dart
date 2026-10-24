@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
 import '../../data/remote/backend.dart';
@@ -424,23 +425,14 @@ class _TrainingPage extends ConsumerWidget {
 
   Future<void> _editIncrement(BuildContext context, WidgetRef ref, EquipmentInfo info, EquipmentItem item) async {
     final units = ref.read(unitsProvider);
-    final controller = TextEditingController(text: number(units.toDisplay(item.incrementKg ?? info.defaultIncrementKg!), maxDecimals: 2));
-    final v = await showDialog<double>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('${info.label} increment'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          NumberField(controller: controller, label: 'Smallest load jump', unit: units.weightLabel, autofocus: true),
-          const SizedBox(height: Space.sm),
-          const Text('e.g. two 1.25 kg plates = 2.5 kg; dumbbells often go up in 2 kg steps.'),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseNumber(controller.text)), child: const Text('Save')),
-        ],
-      ),
+    final v = await promptNumber(
+      context,
+      title: '${info.label} increment',
+      label: 'Smallest load jump',
+      unit: units.weightLabel,
+      initial: double.parse(number(units.toDisplay(item.incrementKg ?? info.defaultIncrementKg!), maxDecimals: 2)),
+      helper: 'e.g. two 1.25 kg plates = 2.5 kg; dumbbells often go up in 2 kg steps.',
     );
-    controller.dispose();
     if (v != null && v > 0 && v <= 25) await _repo(ref).setEquipmentIncrement(info.code, units.fromDisplay(v));
   }
 }
@@ -503,60 +495,77 @@ class _RestrictionsPage extends ConsumerWidget {
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
-    var kind = 'pattern';
-    String? value;
-    final note = TextEditingController();
-    final ok = await showModalBottomSheet<bool>(
+    final r = await showModalBottomSheet<(String, String, String?)>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) {
-          final options = switch (kind) {
-            'muscle' => muscleLabels,
-            'equipment' => {for (final e in equipmentCatalog) e.code: e.label},
-            _ => patternLabels,
-          };
-          return Padding(
-            padding: EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, MediaQuery.viewInsetsOf(c).bottom + Space.xl),
-            child: SingleChildScrollView(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Avoid…', style: c.text.titleLarge),
-                const SizedBox(height: Space.md),
-                SegmentedPills<String>(
-                  values: const ['pattern', 'muscle', 'equipment'],
-                  selected: kind,
-                  expand: true,
-                  labelOf: (v) => switch (v) {
-                    'pattern' => 'Movement',
-                    'muscle' => 'Muscle',
-                    _ => 'Equipment',
-                  },
-                  onChanged: (v) => set(() {
-                    kind = v;
-                    value = null;
-                  }),
-                ),
-                const SizedBox(height: Space.md),
-                Wrap(spacing: Space.sm, runSpacing: Space.sm, children: [
-                  for (final o in options.entries) ToggleChip(label: o.value, selected: value == o.key, onTap: () => set(() => value = o.key)),
-                ]),
-                const SizedBox(height: Space.md),
-                TextField(controller: note, decoration: const InputDecoration(labelText: 'Reason (optional, e.g. shoulder pain)')),
-                const SizedBox(height: Space.lg),
-                FilledButton(onPressed: value == null ? null : () => Navigator.pop(c, true), child: const Text('Add')),
-                const SizedBox(height: Space.sm),
-                Text('To avoid a single exercise, open it in the library and turn on “Avoid this exercise”.', style: c.text.bodySmall),
-              ]),
-            ),
-          );
-        },
+      builder: (_) => const _RestrictionSheet(),
+    );
+    if (r != null) await _repo(ref).addRestriction(r.$1, r.$2, note: r.$3);
+  }
+}
+
+class _RestrictionSheet extends StatefulWidget {
+  const _RestrictionSheet();
+
+  @override
+  State<_RestrictionSheet> createState() => _RestrictionSheetState();
+}
+
+class _RestrictionSheetState extends State<_RestrictionSheet> {
+  final _note = TextEditingController();
+  String _kind = 'pattern';
+  String? _value;
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final options = switch (_kind) {
+      'muscle' => muscleLabels,
+      'equipment' => {for (final e in equipmentCatalog) e.code: e.label},
+      _ => patternLabels,
+    };
+    return Padding(
+      padding: EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, MediaQuery.viewInsetsOf(context).bottom + Space.xl),
+      child: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Avoid…', style: context.text.titleLarge),
+          const SizedBox(height: Space.md),
+          SegmentedPills<String>(
+            values: const ['pattern', 'muscle', 'equipment'],
+            selected: _kind,
+            expand: true,
+            labelOf: (v) => switch (v) {
+              'pattern' => 'Movement',
+              'muscle' => 'Muscle',
+              _ => 'Equipment',
+            },
+            onChanged: (v) => setState(() {
+              _kind = v;
+              _value = null;
+            }),
+          ),
+          const SizedBox(height: Space.md),
+          Wrap(spacing: Space.sm, runSpacing: Space.sm, children: [
+            for (final o in options.entries) ToggleChip(label: o.value, selected: _value == o.key, onTap: () => setState(() => _value = o.key)),
+          ]),
+          const SizedBox(height: Space.md),
+          TextField(controller: _note, decoration: const InputDecoration(labelText: 'Reason (optional, e.g. shoulder pain)')),
+          const SizedBox(height: Space.lg),
+          FilledButton(
+            onPressed: _value == null ? null : () => Navigator.pop(context, (_kind, _value!, _note.text.trim().isEmpty ? null : _note.text.trim())),
+            child: const Text('Add'),
+          ),
+          const SizedBox(height: Space.sm),
+          Text('To avoid a single exercise, open it in the library and turn on “Avoid this exercise”.', style: context.text.bodySmall),
+        ]),
       ),
     );
-    if (ok == true && value != null) {
-      await _repo(ref).addRestriction(kind, value!, note: note.text.trim().isEmpty ? null : note.text.trim());
-    }
-    note.dispose();
   }
 }
 
@@ -712,31 +721,13 @@ class _PrivacyPage extends ConsumerWidget {
   }
 
   Future<void> _confirmWipe(BuildContext context, WidgetRef ref, {required bool account}) async {
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: Text(account ? 'Delete account?' : 'Delete data on this device?'),
-          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(account
-                ? 'This permanently deletes your Forma account and all synced data. It cannot be undone. Consider exporting first.'
-                : 'This erases all workouts, food logs, weights and settings on this device. Consider exporting first.'),
-            const SizedBox(height: Space.md),
-            TextField(controller: controller, onChanged: (_) => set(() {}), decoration: const InputDecoration(labelText: 'Type DELETE to confirm')),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            TextButton(
-              onPressed: controller.text.trim() == 'DELETE' ? () => Navigator.pop(c, true) : null,
-              style: TextButton.styleFrom(foregroundColor: c.colors.negative),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      ),
+    final ok = await confirmTyped(
+      context,
+      title: account ? 'Delete account?' : 'Delete data on this device?',
+      message: account
+          ? 'This permanently deletes your Forma account and all synced data. It cannot be undone. Consider exporting first.'
+          : 'This erases all workouts, food logs, weights and settings on this device. Consider exporting first.',
     );
-    controller.dispose();
     if (ok != true) return;
     try {
       final backend = ref.read(backendProvider);

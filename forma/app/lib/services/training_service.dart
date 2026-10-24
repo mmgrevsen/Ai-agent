@@ -26,14 +26,14 @@ class StoredRecommendation {
   });
 
   factory StoredRecommendation.from(Recommendation r) => StoredRecommendation(
-        action: r.action.name,
-        headline: r.headline,
-        reasons: r.reasons,
-        weightKg: r.weightKg,
-        reps: r.reps,
-        durationS: r.durationS,
-        safetyCapped: r.safetyCapped,
-      );
+    action: r.action.name,
+    headline: r.headline,
+    reasons: r.reasons,
+    weightKg: r.weightKg,
+    reps: r.reps,
+    durationS: r.durationS,
+    safetyCapped: r.safetyCapped,
+  );
 
   static StoredRecommendation? parse(String? json) {
     if (json == null || json.isEmpty) return null;
@@ -64,14 +64,14 @@ class StoredRecommendation {
   bool get isBaseline => action == ProgressionAction.baseline.name;
 
   String encode() => jsonEncode({
-        'action': action,
-        'headline': headline,
-        'reasons': reasons,
-        'weightKg': weightKg,
-        'reps': reps,
-        'durationS': durationS,
-        'safetyCapped': safetyCapped,
-      });
+    'action': action,
+    'headline': headline,
+    'reasons': reasons,
+    'weightKg': weightKg,
+    'reps': reps,
+    'durationS': durationS,
+    'safetyCapped': safetyCapped,
+  });
 }
 
 class TrainingService {
@@ -104,22 +104,28 @@ class TrainingService {
     final ctx = context ?? await _context();
     final p = prefs ?? await settings.prefs();
     final history = await workouts.exerciseHistory(exercise.id, limit: 8, excludeWorkoutId: excludeWorkoutId);
-    return engine.recommend(ProgressionInput(
-      tracking: exercise.tracking,
-      lowerBody: exercise.lowerBody,
-      prescription: prescription,
-      history: history,
-      limits: SettingsRepository.limitsOf(p),
-      incrementKg: ctx.incrementFor(exercise),
-      deloadWeek: deload,
-      lowReadiness: lowReadiness,
-    ));
+    return engine.recommend(
+      ProgressionInput(
+        tracking: exercise.tracking,
+        lowerBody: exercise.lowerBody,
+        prescription: prescription,
+        history: history,
+        limits: SettingsRepository.limitsOf(p),
+        incrementKg: ctx.incrementFor(exercise),
+        deloadWeek: deload,
+        lowReadiness: lowReadiness,
+      ),
+    );
   }
 
   /// Starts a session, optionally from a template. Each exercise gets a
   /// recommendation and planned (empty) sets; suggested values are shown as
   /// placeholders, never recorded until the user completes the set.
-  Future<String> startWorkout({String? templateId, String? name, bool lowReadiness = false, DateTime? now}) async {
+  Future<String> startWorkout({String? templateId, String? name, bool lowReadiness = false, DateTime? now}) =>
+      // One transaction: watchers are notified once instead of after every insert.
+      workouts.db.transaction(() => _startWorkout(templateId: templateId, name: name, lowReadiness: lowReadiness, now: now));
+
+  Future<String> _startWorkout({String? templateId, String? name, bool lowReadiness = false, DateTime? now}) async {
     final at = now ?? DateTime.now();
     final template = templateId == null ? null : await workouts.template(templateId);
     final schedule = await workouts.activeSchedule();
@@ -138,12 +144,7 @@ class TrainingService {
       await addExerciseToWorkout(
         workoutId: workoutId,
         exercise: item.exercise,
-        prescription: Prescription(
-          sets: item.row.sets,
-          repMin: item.row.repMin,
-          repMax: item.row.repMax,
-          targetRpe: item.row.targetRpe,
-        ),
+        prescription: Prescription(sets: item.row.sets, repMin: item.row.repMin, repMax: item.row.repMax, targetRpe: item.row.targetRpe),
         warmupSets: item.row.warmupSets,
         restSeconds: item.row.restSeconds,
         supersetGroup: item.row.supersetGroup,
@@ -214,7 +215,10 @@ class TrainingService {
 
   /// Replaces an exercise in a running session with [replacement], keeping
   /// its position and prescription. Completed sets stay with the original.
-  Future<void> substitute({required SessionExercise current, required Exercise replacement, required String workoutId}) async {
+  Future<void> substitute({required SessionExercise current, required Exercise replacement, required String workoutId}) =>
+      workouts.db.transaction(() => _substitute(current: current, replacement: replacement, workoutId: workoutId));
+
+  Future<void> _substitute({required SessionExercise current, required Exercise replacement, required String workoutId}) async {
     final hasCompleted = current.sets.any((s) => s.completed);
     final row = current.row;
     if (!hasCompleted) await workouts.removeExercise(row.id);
@@ -234,18 +238,24 @@ class TrainingService {
   }
 
   /// Saves a generated program as templates plus a weekly schedule.
-  Future<void> installProgram(GeneratedProgram program) async {
+  Future<void> installProgram(GeneratedProgram program) => workouts.db.transaction(() async {
     for (final t in program.templates) {
       final id = await workouts.saveTemplate(name: t.name, items: t.items);
       for (final d in t.weekdays) {
         await workouts.setScheduleDay(d, id);
       }
     }
-  }
+  });
 
   static String _defaultName(DateTime t) {
     final h = t.hour;
-    final part = h < 11 ? 'Morning' : h < 14 ? 'Midday' : h < 18 ? 'Afternoon' : 'Evening';
+    final part = h < 11
+        ? 'Morning'
+        : h < 14
+        ? 'Midday'
+        : h < 18
+        ? 'Afternoon'
+        : 'Evening';
     return '$part workout · ${DateFormat('EEE').format(t)}';
   }
 }

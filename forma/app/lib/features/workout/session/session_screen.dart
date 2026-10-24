@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/primitives.dart';
+import '../../../core/widgets/prompts.dart';
 import '../../../core/widgets/states.dart';
 import '../../../data/db/app_database.dart';
 import '../../../data/repositories/exercise_repository.dart';
@@ -163,38 +164,14 @@ class _SessionViewState extends ConsumerState<_SessionView> {
   }
 
   Future<void> _rename() async {
-    final controller = TextEditingController(text: d.workout.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Workout name'),
-        content: TextField(controller: controller, autofocus: true, textCapitalization: TextCapitalization.sentences),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: const Text('Save')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final name = await promptText(context, title: 'Workout name', initial: d.workout.name);
     if (name != null && name.isNotEmpty) {
       await ref.read(workoutRepositoryProvider).updateWorkout(d.workout.id, WorkoutsCompanion(name: Value(name)));
     }
   }
 
   Future<void> _editNotes() async {
-    final controller = TextEditingController(text: d.workout.notes ?? '');
-    final notes = await showDialog<String>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Notes'),
-        content: TextField(controller: controller, autofocus: true, maxLines: 5, minLines: 3),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: const Text('Save')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final notes = await promptText(context, title: 'Notes', initial: d.workout.notes ?? '', maxLines: 5, allowEmpty: true);
     if (notes != null) {
       await ref.read(workoutRepositoryProvider).updateWorkout(d.workout.id, WorkoutsCompanion(notes: Value(notes.isEmpty ? null : notes)));
     }

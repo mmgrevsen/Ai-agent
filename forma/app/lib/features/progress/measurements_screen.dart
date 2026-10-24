@@ -8,6 +8,7 @@ import '../../core/util/format.dart';
 import '../../core/widgets/charts.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/repositories/body_repository.dart';
 import '../../domain/dates.dart';
@@ -25,20 +26,8 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
   String _kind = 'waist';
 
   Future<void> _add() async {
-    final controller = TextEditingController();
     final (label, unit) = measurementKinds[_kind]!;
-    final v = await showDialog<double>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Log $label'),
-        content: NumberField(controller: controller, label: label, unit: unit, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseNumber(controller.text)), child: const Text('Save')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final v = await promptNumber(context, title: 'Log $label', label: label, unit: unit);
     if (v == null || v <= 0 || (unit == '%' && v > 75) || (unit == 'cm' && v > 250)) return;
     await ref.read(bodyRepositoryProvider).addMeasurement(_kind, v);
   }

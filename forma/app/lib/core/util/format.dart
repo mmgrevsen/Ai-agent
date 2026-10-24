@@ -65,13 +65,16 @@ String duration(Duration d) {
   return '${s}s';
 }
 
-/// mm:ss for timers.
+/// m:ss for timers, h:mm:ss from one hour.
 String clock(Duration d) {
   final neg = d.isNegative;
   final a = d.abs();
-  final m = a.inMinutes;
   final s = a.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return '${neg ? '-' : ''}$m:$s';
+  if (a.inHours > 0) {
+    final m = a.inMinutes.remainder(60).toString().padLeft(2, '0');
+    return '${neg ? '-' : ''}${a.inHours}:$m:$s';
+  }
+  return '${neg ? '-' : ''}${a.inMinutes}:$s';
 }
 
 String relativeDay(DateTime day, {DateTime? today}) {

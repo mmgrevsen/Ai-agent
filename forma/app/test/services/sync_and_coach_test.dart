@@ -8,13 +8,13 @@ import 'package:forma/data/remote/backend.dart';
 import 'package:forma/data/repositories/body_repository.dart';
 import 'package:forma/data/repositories/coach_repository.dart';
 import 'package:forma/data/repositories/exercise_repository.dart';
+import 'package:forma/data/repositories/health_repository.dart';
 import 'package:forma/data/repositories/nutrition_repository.dart';
 import 'package:forma/data/repositories/settings_repository.dart';
 import 'package:forma/data/repositories/workout_repository.dart';
 import 'package:forma/domain/catalog.dart';
 import 'package:forma/services/coach_service.dart';
 import 'package:forma/services/health_service.dart';
-import 'package:forma/data/repositories/health_repository.dart';
 import 'package:forma/services/nutrition_service.dart';
 import 'package:forma/services/sync_service.dart';
 

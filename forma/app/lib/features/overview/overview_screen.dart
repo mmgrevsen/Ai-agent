@@ -294,10 +294,9 @@ class _RecoveryCard extends ConsumerWidget {
               Text('No data: ${s.missing.join(', ')}', style: context.text.bodySmall?.copyWith(color: c.textTertiary)),
             ],
             const SizedBox(height: Space.md),
-            Row(children: [
+            Wrap(spacing: Space.sm, runSpacing: Space.xs, crossAxisAlignment: WrapCrossAlignment.center, children: [
               if (checkin == null) FilledButton.tonal(onPressed: () => showCheckin(context, ref), child: const Text('Daily check-in')),
               if (checkin != null) TextButton(onPressed: () => showCheckin(context, ref), child: const Text('Update check-in')),
-              const Spacer(),
               if (!(prefs?.healthEnabled ?? false)) TextButton(onPressed: () => context.push('/settings/health'), child: const Text('Connect Apple Health')),
             ]),
             Text(RecoveryStatus.disclaimer, style: context.text.bodySmall?.copyWith(color: c.textTertiary, fontSize: 11)),
