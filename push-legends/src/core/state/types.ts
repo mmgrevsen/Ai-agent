@@ -97,6 +97,20 @@ export interface GameStats {
   dungeonsCompleted: number;
   exerciseDays: string[];
   repsToday: { day: string; count: number };
+  /** Most verified push-ups in one battle (drives the stage requirement and the training goals). */
+  bestBattleReps: number;
+  /** Verified push-ups per day (newest last, at most a year), for the training history and progress. */
+  repLog: RepDay[];
+}
+
+export interface RepDay {
+  day: string;
+  full: number;
+  knee: number;
+  /** Most push-ups in one battle that day. */
+  best: number;
+  /** Battles with at least one push-up that day. */
+  sets: number;
 }
 
 export interface StreakState {
@@ -130,6 +144,8 @@ export interface Settings {
    */
   autoDeployOptIn: boolean;
   cameraPrivacyAccepted: boolean;
+  /** Body weight in kg for the calorie estimate (the player can change it). */
+  bodyWeightKg: number;
 }
 
 export interface Progress {

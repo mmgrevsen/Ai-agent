@@ -46,7 +46,8 @@ export type Overlay =
   | { kind: 'modes' }
   | { kind: 'dungeon' }
   | { kind: 'cameraSetup'; then: BattleContext | null }
-  | { kind: 'intro' };
+  | { kind: 'intro' }
+  | { kind: 'training' };
 
 export type Modal =
   | { kind: 'card'; id: string }
@@ -270,11 +271,16 @@ export class GameStore {
     this.openModal({ kind: 'prebattle', context: ctx });
   }
 
-  startBattle(ctx: BattleContext, setupOverride?: BattleSetup): void {
+  startBattle(ctx: BattleContext, setupOverride?: BattleSetup, opts: { skipCameraPrompt?: boolean } = {}): void {
     const setup = setupOverride ?? this.setupFor(ctx);
     if (!setup) return;
     if (setup.deck.length === 0) {
       this.toast('Add at least one card to your deck first.', 'warn');
+      return;
+    }
+    // Stages are only claimed with push-ups: offer the camera first when it is off
+    if (setup.repsRequired > 0 && !this.game.settings.useCamera && !this.game.settings.devTools && !opts.skipCameraPrompt) {
+      this.pushOverlay({ kind: 'cameraSetup', then: ctx });
       return;
     }
     sound.unlock();

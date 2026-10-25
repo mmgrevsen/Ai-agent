@@ -107,6 +107,16 @@ export class Battle {
     return this.setup.endless ? Infinity : this.setup.waves.length;
   }
 
+  /** Push-ups that count towards `setup.repsRequired` (simulated reps only exist in developer mode). */
+  get repsDone(): number {
+    return this.reps.full + this.reps.knee + this.reps.simulated;
+  }
+
+  /** Every wave is beaten but the stage still needs push-ups before it is claimed. */
+  get awaitingReps(): boolean {
+    return !this.outcome && !this.setup.endless && this.waveState === 'done' && this.repsDone < this.setup.repsRequired;
+  }
+
   get isOver(): boolean {
     return this.outcome !== null;
   }
@@ -270,6 +280,7 @@ export class Battle {
     else this.reps.knee++;
     if (verified) this.reps.repUnits += mult;
     this.events.push({ type: 'rep', kind, verified, valor: gained });
+    this.checkEnd();
   }
 
   /** Damage a full push-up deals right now (before resistances). Better swords raise hero damage. */
@@ -387,11 +398,15 @@ export class Battle {
       this.finish(this.setup.endless ? 'complete' : 'defeat');
       return;
     }
+    // Waves beaten: the stage is claimed once the push-ups are done (no time limit while waiting)
+    if (!this.setup.endless && this.waveState === 'done') {
+      if (this.repsDone >= this.setup.repsRequired) this.finish('victory');
+      return;
+    }
     if (this.time >= this.setup.timeLimit) {
       this.finish(this.setup.endless ? 'complete' : 'timeout');
       return;
     }
-    if (!this.setup.endless && this.waveState === 'done') this.finish('victory');
   }
 
   private finish(outcome: BattleOutcome): void {

@@ -32,6 +32,19 @@ export const BALANCE = {
     /** Daily verified reps that grant full direct rewards; above this, rewards drop to the tail rate. */
     dailyRepFullRewardCap: 100,
     dailyRepTailRewardRate: 0.25,
+    /**
+     * Campaign stages are only claimed after this many push-ups in the battle (full and knee both
+     * count). Requirement = base + perStage × stage index (× boss multipliers), capped at `max`, and
+     * never more than the player's best push-ups in one battle + `aboveBest` (min `min`), so it
+     * grows with the player instead of becoming a wall.
+     */
+    stageReps: { base: 3, perStage: 0.5, miniBossMult: 1.25, bossMult: 1.5, max: 30, aboveBest: 3, min: 3 },
+    /**
+     * Calorie estimate per push-up: kcal ≈ kcalPerKg × body weight (from MET ≈ 8 at ~25 reps/min).
+     * Knee push-ups move less body weight. Shown to the player as an estimate.
+     */
+    kcalPerKgPerRep: 0.0055,
+    kneeCalorieFactor: 0.6,
   },
 
   combat: {

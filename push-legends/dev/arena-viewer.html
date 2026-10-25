@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Push Legends - arena viewer (dev)</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0a0c; overflow: hidden; }
+      #stage { position: relative; width: 100vw; height: 100vh; }
+      #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #stage canvas.pixel { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="overlay"></canvas></div>
+    <script type="module" src="/src/dev/arenaViewer.ts"></script>
+  </body>
+</html>

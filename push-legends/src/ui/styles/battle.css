@@ -532,3 +532,30 @@
   opacity: 0.85;
   margin-left: 2px;
 }
+
+/* All waves beaten, the stage waits for its push-ups */
+.seal-panel {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(20, 14, 14, 0.94), rgba(12, 10, 12, 0.96));
+  border: 1px solid rgba(191, 157, 82, 0.55);
+  box-shadow: 0 0 24px rgba(179, 35, 43, 0.35), 0 8px 24px rgba(0, 0, 0, 0.6);
+  color: #ece2cc;
+}
+
+.seal-title {
+  font-family: var(--font-card);
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #e0bd6a;
+  text-shadow: 0 0 10px rgba(224, 67, 75, 0.5);
+}

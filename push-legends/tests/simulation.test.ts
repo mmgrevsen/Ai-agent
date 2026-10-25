@@ -28,7 +28,7 @@ describe('progression simulation', () => {
     for (const r of [ex, idle, casual]) expect(r.highestCleared, r.profile).toBeGreaterThanOrEqual(40);
   });
 
-  it('exercising players progress faster through the mid-game, but idle players are not far behind', () => {
+  it('exercising players progress faster through the mid-game, but minimum-push-up players are not far behind', () => {
     const stage = 39;
     expect(ex.clearDay[stage]!).toBeGreaterThanOrEqual(0);
     expect(idle.clearDay[stage]!).toBeGreaterThanOrEqual(0);

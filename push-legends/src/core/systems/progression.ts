@@ -14,6 +14,7 @@ import { addItem } from './equipment';
 import { computeHeroStats } from './hero';
 import { addPet } from './pets';
 import { applyQuestEvent, streakBonus } from './quests';
+import { recordBattleReps } from './training';
 import { addHeroXpRaw, grantReward } from './rewards';
 import { academyFragmentBonus } from './battleSetup';
 
@@ -64,6 +65,8 @@ export interface BattleSummary {
   heroLevelsGained: number;
   streakBonus: number;
   newRecord: boolean;
+  /** Most push-ups in one battle so far (a new personal best). */
+  repRecord: boolean;
   bossCheckpointSaved: boolean;
   suggestions: Suggestion[];
   progressLines: string[];
@@ -87,6 +90,7 @@ function emptySummary(result: BattleResult): BattleSummary {
     heroLevelsGained: 0,
     streakBonus: 0,
     newRecord: false,
+    repRecord: false,
     bossCheckpointSaved: false,
     suggestions: [],
     progressLines: [],
@@ -158,6 +162,8 @@ export function finalizeBattle(state: GameState, result: BattleResult, now: numb
     if (s.repsToday.day !== today) s.repsToday = { day: today, count: 0 };
     s.repsToday.count += verifiedReps;
     if (!s.exerciseDays.includes(today)) s.exerciseDays.push(today);
+    summary.repRecord = verifiedReps > s.bestBattleReps;
+    recordBattleReps(state, now, result.reps.full, result.reps.knee);
     applyQuestEvent(state, { type: 'verifiedRep', amount: verifiedReps });
   }
 

@@ -17,6 +17,7 @@ import { formatDuration, formatNumber } from '../../core/util';
 import { cameraSupported } from '../../platform/pose';
 import { pushupDamage } from '../../core/systems/armory';
 import { computeHeroStats } from '../../core/systems/hero';
+import { stageRepsRequired } from '../../core/systems/training';
 import { CardArt, ItemArt, ModalShell, PetArt, RewardList, Segmented } from '../components/common';
 import { Icon } from '../components/Icon';
 import { BuildingModal } from './BaseScreen';
@@ -80,8 +81,10 @@ function PreBattleModal({ context }: { context: BattleContext }) {
       store.pushOverlay({ kind: 'cameraSetup', then: ctx });
       return;
     }
-    store.startBattle(ctx);
+    // "No camera" was chosen here on purpose: no camera prompt (the stage just cannot be claimed)
+    store.startBattle(ctx, undefined, { skipCameraPrompt: mode === 'off' });
   };
+  const repsNeeded = context.type === 'campaign' ? stageRepsRequired(game, context.stageIdx) : 0;
   return (
     <ModalShell label="Prepare for battle" onClose={() => store.closeModal()}>
       <div className="stack-m">
@@ -96,6 +99,12 @@ function PreBattleModal({ context }: { context: BattleContext }) {
                 {BATTLE_MODIFIERS[m].name}: {BATTLE_MODIFIERS[m].text}
               </span>
             ))}
+          </div>
+        )}
+        {repsNeeded > 0 && (
+          <div className={`notice small ${mode === 'off' ? '' : 'info'}`}>
+            <b>Claim with {repsNeeded} push-ups.</b> Beat the waves and do {repsNeeded} push-ups during the battle (knee push-ups count) to win the stage.
+            {mode === 'off' && ' Without the camera the push-ups cannot be counted, so the stage cannot be claimed (you still keep the gold you earn).'}
           </div>
         )}
         {context.type === 'challenge' && <div className="notice info small">Fair mode: every card is set to level {BALANCE.cards.normalizedPvpLevel} and your hero uses baseline stats. 90 seconds - defeat as many enemies as you can.</div>}
@@ -116,7 +125,9 @@ function PreBattleModal({ context }: { context: BattleContext }) {
               ? `Each verified push-up is a sword strike for ${formatNumber(pushupDamage(computeHeroStats(game)))} damage (+${BALANCE.exercise.valorPerRep} valor, builds War Cry). Better swords hit harder.`
               : mode === 'knee'
                 ? `Knee push-ups give ${Math.round(BALANCE.exercise.kneeRepMultiplier * 100)}% of the full push-up effect and rewards.`
-                : 'Play without exercise - your army fights and progresses on its own.'}
+                : context.type === 'campaign'
+                  ? 'Without exercise your army still fights and earns gold, but campaign stages need push-ups to be claimed.'
+                  : 'Play without exercise - your army fights and progresses on its own.'}
           </span>
           {mode !== 'off' && !cameraSupported() && <div className="notice small">This device or browser has no camera access. You can still play without the camera.</div>}
           {mode !== 'off' && (

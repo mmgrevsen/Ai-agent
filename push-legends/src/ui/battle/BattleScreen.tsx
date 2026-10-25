@@ -346,12 +346,14 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   const casting = battle.telegraphs.length > 0;
   const warCryReps = BALANCE.exercise.warCryReps;
   const out = tracker.output;
-  const repsDone = battle.reps.full + battle.reps.knee + battle.reps.simulated;
+  const repsDone = battle.repsDone;
+  const repsNeeded = setup.repsRequired;
+  const sealed = battle.awaitingReps;
   const perRep = Math.round(battle.pushupDamage * (exerciseKind === 'knee' ? BALANCE.exercise.kneeRepMultiplier : 1));
 
   let tip: string | null = null;
   if (firstBattle) {
-    if (!game.tutorial.tipDeploy) tip = 'Drag a card onto the field to place troops where you want - or tap it to send them from the gate. Valor (pink) refills over time.';
+    if (!game.tutorial.tipDeploy) tip = 'Drag a card onto the field to place troops where you want - or tap it to send them from the gate. Valor (red) refills over time.';
     else if (battle.special >= 1 && !game.tutorial.tipSpecial) tip = 'Your Legend Strike is charged - tap the golden button!';
     else if (battle.time < 25) tip = 'Your army fights on its own. With the camera on, every push-up is a sword strike! Buy better swords in the Armory to hit harder.';
   } else if (casting && battle.special >= 1 && !game.tutorial.tipInterrupt) tip = 'The boss is winding up! Legend Strike now to INTERRUPT it.';
@@ -415,7 +417,24 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
             {boss.shield > 0 && <Bar value={boss.shield} max={boss.maxHp * 0.15} tone="blue" />}
           </div>
         )}
-        {tip && <div className="battle-tip pop-in">{tip}</div>}
+        {tip && !sealed && <div className="battle-tip pop-in">{tip}</div>}
+        {sealed && (
+          <div className="seal-panel pop-in" role="status">
+            <div className="seal-title">Victory sealed</div>
+            <p className="small" style={{ margin: 0 }}>
+              Every wave is beaten. Do <b>{repsNeeded - repsDone}</b> more push-up{repsNeeded - repsDone === 1 ? '' : 's'} to claim the stage.
+            </p>
+            <Bar value={repsDone} max={repsNeeded} tone="red" tall label={`${repsDone} / ${repsNeeded} push-ups`} />
+            {!useCam && !settings.devTools && (
+              <>
+                <p className="xsmall dim" style={{ margin: 0 }}>The camera is off, so push-ups cannot be counted here. Retreat (you keep everything you earned), turn the camera on and play the stage again.</p>
+                <button className="btn ghost small block" onClick={() => battle.retreat()}>
+                  Retreat and keep rewards
+                </button>
+              </>
+            )}
+          </div>
+        )}
         {battle.warCryActive && <div className="warcry-tag display">WAR CRY</div>}
       </div>
 
@@ -436,7 +455,9 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
           <div className="grow col" style={{ gap: 4 }}>
             <div className="spread">
               <span className="display" key={repFlash}>
-                <span className={repFlash ? 'rep-pop' : ''}>{repsDone}</span> <span className="small dim">reps {exerciseKind === 'knee' ? '(knee)' : ''}</span>
+                <span className={repFlash ? 'rep-pop' : ''}>{repsDone}</span>
+                {repsNeeded > 0 && <span className={repsDone >= repsNeeded ? 'small good-text' : 'small dim'}>/{repsNeeded}</span>}{' '}
+                <span className="small dim">push-ups {exerciseKind === 'knee' ? '(knee)' : ''}</span>
               </span>
               <span className="small gold-text" title="Damage per push-up (better swords hit harder)">
                 <Icon name="swords" size={14} /> {formatNumber(perRep)}/rep

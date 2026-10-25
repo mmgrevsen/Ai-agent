@@ -80,6 +80,8 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
       dungeonsCompleted: 0,
       exerciseDays: [],
       repsToday: { day: dayKey(now), count: 0 },
+      bestBattleReps: 0,
+      repLog: [],
     },
     streak: { count: 0, lastDay: null, restTokens: 1, best: 0 },
     settings: {
@@ -100,6 +102,7 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
       autoDeploy: false,
       autoDeployOptIn: false,
       cameraPrivacyAccepted: false,
+      bodyWeightKg: 75,
     },
     social: { online: { server: '', token: '', username: '' }, friends: [], blocked: [], challenges: [] },
     tutorial: {},

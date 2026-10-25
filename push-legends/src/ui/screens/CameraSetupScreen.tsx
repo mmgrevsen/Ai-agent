@@ -57,12 +57,12 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
 
   const finish = () => {
     store.popOverlay();
-    if (then) store.startBattle(then);
+    if (then) store.startBattle(then, undefined, { skipCameraPrompt: true });
   };
   const skip = () => {
     store.updateSettings({ useCamera: false });
     store.popOverlay();
-    if (then) store.startBattle(then);
+    if (then) store.startBattle(then, undefined, { skipCameraPrompt: true });
   };
 
   const out = tracker.output;
@@ -80,13 +80,18 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
                 <Icon name="camera" size={40} />
                 <h2>Why the camera?</h2>
               </div>
+              {then?.type === 'campaign' && (
+                <div className="notice small">
+                  <b>Stages are won with push-ups.</b> Beat the waves, then do the stage's push-ups (knee push-ups count too) to claim it. The camera counts them.
+                </div>
+              )}
               <p className="small">Push Legends counts real push-ups by watching your body position with your front camera. Every good rep makes your hero swing their sword at the nearest enemy - buy better swords with gold to hit harder. Reps also add valor and build War Cries.</p>
               <div className="notice info small">
                 <b>Your privacy:</b> everything runs on this device. Video is never uploaded, recorded or saved. Only body-point positions of the current frame are used, then thrown away.
               </div>
               <p className="xsmall faint">Camera vision is not perfect. If tracking is unsure the game will ask you to reposition - it never accuses you of cheating, and a missed rep never costs you anything.</p>
             </div>
-            {!cameraSupported() && <div className="notice small">This device or browser doesn't provide camera access. You can still play fully without it.</div>}
+            {!cameraSupported() && <div className="notice small">This device or browser doesn't provide camera access. Without it you can still build your base, collect idle rewards, upgrade and play the other modes, but campaign stages can only be claimed with counted push-ups.</div>}
             <button
               className="btn gold big block"
               disabled={!cameraSupported()}
@@ -98,7 +103,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
               Continue
             </button>
             <button className="btn ghost block" onClick={skip}>
-              Play without the camera
+              {then?.type === 'campaign' ? 'Fight without the camera (stage cannot be claimed)' : 'Play without the camera'}
             </button>
           </>
         )}

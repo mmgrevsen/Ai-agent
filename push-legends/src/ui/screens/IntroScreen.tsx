@@ -31,13 +31,13 @@ export function IntroScreen() {
           LEGENDS
         </div>
         <p className="center dim" style={{ margin: 0 }}>
-          Lead an army of heroes. Every real push-up is a sword strike - earn gold, forge better swords, hit harder. Rest days are welcome - your realm keeps growing while you're away, and losing a battle never costs you anything.
+          Lead an army of dark legends. Every real push-up is a sword strike, and every stage is claimed with push-ups - start with just three. Your realm keeps growing while you rest, and losing a battle never costs you anything.
         </p>
         <button className="btn gold big block pulse" onClick={begin}>
           <Icon name="swords" size={22} /> Begin your legend
         </button>
         <p className="xsmall faint center" style={{ margin: 0 }}>
-          The first battle needs no camera. You can turn on push-up tracking any time.
+          Next: set up the camera that counts your push-ups. Video never leaves your phone.
         </p>
       </div>
     </div>

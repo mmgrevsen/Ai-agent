@@ -5,7 +5,9 @@ import { Battle } from '../src/core/combat/engine';
 import type { BattleSetup, WaveDef } from '../src/core/combat/types';
 import { buildStageWaves } from '../src/core/combat/waves';
 import { createInitialState } from '../src/core/state/initial';
+import { Rng } from '../src/core/rng';
 import { campaignSetup, endlessSetup } from '../src/core/systems/battleSetup';
+import { finalizeBattle } from '../src/core/systems/progression';
 import { cardStats } from '../src/core/systems/cards';
 
 const NOW = Date.UTC(2026, 9, 15, 12);
@@ -14,7 +16,7 @@ function setupWith(waves: WaveDef[], deckIds: string[] = ['oakshield_knight', 't
   const s = createInitialState(NOW, 1);
   s.deck = deckIds;
   for (const id of deckIds) s.cards[id] = { level: 1, fragments: 0 };
-  return { ...campaignSetup(s, 0, 'normal'), waves, autoDeploy: false, ...patch };
+  return { ...campaignSetup(s, 0, 'normal'), waves, autoDeploy: false, repsRequired: 0, ...patch };
 }
 
 const wave = (...spawns: WaveDef['spawns']): WaveDef => ({ spawns, isBossWave: spawns.some((s) => s.kind === 'boss') });
@@ -27,12 +29,43 @@ describe('combat engine', () => {
     expect(a).toEqual(b);
   });
 
-  it('wins a first stage with the starter deck on auto-deploy', () => {
+  it('wins a first stage with the starter deck on auto-deploy once the push-ups are done', () => {
     const s = createInitialState(NOW, 1);
     s.settings.autoDeploy = true;
-    const r = new Battle(campaignSetup(s, 0, 'normal')).runToEnd();
+    const r = new Battle(campaignSetup(s, 0, 'normal')).runToEnd(600, (b) => b.awaitingReps && b.registerRep('full', true));
     expect(r.outcome).toBe('victory');
     expect(r.goldEarned).toBeGreaterThan(0);
+  });
+
+  it('a campaign stage cannot be won without push-ups: it waits for them instead of ending', () => {
+    const s = createInitialState(NOW, 1);
+    s.settings.autoDeploy = true;
+    const setup = campaignSetup(s, 0, 'normal');
+    expect(setup.repsRequired).toBeGreaterThanOrEqual(3);
+    const b = new Battle(setup);
+    while (b.time < setup.timeLimit + 300) b.step(0.1);
+    // Waves beaten long ago, time limit long passed: still waiting, no victory and no timeout
+    expect(b.isOver).toBe(false);
+    expect(b.awaitingReps).toBe(true);
+    for (let i = 0; i < setup.repsRequired - 1; i++) b.registerRep('knee', true);
+    expect(b.isOver).toBe(false);
+    b.registerRep('full', true);
+    expect(b.result().outcome).toBe('victory');
+  });
+
+  it('retreating while the stage waits for push-ups keeps rewards but does not clear it', () => {
+    const s = createInitialState(NOW, 1);
+    s.settings.autoDeploy = true;
+    const b = new Battle(campaignSetup(s, 0, 'normal'));
+    while (!b.awaitingReps && b.time < 600) b.step(0.1);
+    expect(b.awaitingReps).toBe(true);
+    b.retreat();
+    const r = b.result();
+    expect(r.outcome).toBe('retreat');
+    const before = s.progress.highestCleared;
+    finalizeBattle(s, r, NOW, new Rng(1));
+    expect(s.progress.highestCleared).toBe(before);
+    expect(s.resources.gold).toBeGreaterThan(0);
   });
 
   it('deploying spends valor equal to the card cost and cycles the hand', () => {

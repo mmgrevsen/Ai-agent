@@ -76,6 +76,11 @@ export interface BattleSetup {
   restBuff: number;
   autoDeploy: boolean;
   exerciseMode: 'full' | 'knee' | null;
+  /**
+   * Push-ups needed in this battle to claim it (campaign stages; 0 = none). When every wave is
+   * beaten before that, the battle waits for the push-ups instead of ending (no time limit).
+   */
+  repsRequired: number;
 }
 
 export interface Unit {

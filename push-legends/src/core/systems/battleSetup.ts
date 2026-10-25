@@ -9,6 +9,7 @@ import { weekKey } from '../util';
 import { cardStats } from './cards';
 import { difficultyMultiplier, progressIndex, rewardMultiplier, stageFromIndex } from './economy';
 import { computeHeroStats } from './hero';
+import { stageRepsRequired } from './training';
 
 export function buildHeroSpec(state: GameState): HeroSpec {
   const h = computeHeroStats(state);
@@ -75,6 +76,7 @@ function baseSetup(state: GameState, partial: Partial<BattleSetup> & Pick<Battle
     restBuff: 0,
     autoDeploy: state.settings.autoDeploy,
     exerciseMode: state.settings.useCamera ? state.settings.exerciseMode : null,
+    repsRequired: 0,
     ...partial,
   };
 }
@@ -108,6 +110,8 @@ export function campaignSetup(
     startWave: canSkip ? bossWave : 0,
     // Boss stages get extra time so the fight itself is never cut short.
     timeLimit: bossWave >= 0 ? BALANCE.combat.stageTimeLimitSec + 120 : BALANCE.combat.stageTimeLimitSec,
+    // A stage is only claimed with push-ups (see systems/training.ts)
+    repsRequired: stageRepsRequired(state, stageIdx),
     difficulty,
     difficultyMult: difficultyMultiplier(stageIdx, difficulty),
     rewardMult: rewardMultiplier(difficulty),

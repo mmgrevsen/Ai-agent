@@ -40,6 +40,10 @@ const stopServer = () => {
   await page.waitForTimeout(600);
   await shot('01-intro');
   await page.getByRole('button', { name: /Begin your legend/ }).click({ force: true });
+  await page.waitForTimeout(800);
+  // Stages are claimed with push-ups: the camera setup comes first (skipped here)
+  await shot('01b-camera-prompt');
+  await page.getByRole('button', { name: /Fight without the camera/ }).click({ force: true });
   await page.waitForTimeout(3000);
   await shot('02-battle-start');
   // deploy a few cards manually
@@ -51,6 +55,13 @@ const stopServer = () => {
   await shot('03-battle-mid');
   // Keep playing cards until the battle ends (slow software rendering stretches the battle)
   for (let i = 0; i < 160 && !(await page.locator('.result').count()); i++) {
+    // All waves beaten without push-ups: the stage is sealed; retreat (rewards are kept)
+    if (await page.locator('.seal-panel').count()) {
+      await shot('03b-sealed');
+      await page.getByRole('button', { name: /Retreat and keep rewards/ }).click({ force: true });
+      await page.waitForTimeout(1000);
+      continue;
+    }
     const cards = page.locator('.hand-card.ready');
     if (await cards.count()) await cards.first().click({ force: true }).catch(() => {});
     await page.waitForTimeout(1500);
@@ -61,6 +72,12 @@ const stopServer = () => {
   await page.getByRole('button', { name: /^Back$/ }).click({ force: true });
   await page.waitForTimeout(800);
   await shot('05-home');
+  // Training log (push-up totals, calories, history, goals)
+  await page.locator('button.modes-entry', { hasText: 'Training' }).click({ force: true });
+  await page.waitForTimeout(600);
+  await shot('05a-training');
+  await page.getByRole('button', { name: 'Back' }).first().click({ force: true });
+  await page.waitForTimeout(400);
   await page.mouse.wheel(0, 600);
   await page.waitForTimeout(400);
   await shot('05b-home-scrolled');

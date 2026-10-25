@@ -16,6 +16,7 @@ import { cardUnlockedAtStage, PET_UNLOCKS } from '../../core/systems/progression
 import { BUILDINGS } from '../../core/content/buildings';
 import { formatDuration, formatNumber } from '../../core/util';
 import { drawWorldBackground } from '../art/scenery';
+import { stageRepsRequired, trainingSummary } from '../../core/systems/training';
 import { drawFigure } from '../art/cardPortraits';
 import { heroPortraitKey } from '../art/heroLook';
 import { ArtCanvas, Bar, useNow } from '../components/common';
@@ -48,6 +49,7 @@ export function HomeScreen() {
   const petUnlock = PET_UNLOCKS[selected];
   const dailyOpen = game.quests.daily.filter((q) => !q.claimed);
   const sword = nextAffordableSword(game);
+  const training = trainingSummary(game, Date.now());
 
   const selectStage = (idx: number) => {
     store.update((s) => {
@@ -137,6 +139,11 @@ export function HomeScreen() {
           </div>
         )}
         {bossDef && <p className="small dim" style={{ margin: '8px 0 0' }}>{bossDef.hint}</p>}
+        <div className="small" style={{ marginTop: 8 }}>
+          <span className="chip red">
+            <Icon name="flame" size={14} /> Claim with {stageRepsRequired(game, selected)} push-ups
+          </span>
+        </div>
         <div className="row" style={{ marginTop: 12 }}>
           <button className={`btn gold big grow ${!game.tutorial.firstBattle ? 'pulse' : ''}`} onClick={() => store.prepareBattle({ type: 'campaign', stageIdx: selected, difficulty: 'normal', startAtBoss: false })}>
             <Icon name="swords" size={22} /> Battle
@@ -219,6 +226,20 @@ export function HomeScreen() {
           )}
         </div>
       )}
+
+      {/* Training */}
+      <button className="panel tile modes-entry" onClick={() => store.pushOverlay({ kind: 'training' })}>
+        <div className="row">
+          <Icon name="trophy" size={30} />
+          <div className="grow">
+            <div className="display">Training</div>
+            <div className="small dim">
+              {formatNumber(training.total.all)} push-ups · {formatNumber(Math.round(training.total.kcal))} kcal · today {training.today.reps}/{training.goals.day}
+            </div>
+          </div>
+          <Icon name="back" className="flip" size={20} />
+        </div>
+      </button>
 
       {/* Modes */}
       <button className="panel tile modes-entry" onClick={() => store.pushOverlay({ kind: 'modes' })}>

@@ -182,6 +182,7 @@ export function dungeonBattleSetup(state: GameState, run: DungeonRun, node: Dung
     restBuff: run.restBuff,
     autoDeploy: state.settings.autoDeploy,
     exerciseMode: state.settings.useCamera ? state.settings.exerciseMode : null,
+    repsRequired: 0,
   };
 }
 

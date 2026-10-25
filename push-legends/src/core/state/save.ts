@@ -250,6 +250,15 @@ export function sanitizeState(raw: unknown, now: number, repaired: string[] = []
   }
   base.settings.calibration = calibration;
 
+  // The push-up log is an array of records: keep only well-formed days (newest 366)
+  const log = isObj(data.stats) && Array.isArray(data.stats.repLog) ? data.stats.repLog : [];
+  base.stats.repLog = log
+    .filter((d): d is Obj => isObj(d) && typeof d.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.day))
+    .map((d) => ({ day: d.day as string, full: intIn(d.full, 0, 1e6, 0), knee: intIn(d.knee, 0, 1e6, 0), best: intIn(d.best, 0, 1e5, 0), sets: intIn(d.sets, 0, 1e5, 0) }))
+    .slice(-366);
+  base.stats.bestBattleReps = intIn(base.stats.bestBattleReps, 0, 1e5, 0);
+  base.settings.bodyWeightKg = Math.min(250, Math.max(30, nonNeg(base.settings.bodyWeightKg, 75) || 75));
+
   base.progress.highestCleared = intIn(base.progress.highestCleared, -1, 10_000, -1);
   base.progress.selectedStage = intIn(base.progress.selectedStage, 0, base.progress.highestCleared + 1, 0);
   base.version = SAVE_VERSION;

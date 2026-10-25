@@ -1,4 +1,4 @@
-import { store, type BattleContext } from '../../app/store';
+import { store, useGame, type BattleContext } from '../../app/store';
 import { getCard } from '../../core/content/cards';
 import { COSMETIC_BY_ID } from '../../core/content/cosmetics';
 import { getItem } from '../../core/content/equipment';
@@ -8,12 +8,14 @@ import type { DungeonRoomSummary } from '../../core/systems/dungeon';
 import type { BattleSummary, Suggestion } from '../../core/systems/progression';
 import { encodeChallenge } from '../../core/social/codes';
 import { formatNumber } from '../../core/util';
+import { repCalories } from '../../core/systems/training';
 import { CardArt, ItemArt, PetArt, RewardList } from '../components/common';
 import { Icon } from '../components/Icon';
 import { useEffect, useState } from 'react';
 import { refresh as refreshFriends, sendDuel, useFriends } from '../../app/friends';
 
 export function ResultScreen({ summary, result, context, dungeon }: { summary: BattleSummary; result: BattleResult; context: BattleContext; dungeon: DungeonRoomSummary | null }) {
+  const { game } = useGame();
   const won = result.outcome === 'victory';
   const runDone = result.outcome === 'complete';
   const positive = won || runDone;
@@ -40,6 +42,8 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
   };
 
   const isChallenge = context.type === 'challenge';
+  const verifiedReps = result.reps.full + result.reps.knee;
+  const unclaimed = result.mode === 'campaign' && result.outcome === 'retreat' && result.wavesCleared >= result.totalWaves;
   const isBlitzLike = result.mode === 'blitz' || isChallenge;
   const nextStage = context.type === 'campaign' && won && summary.firstClear;
 
@@ -62,6 +66,25 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
           ))}
           {summary.bossCheckpointSaved && <div className="notice info small" style={{ marginTop: 8 }}>Boss checkpoint saved - next time you can start straight at the boss.</div>}
         </div>
+
+        {(verifiedReps > 0 || unclaimed) && (
+          <div className="panel">
+            <div className="spread">
+              <h3 style={{ margin: 0 }}>Push-ups</h3>
+              <span className="display" style={{ fontSize: 22 }}>{verifiedReps}</span>
+            </div>
+            {verifiedReps > 0 && (
+              <div className="xsmall dim">
+                About {Math.round(repCalories(result.reps.full, result.reps.knee, game.settings.bodyWeightKg))} kcal · {formatNumber(game.stats.verifiedFullReps + game.stats.verifiedKneeReps)} in total
+              </div>
+            )}
+            {summary.repRecord && <div className="notice info small" style={{ marginTop: 8 }}>New personal best: {verifiedReps} push-ups in one battle!</div>}
+            {unclaimed && <div className="notice small" style={{ marginTop: 8 }}>All waves were beaten, but the stage needs its push-ups to be claimed. Play it again with the camera on.</div>}
+            <button className="btn ghost small block" style={{ marginTop: 8 }} onClick={() => store.pushOverlay({ kind: 'training' })}>
+              Training log
+            </button>
+          </div>
+        )}
 
         <div className="panel gold">
           <h3 style={{ marginBottom: 8 }}>{positive ? 'Rewards' : 'Rewards kept'}</h3>

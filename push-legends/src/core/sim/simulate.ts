@@ -129,6 +129,8 @@ export function simulateProgression(profile: SimProfile, days: number, seed = 1,
             reps++;
             nextRep += repEvery;
           }
+          // Stages are only claimed with push-ups: every profile does the required ones at the end
+          if (bt.awaitingReps) bt.registerRep('full', true);
           if (bt.canUseSpecial() && (bt.telegraphs.length > 0 || bt.enemies.length >= 6)) bt.useSpecial();
         });
         now += result.duration * 1000;
@@ -168,8 +170,8 @@ export function simulateProgression(profile: SimProfile, days: number, seed = 1,
 export const SIM_PROFILES: Record<'exerciser' | 'idle' | 'casual', SimProfile> = {
   /** Plays 15 battles a day with ~5 push-ups each (~75 reps/day, inside the daily full-reward cap). */
   exerciser: { name: 'exerciser', repsPerBattle: 5, battlesPerSession: 5, sessionsPerDay: 3 },
-  /** Same play time, never exercises. */
+  /** Same play time, only the push-ups each stage requires (done at the end of the battle). */
   idle: { name: 'idle', repsPerBattle: 0, battlesPerSession: 5, sessionsPerDay: 3 },
-  /** Two short sessions a day, no exercise. */
+  /** Two short sessions a day, only the required push-ups. */
   casual: { name: 'casual', repsPerBattle: 0, battlesPerSession: 3, sessionsPerDay: 2 },
 };

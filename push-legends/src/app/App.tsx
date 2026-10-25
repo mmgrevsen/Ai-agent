@@ -15,6 +15,7 @@ import { CameraSetupScreen } from '../ui/screens/CameraSetupScreen';
 import { CardsScreen } from '../ui/screens/CardsScreen';
 import { HeroScreen } from '../ui/screens/HeroScreen';
 import { HomeScreen } from '../ui/screens/HomeScreen';
+import { TrainingScreen } from '../ui/screens/TrainingScreen';
 import { IntroScreen } from '../ui/screens/IntroScreen';
 import { ModalHost } from '../ui/screens/Modals';
 import { DungeonScreen, ModesScreen } from '../ui/screens/ModesScreen';
@@ -50,6 +51,8 @@ function OverlayView({ overlay }: { overlay: Overlay }) {
       return <CameraSetupScreen then={overlay.then} />;
     case 'intro':
       return <IntroScreen />;
+    case 'training':
+      return <TrainingScreen />;
   }
 }
 
