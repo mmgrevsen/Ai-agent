@@ -436,7 +436,7 @@ export function buildCourtyard(idx: number, look: ArenaLook, gateX: number, port
   const paving = new Batch();
   const pk = buildPaving(look, rand, glowK);
   // A glowing sigil stays faint (below the bloom) so it never reads as a gameplay marker
-  if (look.sigilGlow) buildSigil(glowK, mixHex(look.sigilGlow, '#000000', 0.62), 0.046);
+  if (look.sigilGlow) buildSigil(glowK, mixHex(look.sigilGlow, '#000000', 0.93), 0.046);
   else buildSigil(pk, look.gold, 0.046);
   paving.take(pk, KIND_PAVE);
   group.add(paving.build(material, false));
