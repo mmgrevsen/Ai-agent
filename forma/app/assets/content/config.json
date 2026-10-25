@@ -4,5 +4,10 @@
     "labelPhotos": true,
     "barcodePhotos": true
   },
-  "announcement": null
+  "announcement": {
+    "id": "test-opdatering-1",
+    "title": "Opdateringen virker! 🎉",
+    "body": "Denne besked kom fra serveren uden en ny app. Tryk på krydset for at fjerne den.",
+    "until": "2026-11-08"
+  }
 }
