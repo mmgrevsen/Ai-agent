@@ -1,8 +1,33 @@
 # Push Legends - Game Design
 
 Push Legends is a fantasy idle RPG where real push-ups, detected by the phone camera, power an army.
-It is a game first and a fitness game second: everything is playable without exercise, and exercise
-makes progress noticeably faster and more fun.
+**Campaign stages are claimed with push-ups** (client decision, 2026-10-25; it replaces the original
+"everything is playable without exercise" rule for stages): beat the waves *and* do the stage's
+push-ups. The base, idle income, upgrades, cards and the other battle modes still work without
+exercise, and losing or retreating never costs anything.
+
+### Push-up rule for stages
+
+- Requirement per stage (`BALANCE.exercise.stageReps`, `systems/training.ts`):
+  `round((3 + 0.5 × stage index) × boss multiplier)` (mini-boss ×1.25, world boss ×1.5), at most 30,
+  and never more than **the player's best push-ups in one battle + 3** (at least 3). The first stage
+  therefore needs 3, and the requirement rises with the player instead of becoming a wall.
+- Full and knee push-ups both count (one each). Only camera-verified reps count; developer-simulated
+  reps exist only with developer tools on.
+- If the waves are beaten first, the battle does not end: a "Victory sealed" panel shows how many
+  push-ups are left and the time limit is suspended. Retreating keeps every reward; the stage stays
+  unclaimed. Starting a stage with the camera off opens camera setup first (it can be skipped; the
+  pre-battle screen and the seal panel explain that the stage then cannot be claimed).
+
+### Training log
+
+`TrainingScreen` (Home → Training, and from the result screen): total push-ups (full/knee), calorie
+estimate (`kcal = (full + 0.6 × knee) × 0.0055 × body weight kg`, MET ≈ 8; the player sets their
+weight), today, last 7 days, a 14-day chart, rank by best battle (Recruit 0, Squire 5, Soldier 10,
+Knight 20, Champion 30, Warlord 50, Legend 75, Mythic 100), records (best day, streak, active days)
+and progressive goals: next battle = best + max(1, 10%), daily goal = 110% of the 7-day average (min
+10), the next total milestone and the week-over-week trend of the best battle. The log
+(`stats.repLog`, one entry per day, at most 366) and `stats.bestBattleReps` are saved and sanitised.
 
 All numbers below come from `src/core/config/balance.ts` (the single source of truth) and the
 content files in `src/core/content/`. Change them there; never hardcode them in screens.
