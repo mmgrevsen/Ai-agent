@@ -87,10 +87,20 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     final saved = {for (final f in local) '${f.source}:${f.sourceRef}'};
     setState(() {
       _local = local;
-      _reference = [
+      final hits = [
         for (final f in ref.read(contentFoodsProvider))
-          if (f.matches(q) && !saved.contains('forma:${f.id}')) referenceFoodItem(f),
+          if (f.matches(q) && !saved.contains('forma:${f.id}')) f,
       ];
+      // Best matches first; meals and Danish (Frida) foods before USDA,
+      // which keeps the list short and relevant with thousands of foods.
+      int source(ContentFood f) => f.id.startsWith('meal-') ? 0 : f.id.startsWith('frida-') ? 1 : 2;
+      hits.sort((a, b) {
+        final r = a.rank(q).compareTo(b.rank(q));
+        if (r != 0) return r;
+        final s = source(a).compareTo(source(b));
+        return s != 0 ? s : a.name.length.compareTo(b.name.length);
+      });
+      _reference = [for (final f in hits.take(40)) referenceFoodItem(f)];
     });
     try {
       final remote = await ref.read(foodDataSourceProvider).search(q);
@@ -525,7 +535,12 @@ FoodItem referenceFoodItem(ContentFood f) => FoodItem(
       brand: f.brand,
       source: 'forma',
       sourceRef: f.id,
-      provenance: f.provenance == 'verified' ? Provenance.verified : Provenance.community,
+      provenance: switch (f.provenance) {
+        'verified' => Provenance.verified,
+        'calculated' => Provenance.calculated,
+        _ => Provenance.community,
+      },
       per100g: Nutrients(kcal: f.kcal, proteinG: f.protein, carbsG: f.carbs, fatG: f.fat, fiberG: f.fiber),
       servings: [for (final s in f.servings) ServingOption(s.label, s.grams), const ServingOption('100 g', 100)],
+      note: f.reference,
     );

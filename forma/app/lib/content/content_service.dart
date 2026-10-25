@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import '../data/db/app_database.dart';
@@ -142,6 +144,7 @@ class ContentService {
 
   static const kActive = 'content.active';
   static const kPrevious = 'content.previous';
+  static const kPreviousVersion = 'content.previous_version';
   static const kApplied = 'content.applied_version';
   static const kEtag = 'content.etag';
   static const kLastCheck = 'content.last_check';
@@ -165,14 +168,32 @@ class ContentService {
     if (!_changes.isClosed) _changes.add(s);
   }
 
+  static String _hash(String raw) => sha256.convert(utf8.encode(raw)).toString();
+
+  /// Stored content was validated before it was saved; a hash of the stored
+  /// text proves it is unchanged, so start-up skips the slower full
+  /// checksum (thousands of foods).
   Future<ContentBundle?> _readStored(String key) async {
     final raw = await db.readMeta(key);
     if (raw == null) return null;
+    final hash = await db.readMeta('$key.sha');
+    if (hash != null && hash != _hash(raw)) return null; // Corrupt: never applied.
     try {
-      return ContentBundle.parse(jsonDecode(raw));
+      return ContentBundle.parse(jsonDecode(raw), verifyChecksum: hash == null);
     } on Object {
       return null; // Unreadable stored content is ignored, never applied.
     }
+  }
+
+  Future<void> _writeStored(String key, ContentBundle bundle) async {
+    final raw = jsonEncode(bundle.toJson());
+    await db.writeMeta(key, raw);
+    await db.writeMeta('$key.sha', _hash(raw));
+  }
+
+  Future<void> _deleteStored(String key) async {
+    await db.deleteMeta(key);
+    await db.deleteMeta('$key.sha');
   }
 
   bool _usable(ContentBundle b) => b.minAppBuild <= appBuild || appBuild == 0;
@@ -199,14 +220,14 @@ class ContentService {
     if (await db.readMeta(kApplied) != '${active.version}') await _applyToDatabase(active);
     if (identical(active, stored)) await db.writeMeta(kBootPending, '${active.version}');
 
-    final previous = await _readStored(kPrevious);
+    final previousVersion = int.tryParse(await db.readMeta(kPreviousVersion) ?? '');
     _status = ContentStatus(
       bundle: active,
       source: identical(active, builtIn) ? ContentSource.builtIn : ContentSource.downloaded,
       lastCheck: _time(await db.readMeta(kLastCheck)),
       lastSuccess: _time(await db.readMeta(kLastSuccess)),
       lastError: await db.readMeta(kLastError),
-      previousVersion: previous?.version,
+      previousVersion: previousVersion,
     );
   }
 
@@ -220,11 +241,12 @@ class ContentService {
     final previous = await _readStored(kPrevious);
     await db.transaction(() async {
       if (previous != null) {
-        await db.writeMeta(kActive, jsonEncode(previous.toJson()));
+        await _writeStored(kActive, previous);
       } else {
-        await db.deleteMeta(kActive);
+        await _deleteStored(kActive);
       }
-      await db.deleteMeta(kPrevious);
+      await _deleteStored(kPrevious);
+      await db.deleteMeta(kPreviousVersion);
       await db.deleteMeta(kBootPending);
       await db.deleteMeta(kBootFailures);
     });
@@ -280,7 +302,8 @@ class ContentService {
   Future<CheckResult> _consider(Object? json, String? etag) async {
     final ContentBundle incoming;
     try {
-      incoming = ContentBundle.parse(json);
+      // Full validation of a large download runs off the UI thread.
+      incoming = await Isolate.run(() => ContentBundle.parse(json));
     } on ContentValidationException catch (e) {
       // Keep the working content; report the first problem.
       return CheckResult(CheckOutcome.rejected, message: 'The new content failed validation and was not installed (${e.errors.first}).');
@@ -311,8 +334,11 @@ class ContentService {
     final current = _status.source == ContentSource.downloaded ? _status.bundle : null;
     await db.transaction(() async {
       await _applyToDatabase(bundle);
-      if (current != null) await db.writeMeta(kPrevious, jsonEncode(current.toJson()));
-      await db.writeMeta(kActive, jsonEncode(bundle.toJson()));
+      if (current != null) {
+        await _writeStored(kPrevious, current);
+        await db.writeMeta(kPreviousVersion, '${current.version}');
+      }
+      await _writeStored(kActive, bundle);
       // The next start is the first with this content.
       await db.writeMeta(kBootPending, '${bundle.version}');
       await db.deleteMeta(kBootFailures);

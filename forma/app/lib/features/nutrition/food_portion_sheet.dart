@@ -98,6 +98,10 @@ class _PortionSheetState extends State<_PortionSheet> {
               const SizedBox(width: Space.sm),
               Flexible(child: Text('Source: ${f.sourceLabel}${f.sourceRef != null && f.source == 'off' ? ' · ${f.sourceRef}' : ''}', style: context.text.bodySmall)),
             ]),
+            if (f.note != null) ...[
+              const SizedBox(height: Space.xs),
+              Text(f.note!, style: context.text.bodySmall),
+            ],
             if (missing.isNotEmpty) ...[
               const SizedBox(height: Space.sm),
               Text(

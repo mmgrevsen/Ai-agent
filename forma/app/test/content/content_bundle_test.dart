@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/content/content_bundle.dart';
 import 'package:forma/data/repositories/exercise_repository.dart';
@@ -64,7 +65,56 @@ void main() {
     });
   });
 
+  group('reference foods', () {
+    final foods = testContentBundle().foods;
+    final byId = {for (final f in foods) f.id: f};
+
+    test('Frida, USDA and whole meals are all included with a cited source', () {
+      expect(foods.where((f) => f.id.startsWith('frida-')).length, greaterThanOrEqualTo(1300));
+      expect(foods.where((f) => f.id.startsWith('usda-')).length, greaterThanOrEqualTo(1000));
+      expect(foods.where((f) => f.id.startsWith('meal-')).length, greaterThanOrEqualTo(30));
+      expect(foods.every((f) => f.reference.isNotEmpty), isTrue);
+      expect(testContentBundle().foodAttribution.join(), allOf(contains('Frida version 5.5'), contains('FoodData Central')));
+    });
+
+    test('eggs and bacon is a calculated meal listing its sources', () {
+      final m = byId['meal-aeg-og-bacon']!;
+      expect(m.provenance, 'calculated');
+      expect(m.reference, allOf(contains('USDA FDC 2707158'), contains('USDA FDC 2705887')));
+      expect(m.servings.single.grams, 116);
+      // 92 g fried egg (192 kcal/100 g) + 24 g bacon (484 kcal/100 g).
+      expect(m.kcal! * 116 / 100, closeTo(92 * 1.92 + 24 * 4.84, 0.6));
+    });
+
+    test('search matches Danish and English names, best matches first', () {
+      List<String> search(String q) {
+        final hits = foods.where((f) => f.matches(q)).toList()..sort((a, b) => a.rank(q).compareTo(b.rank(q)));
+        return [for (final f in hits) f.name];
+      }
+
+      expect(search('æg og bacon').first, startsWith('Æg og bacon'));
+      expect(search('eggs bacon'), contains('Æg og bacon (2 spejlæg, 3 skiver bacon)'), reason: 'English alias');
+      expect(search('rugbrød leverpostej'), contains('Rugbrød med leverpostej (2 stykker)'));
+      expect(search('strawberry raw'), contains('Jordbær, rå'), reason: "Frida's English name");
+      expect(search('big mac'), isNotEmpty);
+      expect(search('zzzz'), isEmpty);
+      expect(byId['frida-1']!.matches(''), isFalse);
+    });
+  });
+
   group('integrity', () {
+    test('the checksum matches the original algorithm, so older app builds accept new content', () {
+      Object? sorted(Object? v) => switch (v) {
+            final Map<dynamic, dynamic> m => {for (final k in (m.keys.map((k) => '$k').toList()..sort())) k: sorted(m[k])},
+            final List<dynamic> l => [for (final x in l) sorted(x)],
+            _ => v,
+          };
+      final b = testContentBundle(version: 3);
+      final original = sha256.convert(utf8.encode(jsonEncode(sorted(b.sections)))).toString();
+      expect(sectionsChecksum(b.sections), original);
+      expect(canonicalJson({'b': [1, 2.5, null, true, 'æ"\\n'], 'a': {'y': 1, 'x': 'ø'}}), jsonEncode(sorted({'b': [1, 2.5, null, true, 'æ"\\n'], 'a': {'y': 1, 'x': 'ø'}})));
+    });
+
     test('checksum is independent of key order and detects edits', () {
       final b = testContentBundle(version: 5);
       final reordered = Map.fromEntries(b.sections.entries.toList().reversed);

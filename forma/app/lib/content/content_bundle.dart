@@ -244,7 +244,7 @@ ProgressionTuning parseProgressionTuning(Object? raw, List<String> errors) {
 
 /// A reference food with values from a named, citable data source.
 class ContentFood {
-  const ContentFood({
+  ContentFood({
     required this.id,
     required this.name,
     required this.reference,
@@ -255,6 +255,7 @@ class ContentFood {
     required this.fat,
     required this.fiber,
     this.brand,
+    this.aliases = const [],
     this.servings = const [],
   });
 
@@ -262,18 +263,35 @@ class ContentFood {
   final String name;
   final String? brand;
 
+  /// Other names that should find this food (e.g. the English name).
+  final List<String> aliases;
+
   /// Where the values come from, e.g. "Frida 2024, food 123".
   final String reference;
 
-  /// verified | community
+  /// verified | community | calculated (a meal summed from cited foods)
   final String provenance;
   final double? kcal, protein, carbs, fat, fiber;
   final List<({String label, double grams})> servings;
 
-  /// Matches a search the same way local foods are matched.
+  late final String _haystack = [name, ?brand, ...aliases].join(' | ').toLowerCase();
+
+  /// Matches a search the same way local foods are matched; every word of
+  /// the query must appear (in any order), in the name or an alias.
   bool matches(String query) {
+    final words = query.trim().toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    return words.isNotEmpty && words.every(_haystack.contains);
+  }
+
+  /// Lower is better: name starts with the query, then a word in the name
+  /// does, then anything else.
+  int rank(String query) {
     final q = query.trim().toLowerCase();
-    return name.toLowerCase().contains(q) || (brand?.toLowerCase().contains(q) ?? false);
+    final n = name.toLowerCase();
+    if (n.startsWith(q)) return 0;
+    if (n.contains(' $q') || n.contains(',$q') || n.contains('($q')) return 1;
+    if (aliases.any((a) => a.toLowerCase().startsWith(q))) return 2;
+    return 3;
   }
 
   static List<ContentFood> parse(Object? raw, List<String> errors) {
@@ -290,7 +308,9 @@ class ContentFood {
       if (id is! String || !_idPattern.hasMatch(id) || !seen.add(id)) errors.add('$path.id must be a unique lowercase-dashed id');
       if (name is! String || name.trim().isEmpty) errors.add('$path.name is required');
       if (ref is! String || ref.trim().isEmpty) errors.add('$path.reference must name the data source (no unsourced values)');
-      if (prov != 'verified' && prov != 'community') errors.add('$path.provenance must be "verified" or "community"');
+      if (prov != 'verified' && prov != 'community' && prov != 'calculated') {
+        errors.add('$path.provenance must be "verified", "community" or "calculated"');
+      }
       final per = f['per100g'] is Map ? f['per100g'] as Map : const {};
       double? n(String k, double max) {
         final v = per[k];
@@ -315,6 +335,7 @@ class ContentFood {
           id: id,
           name: name.trim(),
           brand: f['brand'] is String ? f['brand'] as String : null,
+          aliases: [for (final a in (f['aliases'] is List ? f['aliases'] as List : const [])) if (a is String && a.trim().isNotEmpty) a.trim()],
           reference: ref,
           provenance: prov,
           kcal: kcal,
@@ -418,20 +439,21 @@ List<Map<String, dynamic>> parseExercises(Object? raw, List<String> errors) {
 
 /// A validated, versioned set of server-updatable content.
 class ContentBundle {
-  const ContentBundle({
+  ContentBundle({
     required this.format,
     required this.version,
     required this.minAppBuild,
     required this.sections,
-    required this.checksum,
+    String? checksum,
     required this.exercises,
     required this.programs,
     required this.progression,
     required this.foods,
     required this.config,
+    this.foodAttribution = const [],
     this.createdAt,
     this.notes,
-  });
+  }) : _checksum = checksum; // ignore: prefer_initializing_formals, private named parameters are not allowed
 
   final int format;
 
@@ -445,13 +467,19 @@ class ContentBundle {
 
   /// The raw sections, kept for storage and checksum verification.
   final Map<String, dynamic> sections;
-  final String checksum;
+  /// SHA-256 of the canonical sections; computed only when needed (the
+  /// built-in content never needs it).
+  late final String checksum = _checksum ?? sectionsChecksum(sections);
+  final String? _checksum;
 
   final List<Map<String, dynamic>> exercises;
   final ProgramCatalog programs;
   final ProgressionTuning progression;
   final List<ContentFood> foods;
   final AppConfig config;
+
+  /// Required credits for the reference food sources (shown in About).
+  final List<String> foodAttribution;
 
   Set<String> get exerciseIds => {for (final e in exercises) e['id'] as String};
 
@@ -480,12 +508,14 @@ class ContentBundle {
         'createdAt': ?createdAt?.toUtc().toIso8601String(),
         'notes': ?notes,
         'sections': sections,
-        'sha256': sectionsChecksum(sections),
-      });
+      }, verifyChecksum: false);
 
   /// Parses and fully validates a bundle. Throws [ContentValidationException]
   /// listing every problem; nothing partial is ever returned.
-  static ContentBundle parse(Object? raw) {
+  ///
+  /// [verifyChecksum] is false only for content whose integrity is already
+  /// known (built from files here, or read back with a storage hash).
+  static ContentBundle parse(Object? raw, {bool verifyChecksum = true}) {
     final errors = <String>[];
     if (raw is! Map) throw ContentValidationException(['The bundle must be a JSON object']);
     final format = raw['format'];
@@ -501,7 +531,9 @@ class ContentBundle {
     if (sections is! Map) throw ContentValidationException([...errors, 'sections are missing']);
     final s = Map<String, dynamic>.from(sections);
     final checksum = raw['sha256'];
-    if (checksum is! String || checksum != sectionsChecksum(s)) errors.add('checksum mismatch — the content is corrupt or was edited after publishing');
+    if (verifyChecksum && (checksum is! String || checksum != sectionsChecksum(s))) {
+      errors.add('checksum mismatch — the content is corrupt or was edited after publishing');
+    }
 
     final exercises = parseExercises(s['exercises'], errors);
     final ids = {for (final e in exercises) e['id'] as String};
@@ -518,12 +550,16 @@ class ContentBundle {
       createdAt: created is String ? DateTime.tryParse(created) : null,
       notes: raw['notes'] is String ? raw['notes'] as String : null,
       sections: s,
-      checksum: checksum as String,
+      checksum: checksum is String ? checksum : null,
       exercises: exercises,
       programs: programs,
       progression: progression,
       foods: foods,
       config: config,
+      foodAttribution: [
+        for (final a in (s['foods'] is Map && (s['foods'] as Map)['attribution'] is List ? (s['foods'] as Map)['attribution'] as List : const []))
+          if (a is String) a,
+      ],
     );
   }
 }

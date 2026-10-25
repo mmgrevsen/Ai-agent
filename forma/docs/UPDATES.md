@@ -43,6 +43,24 @@ Uanset metode ændres jeres logget data aldrig: træning, mad, vægt og historik
 * Det forrige indhold gemmes altid. Hvis appen ikke kan starte to gange i træk med nyt indhold, går den automatisk tilbage til det forrige.
 * Øvelser slettes aldrig af en opdatering, så gamle træninger peger altid på noget, der findes.
 
+### Referencefødevarer (Frida, USDA og hele måltider)
+
+`foods.json` bygges af `forma/app/tool/foods/import_foods.py`:
+
+* **Frida 5.5** (DTU Fødevareinstituttet, CC BY 4.0): alle fødevarer med danske navne. Værdierne er deklarationsværdier, når de findes.
+* **USDA FoodData Central** (offentligt domæne): FNDDS-retter "som spist" og SR Legacy-fastfood. Fødevarer, der allerede findes i Frida, springes over.
+* **Hele måltider** i `tool/foods/meals.json`. Næringsværdien regnes ud fra de citerede ingredienser. Mængderne er typiske portioner og står i navnet.
+
+Kildefilerne hentes af workflowet **Forma food sources (fetch)** og gemmes på udgivelsen `forma-food-sources`. Sådan bygger du igen:
+
+```bash
+pip install openpyxl
+# hent frida-Frida_5.5_Dataset.xlsx, usda-survey_food_csv.zip og usda-sr_legacy_food_csv.zip fra udgivelsen til SRC
+python3 tool/foods/import_foods.py SRC --out assets/content/foods.json
+```
+
+Kreditering (CC BY) står i filen og vises under Settings → About & data sources.
+
 ### Ændr indhold med Claude Code
 
 Bed fx Claude Code om: *"Tilføj hip thrust som førstevalg i hinge-slot i programmerne"* eller *"Vis en besked på Overblik om at billedlogning er klar"*. Claude Code retter i filerne ovenfor.

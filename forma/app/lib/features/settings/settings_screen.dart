@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
@@ -748,11 +749,11 @@ class _PrivacyPage extends ConsumerWidget {
 
 // ------------------------------------------------------------------ about
 
-class _AboutPage extends StatelessWidget {
+class _AboutPage extends ConsumerWidget {
   const _AboutPage();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     Widget section(String title, String body) => Padding(
           padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -764,8 +765,10 @@ class _AboutPage extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       section('Data labels', [for (final p in Provenance.values) '${p.label}: ${p.explanation}'].join('\n')),
       section('Food data', 'Packaged foods come from Open Food Facts, a community database (ODbL licence) — values can contain errors. '
-          'With an account, generic foods also come from USDA FoodData Central (laboratory reference data). '
+          'Reference foods come from the Danish food composition database Frida and USDA FoodData Central; whole meals are '
+          'calculated from those foods, and each one lists its ingredients and sources. '
           'Missing values are shown as missing, never as zero.'),
+      for (final a in ref.watch(contentBundleProvider).foodAttribution) section('Source', a),
       section('Estimates', 'Energy expenditure, estimated 1RM, weight trend and recovery status are calculations or estimates from your data. '
           'They are not medical measurements. Phones and watches estimate calories; they don\'t measure them precisely.'),
       section('Health', 'Forma is a fitness tool, not a medical device. If you have a medical condition, are pregnant, have a history of '

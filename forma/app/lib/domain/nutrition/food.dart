@@ -19,6 +19,7 @@ class FoodItem {
     this.sourceRef,
     this.servings = const [],
     this.imageUrl,
+    this.note,
   });
 
   final String? localId;
@@ -34,6 +35,9 @@ class FoodItem {
   final Nutrients per100g;
   final List<ServingOption> servings;
   final String? imageUrl;
+
+  /// Extra source detail, e.g. the ingredients a calculated meal is made of.
+  final String? note;
 
   String get sourceLabel => switch (source) {
         'off' => 'Open Food Facts',
