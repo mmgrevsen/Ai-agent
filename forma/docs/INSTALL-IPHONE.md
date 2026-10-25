@@ -81,6 +81,33 @@ forsvinder ikke.
 Hent linket øverst igen, og installér med **+** i SideStore som i trin 4.
 Jeres data bliver liggende. Slet ikke appen først.
 
+## Log fra Apple Watch og Siri
+
+Forma har to genveje, som virker fra Siri, Genveje-appen og uret (uret
+bruger iPhonen i lommen/tasken til at gemme):
+
+* **Log Saved Meal**: logger et gemt måltid (gem et måltid via
+  "Save as a meal" efter et madbillede, eller "Save as meal" i dagbogen).
+* **Log Recent Food**: logger én portion af en ret, du har logget før.
+
+Måltidet vælges ud fra klokken (morgenmad, frokost, aftensmad, snack).
+
+**Med stemmen:** sig "Hey Siri, log a meal in Forma" (eller "log food in
+Forma"), og vælg fra listen. Siri på dansk forstår måske ikke den engelske
+sætning. Brug så knappen nedenfor.
+
+**En knap på uret (anbefalet):**
+
+1. Åbn **Genveje** på iPhonen → **+** → **Tilføj handling** → søg "Forma".
+2. Vælg **Log Saved Meal**, og tryk på "Meal" for at vælge et bestemt
+   måltid (fx "Skyr og bær").
+3. Giv genvejen et navn, tryk på **ⓘ** og slå **Vis på Apple Watch** til.
+4. På uret: åbn **Genveje**, og tryk på genvejen. Den kan også lægges som
+   komplikation på urskiven.
+
+Genvejene kræver, at Forma har været åbnet én gang på telefonen. Det,
+du logger fra uret, vises i dagbogen, næste gang Forma åbnes.
+
 ## Hvis noget driller
 
 * **"Failed to Sign In … (-80045)" i SideStore**: login-serveren (Anisette)
