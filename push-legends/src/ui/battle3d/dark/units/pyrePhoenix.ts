@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { K, type V } from '../../../base3d/sculpt';
 import { addGlow, addMesh, newRig, pivot, type Rig } from '../../rig';
 import { metal } from '../parts';
-import { chunkGeo, featherEdge, featherGeo, flameGeo, GlowBatch, lumpGeo, orient, put, segLine, SHADOW, spikeAB, Spine, table, tube, xf } from './_creatures';
+import { chunkGeo, featherEdge, framePortraitOn, featherGeo, flameGeo, GlowBatch, lumpGeo, orient, put, segLine, SHADOW, spikeAB, Spine, table, tube, xf } from './_creatures';
 import type { UnitDef } from './types';
 
 /**
@@ -139,8 +139,18 @@ function build(): Rig {
   const fg = new GlowBatch();
 
   // Fire roaring inside the ribcage
-  addGlow(body, new THREE.SphereGeometry(0.1, 10, 8), FIRE, 0, -0.01, 0.08, 0.5).scale.set(1.45, 1.45, 2.1);
-  addGlow(body, new THREE.SphereGeometry(0.04, 8, 6), HOT, 0, 0.01, 0.12, 2.2).scale.set(1, 1, 1.8);
+  // Smouldering coals packed inside the ribs (lit, not glowing), a white-hot heart at the core
+  k.ball(0.1, 0, -0.01, 0.08, '#5a1207', 1.35, 1.35, 2.0, 10);
+  addGlow(body, new THREE.SphereGeometry(0.05, 8, 6), HOT, 0, -0.04, 0.12, 2.4).scale.set(1, 1.2, 1.8);
+  // Flame tongues escaping between the ribs
+  const inner = new GlowBatch();
+  for (let i = 0; i < 7; i++) {
+    const s = i % 2 ? 1 : -1;
+    const z = -0.06 + (i / 6) * 0.3;
+    const y = -0.08 + (i % 3) * 0.05;
+    inner.add(flameGeo([s * 0.09, y, z], [s * 0.9, 0.7, 0.15], 0.13 + (i % 3) * 0.03, 0.022, 150 + i, 0.35));
+  }
+  inner.flush(body, FIRE, 1.4);
   // Dark sinew lining the inside of the ribcage, so the fire shows only between the ribs
   put(k, xf(lumpGeo(0.17, 8, 0.05, 1), 0, 0.01, 0.06, 0, 0, 0, 0.78, 0.8, 1.4), SINEW);
 
@@ -160,7 +170,7 @@ function build(): Rig {
     ]),
     32,
   );
-  put(k, sp.geo({ radial: 10, steps: 12, arc: [0.15, Math.PI - 0.15], keel: 0.15 }), FEATHER);
+  put(k, sp.geo({ radial: 8, steps: 10, arc: [0.15, Math.PI - 0.15], keel: 0.15 }), FEATHER);
   put(k, sp.geo({ u0: 0, u1: 0.42, radial: 10, steps: 5, arc: [-Math.PI * 0.75, Math.PI * 0.25 - 0.1] }), FEATHER_2);
   // Ribs curving from the spine round to the sternum
   for (const s of [-1, 1])
@@ -184,30 +194,37 @@ function build(): Rig {
       const p = sp.point(u, Math.PI / 2 + i * 0.5, 0.005);
       feather(k, null, [p.x, p.y, p.z], [i * 0.25, -0.15, -1], 0.3, 0.07, (r + i) % 2 ? FEATHER_HI : FEATHER_2, 80 + r * 3 + i, 0.03);
     }
-  // Neck of exposed vertebrae with a ragged feather mane
+  // Neck of exposed vertebrae, thick and hunched forward like a vulture's, under a ragged mane
   const nk = new Spine(
     [
-      [0, 0.14, 0.36],
-      [0, 0.3, 0.47],
-      [0, 0.44, 0.58],
-      [0, 0.5, 0.64],
+      [0, 0.12, 0.34],
+      [0, 0.27, 0.45],
+      [0, 0.36, 0.58],
+      [0, 0.37, 0.68],
     ],
-    (u) => [0.085 - u * 0.03, 0.09 - u * 0.03],
+    (u) => [0.12 - u * 0.045, 0.125 - u * 0.045],
     16,
   );
-  put(k, nk.geo({ radial: 8, steps: 8, keel: 0.3 }), SINEW);
+  put(k, nk.geo({ radial: 8, steps: 7, keel: 0.3 }), SINEW);
   for (let i = 0; i < 6; i++) {
     const u = i / 5;
     const f = nk.frame(u);
     const top = nk.point(u, Math.PI / 2, -0.015);
-    put(k, orient(chunkGeo(0.06 - u * 0.012, 0.05, 0.05, 90 + i, { chamfer: 0.5, jitter: 0.05 }), top, f.t, [0, 0, -1]), i % 2 ? BONE : BONE_DK);
-    put(k, spikeAB(top.clone().add(f.n.clone().multiplyScalar(0.015)), top.clone().add(f.n.clone().multiplyScalar(0.07)).add(f.t.clone().multiplyScalar(-0.05)), 0.013, 4), BONE_DK);
+    put(k, orient(chunkGeo(0.07 - u * 0.015, 0.05, 0.05, 90 + i, { chamfer: 0.5, jitter: 0.05 }), top, f.t, [0, 0, -1]), i % 2 ? BONE : BONE_DK);
+    put(k, spikeAB(top.clone().add(f.n.clone().multiplyScalar(0.015)), top.clone().add(f.n.clone().multiplyScalar(0.08)).add(f.t.clone().multiplyScalar(-0.05)), 0.014, 4), BONE_DK);
   }
   for (let i = 0; i < 8; i++) {
     const u = 0.05 + i * 0.12;
     const s = i % 2 ? 1 : -1;
     const p = nk.point(u, Math.PI / 2 + s * 0.9, -0.01);
-    feather(k, i % 3 === 0 ? eg : null, [p.x, p.y, p.z], [s * 0.55, -0.35, -1], 0.3 - i * 0.015, 0.055, i % 2 ? FEATHER : FEATHER_2, 100 + i, 0.06, 0.5, [s, 0.6, 0]);
+    feather(k, i % 3 === 0 ? eg : null, [p.x, p.y, p.z], [s * 0.55, -0.35, -1], 0.3 - i * 0.015, 0.06, i % 2 ? FEATHER : FEATHER_2, 100 + i, 0.06, 0.5, [s, 0.6, 0]);
+  }
+  // Ragged ruff of soot feathers around the base of the neck
+  for (let i = 0; i < 8; i++) {
+    const a = -0.4 + (i / 7) * (Math.PI + 0.8);
+    const p = nk.point(0.12, a, -0.02);
+    const n = nk.normal(0.12, a);
+    feather(k, i % 3 === 1 ? eg : null, [p.x, p.y, p.z], [n.x * 0.9, n.y * 0.5 - 0.25, n.z - 0.8], 0.26, 0.06, i % 2 ? FEATHER_HI : FEATHER, 140 + i, 0.08, 0.5, [n.x, Math.max(0.2, n.y), 0]);
   }
   // Tail: long trailing feathers fanning back and down, burning at the ends
   const tb: V = [0, -0.1, -0.5];
@@ -231,7 +248,7 @@ function build(): Rig {
   }
 
   // Head on the neck pivot
-  const neck = pivot(body, 0, 0.5, 0.64);
+  const neck = pivot(body, 0, 0.37, 0.68);
   neck.scale.setScalar(1.15);
   rig.neck = neck;
   rig.head = neck;
@@ -270,15 +287,19 @@ export const pyrePhoenix: UnitDef = {
   build,
   portrait: {
     faction: 'ash',
-    from: 0.35,
-    to: 1.0,
+    from: 0,
+    to: 1,
     yaw: 0.45,
     pose: (rig) => {
       // Rising: body reared up, wings raised high, head turned to the viewer
-      for (const w of rig.wings) w.rotation.z = (w.position.x > 0 ? 1 : -1) * 1.05;
-      rig.body.rotation.x = -0.85;
-      rig.body.position.y = 1.5;
-      rig.neck?.rotation.set(0.75, -0.25, 0);
+      for (const w of rig.wings) {
+        const s = w.position.x > 0 ? 1 : -1;
+        w.rotation.set(0, -s * 1.0, s * 0.2);
+      }
+      rig.body.rotation.x = -1.15;
+      rig.body.position.y = 1.6;
+      rig.neck?.rotation.set(1.0, -0.8, 0);
+      if (rig.neck) framePortraitOn(rig, [rig.neck], [0.3, 0.6, 0.12]);
     },
   },
 };

@@ -546,3 +546,33 @@ export function triangles(obj: THREE.Object3D): number {
   });
   return n;
 }
+
+/**
+ * Card portraits frame creatures on their whole bounding box, so spread wings and long tails
+ * shrink them to a speck. Call from a portrait pose: the frame is set to the posed bounds of the
+ * given parts (head, chest...) grown by `pad` (x, below, above), and everything else may leave
+ * the frame like a close-up painting. Only affects that portrait instance (it is built for the
+ * shot and disposed); geometry bounding boxes are not used for rendering or culling.
+ */
+export function framePortraitOn(rig: { root: THREE.Object3D }, parts: THREE.Object3D[], pad: [number, number, number] = [0.3, 0.3, 0.2]): void {
+  rig.root.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  for (const p of parts) box.expandByObject(p, true);
+  if (box.isEmpty()) return;
+  box.min.x -= pad[0];
+  box.max.x += pad[0];
+  box.min.y -= pad[1];
+  box.max.y += pad[2];
+  rig.root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.geometry.boundingBox = new THREE.Box3().makeEmpty();
+  });
+  // An invisible marker card holds the frame (root space: the pose runs before the portrait
+  // yaw). It is flat so the yaw does not widen the framed area.
+  const size = box.getSize(new THREE.Vector3());
+  const marker = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, 0.02));
+  marker.visible = false;
+  marker.position.copy(box.getCenter(new THREE.Vector3()));
+  rig.root.add(marker);
+}

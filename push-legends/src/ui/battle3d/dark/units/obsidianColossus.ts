@@ -85,11 +85,11 @@ function head(k: K, glow: THREE.Object3D): void {
     [-0.24, 0],
     [-0.2, 0.08],
     [-0.13, 0.06],
-    [-0.07, 0.17],
-    [0.0, 0.1],
-    [0.07, 0.23],
-    [0.13, 0.12],
-    [0.21, 0.17],
+    [-0.07, 0.2],
+    [0.0, 0.12],
+    [0.07, 0.3],
+    [0.13, 0.14],
+    [0.21, 0.22],
     [0.25, 0],
   ]);
   k.plate(crest, 0.045, 0, 0, hy + 0.11, hz - 0.03, ST_HI, 0, -Math.PI / 2, 0);
@@ -97,13 +97,14 @@ function head(k: K, glow: THREE.Object3D): void {
   for (const s of [-1, 1]) k.curve([[s * 0.15, hy + 0.08, hz], [s * 0.26, hy + 0.14, hz + 0.02], [s * 0.3, hy + 0.24, hz + 0.12]], 0.04, 0.006, ST_HI, 5);
   // Jagged stone jaw jutting under the mask
   put(k, xf(chunkGeo(0.26, 0.1, 0.2, 49, { chamfer: 0.5, jitter: 0.08, top: 1.3 }), 0, hy - 0.2, hz + 0.05, 0.2, 0, 0), ST);
-  gb.flush(glow, EYE, 8);
+  gb.flush(glow, EYE, 5);
 }
 
 function armKit(k: K, gb: GlowBatch, glow: THREE.Object3D, s: number): void {
   const surf = new Surface();
+  const top = new Surface();
   // Shoulder boulder bound by an iron band
-  rock(k, 0.38, 60 + s, [s * 0.05, 0.06, 0], [1.15, 0.85, 1.05], ST, [0.3, 0.2 * s, 0]);
+  rock(k, 0.38, 60 + s, [s * 0.05, 0.06, 0], [1.15, 0.85, 1.05], ST, [0.3, 0.2 * s, 0], top);
   k.add(new THREE.TorusGeometry(0.4, 0.035, 4, 14, Math.PI * 1.1), IRON, s * 0.09, 0.02, 0, 0, Math.PI / 2, -0.2);
   k.add(new THREE.TorusGeometry(0.415, 0.01, 3, 14, Math.PI * 1.1), GOLD, s * 0.1, 0.02, 0, 0, Math.PI / 2, -0.2);
   // Forged iron shoulder plate on the outer face with a rune
@@ -153,6 +154,9 @@ function armKit(k: K, gb: GlowBatch, glow: THREE.Object3D, s: number): void {
     sf.project(jag2([0.1, -0.3], [0.14, -0.58], 3, 0.05, 79 + s), 'z'),
   ]);
   if (c) gb.add(c);
+  // Seams across the top of the shoulder (seen from the battle camera above)
+  const ct = cracks(`sh${s}`, top, (sf) => [sf.project(jag2([-s * 0.22, 0.24], [s * 0.34, -0.2], 5, 0.07, 91 + s), 'y'), sf.project(jag2([s * 0.1, 0.0], [s * 0.05, -0.36], 3, 0.06, 93 + s), 'y')]);
+  if (ct) gb.add(ct);
 }
 
 function legKit(k: K, gb: GlowBatch, glow: THREE.Object3D, s: number): void {
@@ -185,8 +189,8 @@ function build(): Rig {
   const back = new Surface();
 
   // Molten core glimpsed between the stone (waist and the chest seam)
-  addGlow(frame, new THREE.SphereGeometry(0.34, 12, 8), CORE, 0, 1.38, 0.0, 1.5).scale.set(1.0, 0.75, 0.75);
-  addGlow(frame, new THREE.BoxGeometry(0.14, 0.5, 0.3), CORE, 0, 1.9, 0.24, 1.6);
+  addGlow(frame, new THREE.SphereGeometry(0.34, 12, 8), CORE, 0, 1.38, 0.0, 1.0).scale.set(1.0, 0.75, 0.75);
+  addGlow(frame, new THREE.BoxGeometry(0.14, 0.5, 0.3), CORE, 0, 1.9, 0.24, 1.2);
 
   // Pelvis and segmented abdomen (gaps show the core)
   rock(k, 0.44, 1, [0, 1.06, 0], [1.0, 0.55, 0.72], ST_DK);
@@ -236,7 +240,7 @@ function build(): Rig {
   const z0 = sz + 0.005;
   gb.add(segLine([[0, sy + 0.1, z0], [0.06, sy, z0], [0, sy - 0.1, z0], [-0.06, sy, z0], [0, sy + 0.1, z0]], 0.011));
   gb.add(segLine([[0, sy + 0.13, z0], [0, sy - 0.13, z0]], 0.009));
-  addGlow(frame, new THREE.OctahedronGeometry(0.035, 0), EYE, 0, sy, z0 + 0.005, 7);
+  addGlow(frame, new THREE.OctahedronGeometry(0.035, 0), EYE, 0, sy, z0 + 0.005, 5);
   // Iron belt and hanging plates over the hips
   k.add(new THREE.CylinderGeometry(0.46, 0.46, 0.07, 10, 1), IRON, 0, 1.12, 0.0, 0, 0, 0, 1, 1, 0.7);
   for (const s of [-1, 0, 1]) put(k, xf(chunkGeo(0.22, 0.26, 0.05, 40 + s, { chamfer: 0.4, jitter: 0.02, top: 1.2 }), s * 0.27, 0.94, 0.3 - Math.abs(s) * 0.04, 0.1, s * 0.3, 0), IRON_DK);
@@ -250,14 +254,14 @@ function build(): Rig {
     sf.project(jag2([0.12, 1.36], [0.2, 1.18], 2, 0.04, 25), 'z', 0.008, 2),
   ]);
   if (c) gb.add(c);
-  const cb = cracks('back', back, (sf) => [sf.project(jag2([0.45, 1.75], [-0.42, 2.14], 6, 0.07, 33), '-z'), sf.project(jag2([-0.1, 1.95], [0.22, 1.5], 4, 0.06, 34), '-z')]);
+  const cb = cracks('back', back, (sf) => [sf.project(jag2([0.45, 1.75], [-0.42, 2.14], 6, 0.07, 33), '-z'), sf.project(jag2([-0.1, 1.95], [0.22, 1.5], 4, 0.06, 34), '-z'), sf.project(jag2([-0.55, -0.18], [0.5, -0.42], 6, 0.08, 35), 'y'), sf.project(jag2([0.05, -0.3], [-0.12, -0.75], 3, 0.06, 36), 'y')]);
   if (cb) gb.add(cb);
 
   // Head sunk low and forward between the shoulders
   const neck = pivot(frame, 0, 2.04, 0.3);
   rig.neck = neck;
   const headGroup = pivot(neck, 0, 0, 0);
-  headGroup.scale.setScalar(1.15);
+  headGroup.scale.setScalar(1.32);
   rig.head = headGroup;
   const hk = new K();
   head(hk, headGroup);
@@ -274,7 +278,7 @@ function build(): Rig {
       for (let i = 0; i < 4; i++) ak.add(new THREE.TorusGeometry(0.045, 0.012, 3, 6), IRON_DK, -0.34, -1.12 - i * 0.075, 0.03, 0, i % 2 ? Math.PI / 2 : 0, 0);
     }
     addMesh(rig, ap, ak);
-    ag.flush(ap, MAGMA, 4.5);
+    ag.flush(ap, MAGMA, 3.2);
     if (s === 1) rig.armR = ap;
     else rig.armL = ap;
   }
@@ -286,12 +290,12 @@ function build(): Rig {
     const lg = new GlowBatch();
     legKit(lk, lg, lp, s);
     addMesh(rig, lp, lk);
-    lg.flush(lp, MAGMA, 4.5);
+    lg.flush(lp, MAGMA, 3.2);
     rig.legs.push(lp);
   }
 
   addMesh(rig, frame, k);
-  gb.flush(frame, MAGMA, 4.5);
+  gb.flush(frame, MAGMA, 3.2);
   rig.height = 2.86 * SIZE;
   return rig;
 }

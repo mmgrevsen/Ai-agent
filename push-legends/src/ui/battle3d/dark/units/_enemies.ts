@@ -77,8 +77,8 @@ const WORLD_BASE: { dress: Dress; plate: string; dark: string; edge: string; edg
 /** The dark look of a world, lightly tinted by its enemy palette. */
 export function worldLook(world: number, p: Palette): Look {
   const w = WORLD_BASE[Math.max(0, Math.min(4, Math.round(world) || 0))]!;
-  const plate = metal(mix(w.plate, p.primary, 0.05), 0.74);
-  const cloth = mix(w.cloth, p.secondary, 0.14);
+  const plate = metal(mix(mix(w.plate, PAL.gunmetal, 0.2), p.primary, 0.05), 0.74);
+  const cloth = shade(mix(w.cloth, p.secondary, 0.08), 0.06);
   return {
     world,
     dress: w.dress,
@@ -846,3 +846,39 @@ export class Fiend {
 
 /** Polygon outline in the xy plane. */
 export const shape = shapeFrom;
+
+// --- Extra shaping ----------------------------------------------------------------------------------
+
+/** Sweeps the part of a geometry above y0 forward by k per unit of height (pointed hoods, helms). */
+export function sweep(geo: THREE.BufferGeometry, y0: number, k: number): THREE.BufferGeometry {
+  const p = geo.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i);
+    if (y > y0) p.setZ(i, p.getZ(i) + (y - y0) * k);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Triangle fan from a hub over an open outline (wing membranes, webbing). */
+export function fanGeo(hub: V, outline: V[]): THREE.BufferGeometry {
+  const pos: number[] = [];
+  for (let i = 0; i < outline.length - 1; i++) pos.push(...hub, ...outline[i]!, ...outline[i + 1]!);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Single triangle. */
+export function triGeo(a: V, b: V, c: V): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([...a, ...b, ...c], 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Point on a lathed surface of radius r at angle phi (0 = front, +PI/2 = +x), depth × sz. */
+export const onLathe = (r: number, phi: number, y: number, sz = 1): V => [Math.sin(phi) * r, y, Math.cos(phi) * r * sz];
+
+export const lerpV = (a: V, b: V, t: number): V => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];

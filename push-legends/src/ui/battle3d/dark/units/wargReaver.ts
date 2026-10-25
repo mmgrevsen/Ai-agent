@@ -3,7 +3,7 @@ import { PAL } from '../../../art/darkArt';
 import { K, shapeFrom, type V } from '../../../base3d/sculpt';
 import { addMesh, newRig, pivot, type Rig } from '../../rig';
 import { metal } from '../parts';
-import { along, GlowBatch, lumpGeo, put, ragLite, segLine, SHADOW, spikeAB, Spine, table, tube, xf } from './_creatures';
+import { along, chunkGeo, framePortraitOn, GlowBatch, lumpGeo, put, ragLite, segLine, SHADOW, spikeAB, Spine, table, tube, xf } from './_creatures';
 import type { UnitDef } from './types';
 
 /**
@@ -74,7 +74,7 @@ function headKit(k: K, gb: GlowBatch): void {
     ]),
     24,
   );
-  put(k, skull.geo({ radial: 12, steps: 12, keel: 0.15, seed: 3 }), FUR);
+  put(k, skull.geo({ radial: 10, steps: 10, keel: 0.15, seed: 3 }), FUR);
   // Black nose
   k.ball(0.035, 0, -0.01, 0.53, SHADOW, 1.2, 0.8, 1);
   // Lower jaw dropped open
@@ -200,67 +200,53 @@ function riderKit(k: K, gb: GlowBatch): void {
     tuft(k, p, new THREE.Vector3(Math.cos(a) * 0.6, -0.4, -Math.sin(a) * 0.5 - 0.3), 0.16, 0.06, i % 2 ? FUR_HI : FUR_TIP, i);
   }
   put(k, xf(lumpGeo(0.17, 31, 0.15, 1), 0, 0.52, -0.04, 0, 0, 0, 1.45, 0.45, 0.9), FUR_HI);
-  // Head: wolf-pelt hood over an iron mask with a pointed visor
+  // Head: a crested black iron helm with a jutting pointed visor, one narrow ember slit and
+  // horns hooking forward; the wolf pelt is worn as a cowl behind it
   const hy = 0.72;
   k.ball(0.1, 0, hy, 0.0, SHADOW, 1, 1.05, 1.05, 7);
   k.lathe(
     [
-      [0.125, -0.1],
-      [0.13, 0.0],
-      [0.115, 0.08],
-      [0.07, 0.13],
-      [0.001, 0.15],
+      [0.118, -0.11],
+      [0.128, -0.02],
+      [0.12, 0.06],
+      [0.09, 0.12],
+      [0.04, 0.165],
+      [0.001, 0.18],
     ],
     0,
     hy,
     -0.01,
     IRON,
     10,
-    1,
-    1.1,
+    0.95,
+    1.12,
   );
-  // Pointed visor jutting forward with one narrow ember slit
-  k.add(new THREE.ConeGeometry(0.1, 0.17, 4, 1), IRON_DK, 0, hy - 0.03, 0.1, Math.PI / 2, Math.PI / 4, 0, 1, 1, 0.75);
-  k.add(new THREE.BoxGeometry(0.15, 0.02, 0.03), SHADOW, 0, hy + 0.02, 0.12);
-  gb.add(new THREE.BoxGeometry(0.13, 0.01, 0.01), 0, hy + 0.02, 0.137);
-  k.add(new THREE.TorusGeometry(0.127, 0.008, 3, 12), GOLD, 0, hy + 0.04, -0.01, Math.PI / 2, 0, 0, 1, 1.1, 1);
-  // The pelt: hide draped over the helm and down the back, the warg's upper jaw over the brow
-  k.lathe(
-    [
-      [0.15, -0.12],
-      [0.155, 0.02],
-      [0.13, 0.12],
-      [0.06, 0.18],
-      [0.001, 0.19],
-    ],
-    0,
-    hy,
-    -0.04,
-    FUR_HI,
-    10,
-    1,
-    1.05,
-  );
-  for (let i = 0; i < 5; i++) tuft(k, new THREE.Vector3((i - 2) * 0.05, hy + 0.02, -0.12), new THREE.Vector3((i - 2) * 0.15, -1, -0.35), 0.17, 0.05, i % 2 ? FUR_HI : FUR_TIP, i);
-  const snout = new Spine(
-    [
-      [0, hy + 0.15, 0.02],
-      [0, hy + 0.12, 0.12],
-      [0, hy + 0.08, 0.2],
-    ],
-    (u) => table(u, [
-      [0, 0.08, 0.05],
-      [1, 0.035, 0.03],
-    ]),
-    12,
-  );
-  put(k, snout.geo({ radial: 8, steps: 5 }), FUR_TIP);
-  for (const s of [-1, 1]) {
-    const p = snout.point(0.75, -Math.PI / 2 + s * 0.6, -0.005);
-    put(k, spikeAB(p, [p.x, p.y - 0.05, p.z + 0.01], 0.01, 3), TOOTH);
-    // Pelt ears
-    put(k, spikeAB([s * 0.07, hy + 0.15, -0.02], [s * 0.1, hy + 0.27, -0.08], 0.03, 4, 0.4), FUR_TIP);
+  // Raised crest running front to back, gold-edged
+  const crest = shapeFrom([
+    [-0.15, 0],
+    [-0.12, 0.06],
+    [-0.02, 0.1],
+    [0.08, 0.13],
+    [0.13, 0.07],
+    [0.14, 0],
+  ]);
+  k.plate(crest, 0.022, 0.004, 0, hy + 0.12, -0.02, IRON_DK, 0, -Math.PI / 2, 0);
+  k.add(new THREE.CylinderGeometry(0.006, 0.006, 0.26, 4), GOLD, 0, hy + 0.19, -0.02, Math.PI / 2 - 0.25, 0, 0);
+  // Pointed visor jutting forward like a beak, cheek guards flaring down
+  k.add(new THREE.ConeGeometry(0.105, 0.2, 4, 1), IRON_DK, 0, hy - 0.035, 0.11, Math.PI / 2 + 0.12, Math.PI / 4, 0, 1, 1, 0.7);
+  for (const sd of [-1, 1]) put(k, xf(chunkGeo(0.03, 0.15, 0.13, 70 + sd, { chamfer: 0.5, jitter: 0.02, top: 1.4 }), sd * 0.11, hy - 0.07, 0.04, 0.15, sd * 0.25, sd * 0.12), IRON);
+  k.add(new THREE.BoxGeometry(0.16, 0.022, 0.03), SHADOW, 0, hy + 0.025, 0.115, 0.1, 0, 0);
+  gb.add(new THREE.BoxGeometry(0.14, 0.011, 0.01), 0, hy + 0.025, 0.133, 0.1, 0, 0);
+  k.add(new THREE.TorusGeometry(0.126, 0.008, 3, 14), GOLD, 0, hy + 0.035, -0.01, Math.PI / 2, 0, 0, 0.95, 1.12, 1);
+  // Horns: thick at the temples, hooking forward
+  for (const sd of [-1, 1]) {
+    tube(k, [[sd * 0.11, hy + 0.06, -0.02], [sd * 0.21, hy + 0.1, -0.04], [sd * 0.27, hy + 0.2, 0.02], [sd * 0.25, hy + 0.3, 0.12]], 0.032, 0.004, TOOTH, 5, 6);
+    k.add(new THREE.TorusGeometry(0.034, 0.008, 3, 8), IRON_DK, sd * 0.13, hy + 0.065, -0.025, 0, Math.PI / 2, 0);
   }
+  // Wolf pelt cowl: hide draped behind the helm and down the back, ragged at the edges
+  k.add(new THREE.LatheGeometry([[0.17, -0.2], [0.17, -0.06], [0.155, 0.05], [0.12, 0.13], [0.06, 0.18]].map(([r, y]) => new THREE.Vector2(r, y)), 10, Math.PI * 0.55, Math.PI * 0.9), FUR, 0, hy, -0.04);
+  for (let i = 0; i < 6; i++) tuft(k, new THREE.Vector3((i - 2.5) * 0.06, hy - 0.02, -0.17), new THREE.Vector3((i - 2.5) * 0.18, -1, -0.3), 0.2, 0.05, i % 2 ? FUR_HI : FUR_TIP, i);
+  for (const sd of [-1, 1]) put(k, spikeAB([sd * 0.08, hy + 0.15, -0.12], [sd * 0.12, hy + 0.27, -0.18], 0.03, 4, 0.4), FUR_HI);
 }
 
 /** Arm from the shoulder pivot down to the hand (y −0.56); s = +1 right. */
@@ -376,7 +362,7 @@ function build(): Rig {
     ]),
     40,
   );
-  put(k, sp.geo({ radial: 14, steps: 16, keel: 0.12, noise: 0.05, seed: 11 }), FUR);
+  put(k, sp.geo({ radial: 12, steps: 14, keel: 0.12, noise: 0.05, seed: 11 }), FUR);
   // Neck reaching forward and down to the head
   const nk = new Spine(
     [
@@ -558,15 +544,18 @@ export const wargReaver: UnitDef = {
   build,
   portrait: {
     faction: 'wild',
-    from: 0.18,
-    to: 1.02,
-    yaw: 0.75,
+    from: 0,
+    to: 1,
+    yaw: 0.55,
     pose: (rig) => {
       rig.armR?.rotation.set(-2.5, 0, 0.25);
       rig.armL?.rotation.set(-0.6, 0, -0.2);
       rig.neck?.rotation.set(0.05, -0.25, 0);
       rig.legs.forEach((l, i) => (l.rotation.x = [0.35, -0.2, -0.3, 0.25][i]!));
       rig.body.rotation.x = -0.06;
+      // Close on the snarling head and the raider; the hindquarters run out of the shot
+      const rider = rig.armR?.parent;
+      if (rig.neck && rider) framePortraitOn(rig, [rig.neck, rider], [0.15, 0.35, 0.05]);
     },
   },
 };
