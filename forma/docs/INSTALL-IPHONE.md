@@ -84,12 +84,18 @@ Jeres data bliver liggende. Slet ikke appen først.
 ## Hvis noget driller
 
 * **"Failed to Sign In … (-80045)" i SideStore**: login-serveren (Anisette)
-  driller. I SideStore: **Settings → User Customizations → ANISETTE** →
-  slå **On-Device Anisette** fra (SideStore genstarter). Derefter:
-  **Settings → Anisette Servers** (mellem "Reset Pairing File" og
-  "Connection Config") → vælg fx **jkcoxson** → log ind igen. Hjælper det
-  ikke, så vent 15–30 minutter; Apple blokerer kortvarigt efter flere
-  mislykkede forsøg.
+  driller.
+  1. På login-skærmen: tryk **Close** → **Settings** (nederst) →
+     **User Customizations** → **ANISETTE** → slå **On-Device Anisette** fra
+     (SideStore genstarter). Prøv evt. også **Reset adi.pb**.
+  2. **Settings → Anisette Servers** (dukker først op efter trin 1, mellem
+     "Reset Pairing File" og "Connection Config") → vælg **jkcoxson** → log
+     ind igen med LocalDevVPN tændt.
+  3. Hjælper det ikke, så vent 30–60 minutter; Apple blokerer kortvarigt
+     efter flere mislykkede forsøg.
+* **"JITLess mode is required since iOS 26" i LiveContainer**: åbn
+  LiveContainer → Settings → **Import Certificate from SideStore** (forny
+  SideStore først). Eller installér Forma direkte i SideStore i stedet.
 * **Efter en iOS-opdatering** kan SideStore holde op med at kunne forny.
   Sæt telefonen i Mac'en, åbn iloader og vælg at lægge en ny *pairing file*
   ind for SideStore.
