@@ -1,0 +1,60 @@
+name: Forma food sources (fetch)
+
+# Downloads the official food composition sources and stores them unchanged
+# on the `forma-food-sources` release, so the converter
+# (forma/app/tool/import_foods.py) can be developed and re-run reproducibly.
+#   * Frida (DTU Food, Denmark): DOI 10.11583/DTU.29500682
+#   * USDA FoodData Central (public domain, CC0): SR Legacy and FNDDS
+#     (survey foods: dishes and meals as eaten)
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/lucid-planck-umj6jk]
+    paths:
+      - '.github/workflows/forma-food-sources.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: forma-food-sources
+    steps:
+      - name: Frida (DTU)
+        run: |
+          mkdir -p out
+          curl -sSfL "https://data.dtu.dk/api/v2/articles/29500682" -o out/frida-article.json
+          python3 - <<'EOF'
+          import json, urllib.request
+          a = json.load(open('out/frida-article.json'))
+          print('Title:', a.get('title')); print('License:', (a.get('license') or {}).get('name')); print('Version:', a.get('version'))
+          for f in a.get('files', []):
+              name = f['name'].replace(' ', '_')
+              print('Downloading', name, f.get('size'))
+              urllib.request.urlretrieve(f['download_url'], 'out/frida-' + name)
+          EOF
+          ls -la out
+      - name: USDA FoodData Central
+        run: |
+          page=$(curl -sSfL https://fdc.nal.usda.gov/download-datasets)
+          for kind in sr_legacy_food_csv survey_food_csv; do
+            url=$(echo "$page" | grep -oE "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_${kind}_[0-9-]+\.zip" | sort -u | tail -1)
+            if [ -z "$url" ]; then
+              url=$(echo "$page" | grep -oE "/fdc-datasets/FoodData_Central_${kind}_[0-9-]+\.zip" | sort -u | tail -1 | sed 's#^#https://fdc.nal.usda.gov#')
+            fi
+            echo "$kind -> $url"
+            curl -sSfL "$url" -o "out/usda-$kind.zip"
+          done
+          ls -la out
+      - name: Store on the release
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "Forma food sources" \
+              --notes "Unmodified downloads of Frida (DTU Food) and USDA FoodData Central used to build Forma's reference foods."
+          fi
+          gh release upload "$TAG" out/* --clobber
