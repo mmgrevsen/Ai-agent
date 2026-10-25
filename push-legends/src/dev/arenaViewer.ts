@@ -32,8 +32,18 @@ for (let s = 0; s < warm * 10; s++) {
   if (s % 12 === 0 && s < 30) for (let slot = 0; slot < 4; slot++) battle.deploy(slot, { x: 20 + (s % 3) * 6, lane: ((slot % 3) - 1) * 0.8 });
   battle.valor = 99;
   battle.step(0.1);
+  // Effects of the warm-up are skipped (only the last half second is shown)
+  const events = battle.drainEvents();
+  if (s >= warm * 10 - 5) scene.ingest(battle, events);
 }
-scene.ingest(battle, battle.drainEvents());
+// Light tuning: ?sun=x,y,z overrides the sun direction, ?exp= the exposure
+const sunQ = (q.get('sun') ?? '').split(',').filter(Boolean).map(Number);
+const priv0 = scene as unknown as { scene: import('three').Scene; renderer: import('three').WebGLRenderer };
+priv0.scene.traverse((o) => {
+  const l = o as import('three').DirectionalLight;
+  if (l.isDirectionalLight && sunQ.length === 3) l.position.set(sunQ[0]!, sunQ[1]!, sunQ[2]!).normalize().multiplyScalar(60);
+});
+if (q.has('exp')) priv0.renderer.toneMappingExposure = Number(q.get('exp'));
 let frames = 0;
 let last = performance.now();
 const cam = (q.get('cam') ?? '').split(',').filter(Boolean).map(Number);

@@ -271,17 +271,17 @@ export class BattleScene3D implements PlacementView {
     this.scene.add(this.world);
     this.world.add(this.field.group);
     this.scene.background = this.field.sky;
-    // Aerial perspective: distant scenery fades into the horizon colour
-    this.scene.fog = new THREE.Fog(this.field.fog, 120, 420);
-    const dark = world.index >= 2;
-    // Low, warm late-afternoon sun with long soft shadows, sky light from an image-based dome
-    const sunDir = new THREE.Vector3(18, 21, 26).normalize();
-    this.scene.environment = skyEnvironment(this.renderer, world.sky[0], world.sky[1], dark ? '#3a3040' : '#6e6650', sunDir);
-    this.scene.environmentIntensity = dark ? 0.7 : 0.5;
-    // Night and lava worlds: brighter exposure so the dusk palette still reads
-    if (dark) this.renderer.toneMappingExposure = 1.25;
-    this.scene.add(new THREE.HemisphereLight(dark ? '#c9b8ff' : '#dcecff', dark ? '#4a3a3a' : '#5a5040', dark ? 0.55 : 0.3));
-    const sun = new THREE.DirectionalLight(dark ? '#ffcfa8' : '#ffe6c0', dark ? 3.0 : 2.7);
+    // Light, sky and haze come from the world's arena look (golden hour in the castle courtyard)
+    const look = this.field.look;
+    // Aerial perspective: the distant castle and mountains fade into the warm haze
+    this.scene.fog = new THREE.Fog(this.field.fog, look.fogNear, look.fogFar);
+    // Low sun with long shadows across the paving, sky light from an image-based dome
+    const sunDir = new THREE.Vector3(...look.sunDir).normalize();
+    this.scene.environment = skyEnvironment(this.renderer, look.env[0], look.env[1], look.env[2], sunDir);
+    this.scene.environmentIntensity = look.envIntensity;
+    this.renderer.toneMappingExposure = look.exposure;
+    this.scene.add(new THREE.HemisphereLight(look.hemiSky, look.hemiGround, look.hemiIntensity));
+    const sun = new THREE.DirectionalLight(look.sunColor, look.sunIntensity);
     sun.position.copy(sunDir).multiplyScalar(60);
     sun.castShadow = true;
     sun.shadow.mapSize.set(opts.pixel ? 1024 : 2048, opts.pixel ? 1024 : 2048);
