@@ -246,11 +246,12 @@ export async function refresh(pushProfile = false): Promise<void> {
       return;
     }
     // Duels from friends land in the local duel list, then leave the server inbox
-    for (const d of r.data.challenges) {
+    const duels = Array.isArray(r.data.challenges) ? r.data.challenges : [];
+    for (const d of duels) {
       if (decodeChallenge(d.code)) store.importChallenge(d.code);
       void a.ackDuel(d.id);
     }
-    if (r.data.challenges.length) store.toast(`${r.data.challenges[0]!.fromName} sent you a duel! Find it under Duels.`, 'good');
+    if (duels.length) store.toast(`${duels[0]!.fromName} sent you a duel! Find it under Duels.`, 'good');
     set({ status: 'online', message: '', overview: { ...r.data, challenges: [] }, updatedAt: Date.now() });
   } finally {
     refreshing = false;

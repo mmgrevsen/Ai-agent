@@ -86,7 +86,9 @@ export class FriendsApi {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: ctrl.signal,
       });
-      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      // Something answered that is not the friend server (e.g. a web page at that address)
+      if (!json || typeof json !== 'object') return { ok: false, status: res.status, error: 'bad_response', message: 'That address does not answer like a Push Legends friend server.' };
       if (!res.ok) return { ok: false, status: res.status, error: String(json.error ?? 'error'), message: String(json.message ?? `Server error (${res.status}).`) };
       return { ok: true, data: json as T };
     } catch {
