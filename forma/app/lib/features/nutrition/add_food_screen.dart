@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../app/providers.dart';
@@ -13,6 +14,7 @@ import '../../core/widgets/primitives.dart';
 import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
+import '../../data/remote/backend.dart';
 import '../../data/remote/food_api.dart';
 import '../../data/repositories/nutrition_repository.dart';
 import '../../domain/catalog.dart';
@@ -21,6 +23,7 @@ import '../../domain/nutrition/food.dart';
 import 'food_portion_sheet.dart';
 import 'nutrition_providers.dart';
 import 'nutrition_screen.dart' show showQuickAdd;
+import 'photo_input.dart';
 
 class AddFoodScreen extends ConsumerStatefulWidget {
   const AddFoodScreen({super.key, this.meal, this.day});
@@ -89,6 +92,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
   }
 
   Future<void> _pick(FoodItem item) async {
+    // A lingering snackbar would sit on top of the sheet's Add button.
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final choice = await showPortionSheet(context, food: item, meal: _meal);
     if (choice == null || !mounted) return;
     final repo = ref.read(nutritionRepositoryProvider);
@@ -109,6 +114,16 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       MaterialPageRoute(fullscreenDialog: true, builder: (_) => const BarcodeScanScreen()),
     );
     if (code == null || !mounted) return;
+    await _lookupBarcode(code);
+  }
+
+  /// Reads the barcode from a still photo, e.g. the back of a package.
+  Future<void> _scanPhoto() async {
+    final code = await readBarcodeFromPhoto(context, ref);
+    if (code != null && mounted) await _lookupBarcode(code);
+  }
+
+  Future<void> _lookupBarcode(String code) async {
     setState(() => _searching = true);
     try {
       final local = await ref.read(nutritionRepositoryProvider).foodByBarcode(code);
@@ -116,22 +131,60 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       if (!mounted) return;
       setState(() => _searching = false);
       if (item == null) {
-        final create = await showDialog<bool>(
+        final canRead = ref.read(photoAiAvailableProvider);
+        final choice = await showDialog<String>(
           context: context,
           builder: (c) => AlertDialog(
             title: const Text('Product not found'),
-            content: Text('Barcode $code isn\'t in the food database yet. You can add it from the nutrition label.'),
+            content: Text(
+              'Barcode $code isn\'t in the food database yet. '
+              '${canRead ? 'Take a photo of the nutrition label and the values are filled in for you to check.' : 'You can add it from the nutrition label.'}',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Add from label')),
+              TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+              if (canRead) TextButton(onPressed: () => Navigator.pop(c, 'manual'), child: const Text('Type it in')),
+              FilledButton(onPressed: () => Navigator.pop(c, canRead ? 'label' : 'manual'), child: Text(canRead ? 'Photo of label' : 'Add from label')),
             ],
           ),
         );
-        if (create == true && mounted) await _createCustom(barcode: code);
+        if (!mounted) return;
+        if (choice == 'label') await _labelPhoto(barcode: code);
+        if (choice == 'manual') await _createCustom(barcode: code);
         return;
       }
       await _pick(item);
     } on FoodApiException catch (e) {
+      if (mounted) {
+        setState(() => _searching = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  /// Photographs a nutrition label; the values open in the custom-food form
+  /// for review, so the product is known the next time it's scanned.
+  Future<void> _labelPhoto({String? barcode}) async {
+    if (!ref.read(photoAiAvailableProvider)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading labels needs the Forma server and an account. You can type the values in instead.')));
+      return _createCustom(barcode: barcode);
+    }
+    final photo = await ref.read(photoPickerProvider).pick(ImageSource.camera);
+    if (photo == null || !mounted) return;
+    setState(() => _searching = true);
+    try {
+      final reading = await ref.read(aiApiProvider).readLabel(photo.bytes, mimeType: photo.mimeType);
+      if (!mounted) return;
+      setState(() => _searching = false);
+      if (reading.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No nutrition values could be read. Try a sharper photo of the table, or type them in.')));
+        return;
+      }
+      final created = await context.push<FoodItem>(
+        barcode == null ? '/nutrition/custom' : '/nutrition/custom?barcode=$barcode',
+        extra: reading,
+      );
+      if (created != null && mounted) await _pick(created);
+    } on BackendException catch (e) {
       if (mounted) {
         setState(() => _searching = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -166,21 +219,21 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             IconButton.filledTonal(tooltip: 'Scan barcode', onPressed: _scan, icon: const Icon(Icons.qr_code_scanner_rounded)),
           ]),
         ),
-        SizedBox(
-          height: 44,
-          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: Space.gutter), children: [
-            ActionChip(avatar: const Icon(Icons.bolt_rounded, size: 18), label: const Text('Quick add'), onPressed: () async {
-              await showQuickAdd(context, ref, meal: _meal, day: _day);
-            }),
-            const SizedBox(width: Space.sm),
+        // A wrap rather than a scrolling row, so every way to add food is visible.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
+          child: Wrap(spacing: Space.sm, runSpacing: Space.xs, children: [
             ActionChip(
               avatar: const Icon(Icons.photo_camera_outlined, size: 18),
               label: const Text('Photo'),
               onPressed: () => context.push('/nutrition/photo?meal=${_meal.name}&day=${dayKey(_day)}'),
             ),
-            const SizedBox(width: Space.sm),
+            ActionChip(avatar: const Icon(Icons.barcode_reader, size: 18), label: const Text('Barcode photo'), onPressed: _scanPhoto),
+            ActionChip(avatar: const Icon(Icons.document_scanner_outlined, size: 18), label: const Text('Nutrition label'), onPressed: _labelPhoto),
+            ActionChip(avatar: const Icon(Icons.bolt_rounded, size: 18), label: const Text('Quick add'), onPressed: () async {
+              await showQuickAdd(context, ref, meal: _meal, day: _day);
+            }),
             ActionChip(avatar: const Icon(Icons.edit_note_rounded, size: 18), label: const Text('New food'), onPressed: _createCustom),
-            const SizedBox(width: Space.sm),
             ActionChip(avatar: const Icon(Icons.menu_book_outlined, size: 18), label: const Text('New recipe'), onPressed: () => context.push('/nutrition/recipes/new')),
           ]),
         ),
@@ -350,15 +403,15 @@ class _FoodTile extends StatelessWidget {
 }
 
 /// Camera barcode scanner. Returns the scanned code.
-class BarcodeScanScreen extends StatefulWidget {
+class BarcodeScanScreen extends ConsumerStatefulWidget {
   const BarcodeScanScreen({super.key});
 
   @override
-  State<BarcodeScanScreen> createState() => _BarcodeScanScreenState();
+  ConsumerState<BarcodeScanScreen> createState() => _BarcodeScanScreenState();
 }
 
-class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
-  final _controller = MobileScannerController(formats: const [BarcodeFormat.ean13, BarcodeFormat.ean8, BarcodeFormat.upcA, BarcodeFormat.upcE]);
+class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
+  final _controller = MobileScannerController(formats: MobileScannerBarcodeImageReader.formats);
   final _manual = TextEditingController();
   bool _done = false;
 
@@ -372,7 +425,19 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan barcode')),
+      appBar: AppBar(title: const Text('Scan barcode'), actions: [
+        TextButton.icon(
+          onPressed: () async {
+            final code = await readBarcodeFromPhoto(context, ref);
+            if (code != null && context.mounted && !_done) {
+              _done = true;
+              Navigator.pop(context, code);
+            }
+          },
+          icon: const Icon(Icons.photo_camera_outlined),
+          label: const Text('Use a photo'),
+        ),
+      ]),
       body: Column(children: [
         Expanded(
           child: ClipRRect(
@@ -415,4 +480,22 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       ]),
     );
   }
+}
+
+/// Takes a photo and returns the barcode in it, or tells the user why not.
+Future<String?> readBarcodeFromPhoto(BuildContext context, WidgetRef ref) async {
+  final photo = await ref.read(photoPickerProvider).pick(ImageSource.camera);
+  if (photo == null) return null;
+  String? code;
+  try {
+    code = await ref.read(barcodeImageReaderProvider).read(photo);
+  } on Exception {
+    code = null;
+  }
+  if (code == null && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No barcode found in the photo. Hold the phone closer so the lines fill the frame, or type the number.')),
+    );
+  }
+  return code;
 }

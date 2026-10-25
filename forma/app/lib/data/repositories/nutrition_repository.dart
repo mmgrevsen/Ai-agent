@@ -253,6 +253,43 @@ class NutritionRepository extends Repository {
     return id;
   }
 
+  /// Logs a reviewed AI estimate and keeps it as a reusable food, so the same
+  /// portion can be logged again later without a new photo. Without a
+  /// weight the nutrients can't be expressed per 100 g, so the entry is
+  /// logged on its own (like a quick add).
+  Future<({String entryId, Food? food})> logEstimate({
+    required String name,
+    required double? grams,
+    required Nutrients nutrients,
+    required MealSlot meal,
+    required DateTime day,
+    bool weighed = false,
+  }) async {
+    if (grams == null || grams <= 0) {
+      final id = await logQuick(name: name, nutrients: nutrients, meal: meal, day: day, provenance: Provenance.aiEstimate);
+      return (entryId: id, food: null);
+    }
+    final food = await saveFood(FoodItem(
+      name: name,
+      source: 'ai',
+      provenance: Provenance.aiEstimate,
+      per100g: nutrients.scale(100 / grams),
+      servings: [ServingOption(weighed ? 'weighed portion' : 'photo portion', grams), const ServingOption('100 g', 100)],
+    ));
+    final id = await logFood(food: food, grams: grams, meal: meal, day: day, servings: 1, servingLabel: food.servingLabel);
+    return (entryId: id, food: food);
+  }
+
+  /// Saves foods with fixed amounts as a meal for one-tap reuse.
+  Future<String> saveMealItems(String name, List<(String foodId, double grams)> items) => db.transaction(() async {
+        final id = newId();
+        await db.into(db.savedMeals).insert(SavedMealsCompanion.insert(id: Value(id), name: name.trim()));
+        for (final (foodId, grams) in items) {
+          await db.into(db.savedMealItems).insert(SavedMealItemsCompanion.insert(mealId: id, foodId: foodId, grams: grams));
+        }
+        return id;
+      });
+
   /// Changes the amount of an entry by scaling its snapshot proportionally.
   Future<void> updateEntryAmount(NutritionEntry e, {double? grams, double? servings}) {
     final ratio = grams != null && e.grams != null && e.grams! > 0

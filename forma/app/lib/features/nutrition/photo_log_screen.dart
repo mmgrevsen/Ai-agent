@@ -14,20 +14,52 @@ import '../../data/remote/backend.dart';
 import '../../domain/catalog.dart';
 import '../../domain/dates.dart';
 import '../../domain/nutrition/nutrients.dart';
+import 'photo_input.dart';
 
 class _Editable {
   _Editable(PhotoFoodEstimate e)
       : estimate = e,
         name = TextEditingController(text: e.name),
         grams = TextEditingController(text: number(e.grams, maxDecimals: 0)),
-        kcal = TextEditingController(text: e.nutrients.kcal == null ? '' : number(e.nutrients.kcal!, maxDecimals: 0)),
-        protein = TextEditingController(text: e.nutrients.proteinG == null ? '' : number(e.nutrients.proteinG!)),
-        carbs = TextEditingController(text: e.nutrients.carbsG == null ? '' : number(e.nutrients.carbsG!)),
-        fat = TextEditingController(text: e.nutrients.fatG == null ? '' : number(e.nutrients.fatG!));
+        kcal = TextEditingController(),
+        protein = TextEditingController(),
+        carbs = TextEditingController(),
+        fat = TextEditingController() {
+    _fill(e.grams);
+  }
 
   final PhotoFoodEstimate estimate;
   final TextEditingController name, grams, kcal, protein, carbs, fat;
   bool include = true;
+
+  /// Rescales the nutrients from the estimate when the portion is corrected,
+  /// so a changed weight never leaves stale calories behind.
+  void onGramsChanged() {
+    final g = parseNumber(grams.text);
+    if (g != null && g > 0) _fill(g);
+  }
+
+  void _fill(double g) {
+    final n = estimate.nutrients.scale(g / estimate.grams);
+    kcal.text = n.kcal == null ? '' : number(n.kcal!, maxDecimals: 0);
+    protein.text = n.proteinG == null ? '' : number(n.proteinG!);
+    carbs.text = n.carbsG == null ? '' : number(n.carbsG!);
+    fat.text = n.fatG == null ? '' : number(n.fatG!);
+  }
+
+  Nutrients get nutrients {
+    final g = parseNumber(grams.text);
+    return Nutrients(
+      kcal: parseNumber(kcal.text),
+      proteinG: parseNumber(protein.text),
+      carbsG: parseNumber(carbs.text),
+      fatG: parseNumber(fat.text),
+      fiberG: estimate.nutrients.fiberG == null || g == null ? null : estimate.nutrients.fiberG! * g / estimate.grams,
+    );
+  }
+
+  /// Portion still matches the scale reading.
+  bool get stillWeighed => estimate.weighed && parseNumber(grams.text) == estimate.grams;
 
   void dispose() {
     for (final c in [name, grams, kcal, protein, carbs, fat]) {
@@ -50,6 +82,9 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
   String? _error;
   List<_Editable> _items = [];
   List<String> _caveats = const [];
+  PhotoEstimateResult? _result;
+  bool _saveMeal = false;
+  final _mealName = TextEditingController();
   final _hint = TextEditingController();
 
   late final MealSlot _meal = widget.meal == null ? MealSlot.forTime(DateTime.now()) : MealSlot.fromName(widget.meal!);
@@ -61,21 +96,21 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
       i.dispose();
     }
     _hint.dispose();
+    _mealName.dispose();
     super.dispose();
   }
 
   Future<void> _pick(ImageSource source) async {
-    final file = await ImagePicker().pickImage(source: source, maxWidth: 1280, maxHeight: 1280, imageQuality: 80);
-    if (file == null) return;
+    final photo = await ref.read(photoPickerProvider).pick(source);
+    if (photo == null) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final bytes = await file.readAsBytes();
       final result = await ref.read(aiApiProvider).estimatePhoto(
-            bytes,
-            mimeType: file.mimeType ?? 'image/jpeg',
+            photo.bytes,
+            mimeType: photo.mimeType,
             hint: _hint.text.trim().isEmpty ? null : _hint.text.trim(),
           );
       if (!mounted) return;
@@ -83,8 +118,11 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
         for (final i in _items) {
           i.dispose();
         }
+        _result = result;
         _items = [for (final e in result.items) _Editable(e)];
         _caveats = result.caveats;
+        _saveMeal = _items.length > 1;
+        _mealName.text = [for (final e in result.items) e.name].join(', ');
         if (_items.isEmpty) _error = 'No food could be identified. Try another photo or log it manually.';
       });
     } on BackendException catch (e) {
@@ -96,37 +134,41 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
 
   Future<void> _log() async {
     final repo = ref.read(nutritionRepositoryProvider);
+    final saved = <(String, double)>[];
     var count = 0;
     for (final i in _items.where((i) => i.include)) {
-      await repo.logQuick(
+      final grams = parseNumber(i.grams.text);
+      final r = await repo.logEstimate(
         name: i.name.text.trim().isEmpty ? i.estimate.name : i.name.text.trim(),
-        grams: parseNumber(i.grams.text),
-        nutrients: Nutrients(
-          kcal: parseNumber(i.kcal.text),
-          proteinG: parseNumber(i.protein.text),
-          carbsG: parseNumber(i.carbs.text),
-          fatG: parseNumber(i.fat.text),
-          fiberG: i.estimate.nutrients.fiberG,
-        ),
+        grams: grams,
+        nutrients: i.nutrients,
         meal: _meal,
         day: _day,
-        provenance: Provenance.aiEstimate,
+        weighed: i.stillWeighed,
       );
+      if (r.food != null && grams != null) saved.add((r.food!.id, grams));
       count++;
     }
+    final asMeal = _saveMeal && saved.isNotEmpty;
+    if (asMeal) {
+      await repo.saveMealItems(_mealName.text.trim().isEmpty ? 'Photo meal' : _mealName.text.trim(), saved);
+    }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Logged $count item${count == 1 ? '' : 's'} as AI estimates.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Logged $count item${count == 1 ? '' : 's'}. Log ${count == 1 ? 'it' : 'them'} again from ${asMeal ? 'Meals or Recent' : 'Recent'} — no new photo needed.'),
+    ));
     context.go('/nutrition');
   }
 
   @override
   Widget build(BuildContext context) {
+    final available = ref.watch(photoAiAvailableProvider);
     final backend = ref.watch(backendProvider);
-    ref.watch(authUserProvider);
     final c = context.colors;
+    final result = _result;
     return Scaffold(
       appBar: AppBar(title: Text('Photo estimate · ${_meal.label}')),
-      body: !backend.signedIn
+      body: !available
           ? EmptyState(
               icon: Icons.photo_camera_outlined,
               title: backend.configured ? 'Sign in to use photo estimates' : 'Photo estimates need the Forma server',
@@ -137,11 +179,23 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
           : ListView(padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, 120), children: [
               FCard(
                 color: c.surfaceRaised,
-                child: Text(
-                  'Portions and nutrients from a photo are rough estimates — often off by 20–50%. '
-                  'Review every value before logging. Entries are marked “AI estimate”.',
-                  style: context.text.bodyMedium,
-                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    'Portions guessed from a photo are often off by 20–50%. Review every value before logging. Entries are marked “AI estimate”.',
+                    style: context.text.bodyMedium,
+                  ),
+                  const SizedBox(height: Space.sm),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(Icons.scale_outlined, size: 18, color: c.accent),
+                    const SizedBox(width: Space.sm),
+                    Expanded(
+                      child: Text(
+                        'Most precise: put the food on a kitchen scale (zeroed with the plate on it) and keep the display in the photo. The scale’s weight is used instead of a guess.',
+                        style: context.text.bodySmall,
+                      ),
+                    ),
+                  ]),
+                ]),
               ),
               const SizedBox(height: Space.md),
               TextField(controller: _hint, decoration: const InputDecoration(labelText: 'Optional hint (e.g. “chicken curry, half a plate of rice”)')),
@@ -153,6 +207,18 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
               ]),
               if (_busy) const Padding(padding: EdgeInsets.all(Space.xl), child: LoadingState(compact: true)),
               if (_error != null) Padding(padding: const EdgeInsets.only(top: Space.lg), child: Text(_error!, style: context.text.bodyMedium?.copyWith(color: c.caution))),
+              if (result != null && result.scaleApplied)
+                Padding(
+                  padding: const EdgeInsets.only(top: Space.lg),
+                  child: FCard(
+                    color: c.accentMuted,
+                    child: Row(children: [
+                      Icon(Icons.scale_rounded, color: c.accent),
+                      const SizedBox(width: Space.sm),
+                      Expanded(child: Text('Scale reading used: ${number(result.scaleGrams!, maxDecimals: 1)} g', style: context.text.titleSmall)),
+                    ]),
+                  ),
+                ),
               for (final cv in _caveats) Padding(padding: const EdgeInsets.only(top: Space.sm), child: Text('• $cv', style: context.text.bodySmall)),
               for (final i in _items) ...[
                 const SizedBox(height: Space.md),
@@ -168,7 +234,9 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
                       const SizedBox(width: Space.sm),
                       Expanded(
                         child: Text(
-                          '${i.estimate.confidence} confidence · likely ${number(i.estimate.gramsLow, maxDecimals: 0)}–${number(i.estimate.gramsHigh, maxDecimals: 0)} g',
+                          i.estimate.weighed
+                              ? 'Weighed on the scale · ${number(i.estimate.gramsLow, maxDecimals: 0)}–${number(i.estimate.gramsHigh, maxDecimals: 0)} g'
+                              : '${i.estimate.confidence} confidence · likely ${number(i.estimate.gramsLow, maxDecimals: 0)}–${number(i.estimate.gramsHigh, maxDecimals: 0)} g',
                           style: context.text.bodySmall,
                         ),
                       ),
@@ -176,7 +244,7 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
                     if (i.estimate.notes != null) Text(i.estimate.notes!, style: context.text.bodySmall),
                     const SizedBox(height: Space.sm),
                     Row(children: [
-                      Expanded(child: NumberField(controller: i.grams, label: 'Grams')),
+                      Expanded(child: NumberField(controller: i.grams, label: 'Grams', onChanged: (_) => setState(i.onGramsChanged))),
                       const SizedBox(width: Space.sm),
                       Expanded(child: NumberField(controller: i.kcal, label: 'kcal')),
                     ]),
@@ -192,6 +260,15 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
                 ),
               ],
               if (_items.isNotEmpty) ...[
+                const SizedBox(height: Space.lg),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _saveMeal,
+                  onChanged: (v) => setState(() => _saveMeal = v),
+                  title: const Text('Save as a meal'),
+                  subtitle: const Text('Log the whole plate again with one tap. Each food is also kept under Recent.'),
+                ),
+                if (_saveMeal) TextField(controller: _mealName, decoration: const InputDecoration(labelText: 'Meal name')),
                 const SizedBox(height: Space.lg),
                 FilledButton(onPressed: _items.any((i) => i.include) ? _log : null, child: const Text('Log selected')),
               ],

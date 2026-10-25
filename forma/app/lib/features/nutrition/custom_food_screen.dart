@@ -4,15 +4,20 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
 import '../../core/widgets/primitives.dart';
+import '../../data/remote/ai_api.dart';
 import '../../data/repositories/nutrition_repository.dart';
 import '../../domain/nutrition/food.dart';
 import '../../domain/nutrition/nutrients.dart';
 
 class CustomFoodScreen extends ConsumerStatefulWidget {
-  const CustomFoodScreen({super.key, this.barcode});
+  const CustomFoodScreen({super.key, this.barcode, this.label});
   final String? barcode;
+
+  /// Values read from a label photo, pre-filled for review.
+  final LabelReading? label;
 
   @override
   ConsumerState<CustomFoodScreen> createState() => _CustomFoodScreenState();
@@ -20,16 +25,20 @@ class CustomFoodScreen extends ConsumerStatefulWidget {
 
 class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   final _form = GlobalKey<FormState>();
-  final _name = TextEditingController();
-  final _brand = TextEditingController();
-  late final _barcode = TextEditingController(text: widget.barcode ?? '');
-  final _servingG = TextEditingController();
-  final _servingLabel = TextEditingController(text: '1 serving');
-  final _kcal = TextEditingController();
-  final _protein = TextEditingController();
-  final _carbs = TextEditingController();
-  final _fat = TextEditingController();
-  final _fiber = TextEditingController();
+  late final _l = widget.label;
+  late final _name = TextEditingController(text: _l?.name ?? '');
+  late final _brand = TextEditingController(text: _l?.brand ?? '');
+  late final _barcode = TextEditingController(text: widget.barcode ?? _l?.barcode ?? '');
+  late final _servingG = TextEditingController(text: _l?.serving == null ? '' : number(_l!.serving!.grams));
+  late final _servingLabel = TextEditingController(text: _l?.serving?.label ?? '1 serving');
+  late final _kcal = _prefill(_l?.per100g.kcal, 0);
+  late final _protein = _prefill(_l?.per100g.proteinG, 1);
+  late final _carbs = _prefill(_l?.per100g.carbsG, 1);
+  late final _fat = _prefill(_l?.per100g.fatG, 1);
+  late final _fiber = _prefill(_l?.per100g.fiberG, 1);
+
+  static TextEditingController _prefill(double? v, int decimals) =>
+      TextEditingController(text: v == null ? '' : number(v, maxDecimals: decimals));
   bool _perServing = false;
 
   @override
@@ -105,6 +114,20 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, 120),
           children: [
+            if (_l != null) ...[
+              FCard(
+                color: context.colors.surfaceRaised,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Read from your photo — check each value against the package before saving.', style: context.text.bodyMedium),
+                  for (final w in [..._l.warnings, ..._l.caveats])
+                    Padding(
+                      padding: const EdgeInsets.only(top: Space.xs),
+                      child: Text('• $w', style: context.text.bodySmall?.copyWith(color: context.colors.caution)),
+                    ),
+                ]),
+              ),
+              const SizedBox(height: Space.md),
+            ],
             TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'Name'), validator: required, textCapitalization: TextCapitalization.sentences),
             const SizedBox(height: Space.md),
             TextFormField(controller: _brand, decoration: const InputDecoration(labelText: 'Brand (optional)')),

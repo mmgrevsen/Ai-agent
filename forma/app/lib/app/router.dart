@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/remote/ai_api.dart';
 import '../features/auth/account_screen.dart';
 import '../features/coach/coach_screen.dart';
 import '../features/nutrition/add_food_screen.dart';
@@ -115,7 +116,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                     day: s.uri.queryParameters['day'],
                   ),
                 ),
-                GoRoute(path: 'custom', builder: (_, s) => CustomFoodScreen(barcode: s.uri.queryParameters['barcode'])),
+                GoRoute(
+                  path: 'custom',
+                  builder: (_, s) => CustomFoodScreen(barcode: s.uri.queryParameters['barcode'], label: s.extra is LabelReading ? s.extra! as LabelReading : null),
+                ),
                 GoRoute(path: 'recipes/new', builder: (_, _) => const RecipeEditorScreen()),
                 GoRoute(path: 'recipes/:id', builder: (_, s) => RecipeEditorScreen(recipeId: s.pathParameters['id'])),
                 GoRoute(
