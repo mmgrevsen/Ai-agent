@@ -39,7 +39,13 @@ lower body), explanations that quote the recorded sets. 20 unit tests.
 Open Food Facts search and barcode lookup (direct, or via the server with
 USDA FoodData Central); custom foods (per 100 g or per serving); recipes;
 saved meals; copy meal from yesterday; quick add; water; AI photo estimates
-with ranges and mandatory review. Unknown nutrients are stored as NULL and
+with ranges and mandatory review. A kitchen scale visible in the photo is
+read and its weight replaces the portion guess (not applied when the
+reading includes the plate). Photo estimates are kept as foods (and
+optionally a saved meal) so they can be logged again without a new photo.
+Barcodes can be read from a still photo, and an unknown product can be
+added by photographing its nutrition label (values pre-filled for review,
+impossible or inconsistent values flagged). Unknown nutrients are stored as NULL and
 totals that include them are flagged as lower bounds; every item shows its
 source (Verified / Community / Custom / AI estimate) and plausibility
 warnings.
