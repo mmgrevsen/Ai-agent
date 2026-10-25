@@ -83,6 +83,13 @@ Jeres data bliver liggende. Slet ikke appen først.
 
 ## Hvis noget driller
 
+* **"Failed to Sign In … (-80045)" i SideStore**: login-serveren (Anisette)
+  driller. I SideStore: **Settings → User Customizations → ANISETTE** →
+  slå **On-Device Anisette** fra (SideStore genstarter). Derefter:
+  **Settings → Anisette Servers** (mellem "Reset Pairing File" og
+  "Connection Config") → vælg fx **jkcoxson** → log ind igen. Hjælper det
+  ikke, så vent 15–30 minutter; Apple blokerer kortvarigt efter flere
+  mislykkede forsøg.
 * **Efter en iOS-opdatering** kan SideStore holde op med at kunne forny.
   Sæt telefonen i Mac'en, åbn iloader og vælg at lægge en ny *pairing file*
   ind for SideStore.
