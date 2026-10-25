@@ -22,6 +22,7 @@ class FormaApp extends ConsumerWidget {
     ref.watch(syncControllerProvider);
     // Checks for content updates and confirms the content started fine.
     ref.watch(contentUpdaterProvider);
+    ref.watch(externalChangesProvider);
     return MaterialApp.router(
       title: 'Forma',
       debugShowCheckedModeBanner: false,

@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show TableUpdate;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/providers.dart';
 import '../core/config/env.dart';
 import 'content_bundle.dart';
 import 'content_service.dart';
@@ -55,4 +57,14 @@ final contentUpdaterProvider = Provider<void>((ref) {
     periodic.cancel();
     lifecycle.dispose();
   });
+});
+
+/// Siri / Apple Watch shortcuts write to the database outside Flutter, so
+/// the diary is refreshed whenever the app comes back to the foreground.
+final externalChangesProvider = Provider<void>((ref) {
+  final db = ref.watch(databaseProvider);
+  final lifecycle = AppLifecycleListener(
+    onResume: () => db.notifyUpdates({TableUpdate.onTable(db.nutritionEntries), TableUpdate.onTable(db.foods)}),
+  );
+  ref.onDispose(lifecycle.dispose);
 });
