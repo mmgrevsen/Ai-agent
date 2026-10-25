@@ -26,17 +26,45 @@ jobs:
       TAG: forma-food-sources
     steps:
       - name: Frida (DTU)
+        continue-on-error: true
         run: |
           mkdir -p out
-          curl -sSfL "https://data.dtu.dk/api/v2/articles/29500682" -o out/frida-article.json
+          echo "== DOI resolves to:"; curl -sS -o /dev/null -w "%{url_effective}\n" -L "https://doi.org/10.11583/DTU.29500682" || true
           python3 - <<'EOF'
-          import json, urllib.request
-          a = json.load(open('out/frida-article.json'))
-          print('Title:', a.get('title')); print('License:', (a.get('license') or {}).get('name')); print('Version:', a.get('version'))
-          for f in a.get('files', []):
-              name = f['name'].replace(' ', '_')
+          import json, re, urllib.request
+          def get(u):
+              req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0 (Forma food import)'})
+              return urllib.request.urlopen(req, timeout=60).read()
+          article = None
+          for u in ['https://api.figshare.com/v2/articles/29500682', 'https://data.dtu.dk/api/v2/articles/29500682',
+                    'https://api.figshare.com/v2/articles?doi=10.11583/DTU.29500682']:
+              try:
+                  data = json.loads(get(u)); print('OK', u)
+                  if isinstance(data, list):
+                      data = json.loads(get(data[0]['url'])) if data else None
+                  if data and data.get('files'):
+                      article = data; break
+              except Exception as e:
+                  print('FAIL', u, e)
+          if article is None:
+              # Search by title on figshare.
+              try:
+                  req = urllib.request.Request('https://api.figshare.com/v2/articles/search', data=json.dumps({'search_for': 'Frida Danish Food Composition', 'page_size': 20}).encode(), headers={'Content-Type': 'application/json'})
+                  hits = json.loads(urllib.request.urlopen(req, timeout=60).read())
+                  for h in hits: print('HIT', h.get('id'), h.get('doi'), h.get('title'))
+                  for h in hits:
+                      if 'frida' in (h.get('title') or '').lower():
+                          article = json.loads(get(h['url'])); break
+              except Exception as e:
+                  print('search failed', e)
+          if article is None:
+              raise SystemExit('Frida not found')
+          json.dump(article, open('out/frida-article.json', 'w'), indent=1)
+          print('Title:', article.get('title')); print('DOI:', article.get('doi')); print('License:', (article.get('license') or {}).get('name')); print('Version:', article.get('version'))
+          for f in article.get('files', []):
+              name = re.sub(r'[^A-Za-z0-9._-]', '_', f['name'])
               print('Downloading', name, f.get('size'))
-              urllib.request.urlretrieve(f['download_url'], 'out/frida-' + name)
+              open('out/frida-' + name, 'wb').write(get(f['download_url']))
           EOF
           ls -la out
       - name: USDA FoodData Central
