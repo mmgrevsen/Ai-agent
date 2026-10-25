@@ -1,7 +1,7 @@
 name: Forma iOS (unsigned .ipa)
 
-# Builds an unsigned .ipa for sideloading (SideStore / Sideloadly re-sign it
-# with the installer's own Apple ID) and publishes it on the
+# Builds an .ipa for sideloading (ad-hoc signed only; SideStore / Sideloadly
+# re-sign it with the installer's own Apple ID) and publishes it on the
 # `forma-ios-latest` release, so it has a fixed download link that works on
 # the phone without a GitHub login. See forma/docs/INSTALL-IPHONE.md.
 on:
@@ -44,6 +44,11 @@ jobs:
           rm -rf Payload
           mkdir Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
+          # Ad-hoc sign so the HealthKit entitlement travels with the app;
+          # SideStore/Sideloadly re-sign it with the installer's Apple ID.
+          for f in Payload/Runner.app/Frameworks/*; do codesign --force --sign - --timestamp=none "$f"; done
+          codesign --force --sign - --timestamp=none --entitlements ios/Runner/Runner.entitlements Payload/Runner.app
+          codesign -d --entitlements - Payload/Runner.app
           zip -qry Forma.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
