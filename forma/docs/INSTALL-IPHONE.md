@@ -1,47 +1,108 @@
 # Installér Forma på iPhone (uden App Store)
 
-Appen bygges automatisk af GitHub på en Mac i skyen, hver gang koden i
-`forma/app` ændres. Resultatet er en usigneret `.ipa`-fil (en zip-fil med
-appen). Den signeres og installeres med jeres eget gratis Apple-ID.
+Forma installeres som en rigtig app med **SideStore** og jeres eget gratis
+Apple-ID. Mac'en skal kun bruges første gang. Bagefter fornyer I appen på
+telefonen én gang om ugen med et par tryk.
 
-## 1. Hent appen
+Appen bygges automatisk af GitHub, hver gang koden ændres. Den nyeste udgave
+ligger altid her (virker direkte på iPhonen, uden GitHub-login):
 
-1. Gå til <https://github.com/mmgrevsen/Ai-agent/actions/workflows/forma-ios-unsigned.yml>.
-2. Klik på den øverste kørsel med grønt flueben.
-3. Under **Artifacts** nederst: download **Forma-unsigned-ipa** og pak zip'en
-   ud. Så har du `Forma-unsigned.ipa`.
+**<https://github.com/mmgrevsen/Ai-agent/releases/download/forma-ios-latest/Forma.ipa>**
 
-(Vil du bygge igen manuelt: klik **Run workflow** på samme side.)
+Hver af jer gør det følgende på sin egen iPhone.
 
-## 2. Installér med Sideloadly (på Mac)
+## Det skal I bruge
 
-1. Hent Sideloadly fra <https://sideloadly.io> og installér det.
-2. Sæt iPhonen i Mac'en med kabel, lås den op og tryk **Stol på denne computer**.
-3. Åbn Sideloadly, træk `Forma-unsigned.ipa` ind i vinduet.
-4. Skriv dit Apple-ID i feltet og tryk **Start**. Log ind med din
-   Apple-adgangskode (og kode fra to-faktor) når der spørges.
+* iPhone med iOS 15 eller nyere og en adgangskode.
+* Wi-Fi. Mobildata virker ikke, når der installeres eller fornyes.
+* Mac og USB-kabel (kun første gang).
+* Et Apple-ID. Det behøver ikke være det, telefonen bruger. Nogle laver et
+  ekstra gratis Apple-ID til formålet.
 
-Hver af jer bruger sit eget Apple-ID og sin egen iPhone.
+## 1. iPhone: installér LocalDevVPN
 
-## 3. Første gang på iPhonen
+1. Hent **LocalDevVPN** fra App Store:
+   <https://apps.apple.com/app/localdevvpn/id6755608044>
+2. Åbn den og tryk **Connect**. Tryk **Tillad**, hvis den spørger om
+   VPN-konfiguration, og indtast koden.
 
-1. **Indstillinger → Anonymitet & sikkerhed → Udviklertilstand** → slå til,
-   genstart, bekræft.
-2. **Indstillinger → Generelt → VPN og enhedsadministration** → tryk på dit
-   Apple-ID under *Udviklerapp* → **Stol på**.
-3. Åbn Forma.
+Den "VPN" sender ingenting ud på internettet. Den lader SideStore tale med
+telefonen selv, og den skal være tændt, hver gang I installerer eller
+fornyer.
 
-## Godt at vide
+## 2. Mac: installér SideStore med iloader
 
-* **Appen udløber efter 7 dage** med et gratis Apple-ID. Geninstallér samme
-  måde (data på telefonen bevares, så længe appen ikke slettes). Sideloadly
-  kan sættes til at forny automatisk, når telefonen og Mac'en er på samme wifi.
-* Et gratis Apple-ID kan have højst 3 sideloadede apps ad gangen.
-* Apple Health kan i nogle tilfælde afvises af gratis signering. Hvis
-  installationen fejler pga. HealthKit, så sig til.
-* Uden en Supabase-opsætning kører appen kun lokalt på telefonen (ingen
-  synkronisering, ingen AI-coach). Alt andet virker.
-* Alternativ til Sideloadly: AltStore (<https://altstore.io>), som kan
-  forny appen automatisk via AltServer på Mac'en.
-* Varig løsning uden 7-dages grænse: Apple Developer Program (99 USD/år),
-  så kan appen deles via TestFlight.
+1. Hent iloader (kun fra dette link):
+   <https://github.com/nab138/iloader/releases/latest/download/iloader-darwin-universal.dmg>
+   Åbn filen og træk iloader over i Programmer.
+   Siger Mac'en, at den ikke kan åbne programmet: **Systemindstillinger →
+   Anonymitet og sikkerhed → Åbn alligevel**.
+2. Sæt iPhonen i Mac'en med kablet. Tryk **Stol på** på telefonen og
+   indtast koden.
+3. Åbn iloader og log ind med Apple-ID'et. Pas på store og små bogstaver.
+4. Vælg jeres iPhone, og tryk **Install SideStore (Stable)**.
+
+## 3. iPhone: gør SideStore klar
+
+1. **Indstillinger → Generelt → VPN og enhedsadministration**. Tryk på
+   Apple-ID'et under *Udviklerapp*, tryk **Stol på**, bekræft og indtast
+   koden. Telefonen kan genstarte.
+2. **Indstillinger → Anonymitet og sikkerhed** → helt nederst:
+   **Udviklertilstand** → slå til. Telefonen genstarter. Bekræft bagefter.
+3. Åbn **LocalDevVPN** og tryk **Connect**.
+4. Åbn **SideStore** og log ind med det samme Apple-ID som i iloader.
+5. Gå til **My Apps** og tryk på **7 DAYS** ud for SideStore. Spørger den om
+   et certifikat, så tryk **Yes** eller **Refresh Now**. SideStore lukker og
+   kommer igen efter et par sekunder. Det er meningen.
+
+## 4. iPhone: installér Forma
+
+1. Åbn linket øverst i Safari på iPhonen, og tryk **Hent**. Filen lander i
+   **Filer → Overførsler**.
+2. Tjek at LocalDevVPN er tilsluttet.
+3. Åbn SideStore → **My Apps** → tryk **+** øverst → vælg **Forma.ipa**.
+4. Når den er færdig, ligger Forma på hjemmeskærmen.
+
+## Hver uge: forny appen
+
+Apps fra et gratis Apple-ID holder 7 dage ad gangen. Én gang om ugen:
+
+1. Vær på Wi-Fi, åbn **LocalDevVPN** og tryk **Connect**.
+2. Åbn **SideStore** → **My Apps**.
+3. Tryk på dage-tælleren (fx **3 DAYS**) ud for **Forma** og ud for
+   **SideStore**.
+
+Tælleren viser, hvor mange dage der er tilbage. Sæt gerne en ugentlig
+påmindelse. Glemmer I det, åbner Forma ikke, før den er fornyet. Jeres data
+forsvinder ikke.
+
+## Ny version af Forma
+
+Hent linket øverst igen, og installér med **+** i SideStore som i trin 4.
+Jeres data bliver liggende. Slet ikke appen først.
+
+## Hvis noget driller
+
+* **Efter en iOS-opdatering** kan SideStore holde op med at kunne forny.
+  Sæt telefonen i Mac'en, åbn iloader og vælg at lægge en ny *pairing file*
+  ind for SideStore.
+* **Et gratis Apple-ID** kan have højst 3 apps fra SideStore ad gangen
+  (SideStore tæller med), og højst 10 forskellige apps pr. uge.
+* **Apple Health** er ikke testet med et gratis Apple-ID. Virker det ikke,
+  så sig til.
+* Uden en Supabase-opsætning kører appen kun på telefonen (ingen
+  synkronisering, ingen AI-coach). Resten virker.
+* SideStores egen vejledning (engelsk): <https://docs.sidestore.io>
+
+## Alternativ: Sideloadly (7 dage, uden fornyelse på telefonen)
+
+Til en hurtig test kan appen også installeres direkte fra Mac'en med
+Sideloadly (<https://sideloadly.io>). Hent `Forma.ipa` fra linket øverst,
+sæt iPhonen i, træk filen ind i Sideloadly, skriv Apple-ID'et og tryk
+**Start**. Lav derefter trin 3.1 og 3.2 ovenfor. Appen skal installeres
+forfra fra Mac'en hver 7. dag.
+
+## Uden 7-dages grænse
+
+Det kræver Apples udviklerkonto (99 USD om året). Så kan appen deles via
+TestFlight.

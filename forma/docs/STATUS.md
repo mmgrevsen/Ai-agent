@@ -86,7 +86,7 @@ delete account (cascades on the server).
 | USDA FoodData Central | Free `FDC_API_KEY` secret (Open Food Facts works without a key) |
 | Sign in with Apple | Apple Developer account: Service ID + key configured in Supabase Auth (uses the web OAuth flow; the native entitlement was removed so free Apple IDs can sign the app) |
 | HealthKit | Run on an iPhone (and optionally Apple Watch) with the HealthKit capability and your signing team |
-| iOS build | GitHub Actions builds an unsigned `.ipa` on macOS (`.github/workflows/forma-ios-unsigned.yml`); install with a free Apple ID via Sideloadly/AltStore — see [INSTALL-IPHONE.md](INSTALL-IPHONE.md) (Danish) |
+| iOS build | GitHub Actions builds an unsigned `.ipa` on macOS (`.github/workflows/forma-ios-unsigned.yml`) and publishes it on the `forma-ios-latest` release; install with a free Apple ID via SideStore (weekly refresh on the phone) or Sideloadly — see [INSTALL-IPHONE.md](INSTALL-IPHONE.md) (Danish). Not yet tried on a device |
 | Background rest-timer alerts | Local notifications (e.g. `flutter_local_notifications`) so the timer alerts when the app is backgrounded — not added yet |
 | Regional food data | Decide on an import (below) |
 
