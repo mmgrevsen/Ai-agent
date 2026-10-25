@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_providers.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/workout_repository.dart';
 import '../../domain/training/models.dart';
+import '../../domain/training/progression_engine.dart';
 import '../../services/training_service.dart';
 
 final trainingServiceProvider = Provider(
@@ -11,6 +13,7 @@ final trainingServiceProvider = Provider(
     workouts: ref.watch(workoutRepositoryProvider),
     exercises: ref.watch(exerciseRepositoryProvider),
     settings: ref.watch(settingsRepositoryProvider),
+    engine: ProgressionEngine(tuning: ref.watch(progressionTuningProvider)),
   ),
 );
 

@@ -1,0 +1,8 @@
+{
+  "flags": {
+    "photoLogging": true,
+    "labelPhotos": true,
+    "barcodePhotos": true
+  },
+  "announcement": null
+}

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/app/app.dart';
 import 'package:forma/app/providers.dart';
+import 'package:forma/content/content_providers.dart';
 import 'package:forma/data/db/app_database.dart';
 import 'package:forma/features/health/health_providers.dart';
 import 'package:forma/services/health_service.dart';
@@ -13,6 +14,7 @@ import '../helpers.dart';
 final _monday = DateTime(2026, 10, 19, 9);
 
 Future<void> pumpApp(WidgetTester tester, AppDatabase db) async {
+  final content = (await tester.runAsync(() => testContentService(db)))!;
   tester.view.physicalSize = const Size(390 * 3, 844 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -23,6 +25,7 @@ Future<void> pumpApp(WidgetTester tester, AppDatabase db) async {
         databaseProvider.overrideWithValue(db),
         healthPlatformProvider.overrideWithValue(const UnsupportedHealthPlatform()),
         clockProvider.overrideWithValue(() => _monday),
+        contentServiceProvider.overrideWithValue(content),
       ],
       child: const FormaApp(),
     ),

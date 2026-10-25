@@ -25,6 +25,7 @@ import '../../services/sync_service.dart';
 import '../health/health_providers.dart';
 import '../overview/overview_screen.dart' show DashboardCard;
 import '../sync/sync_controller.dart';
+import 'app_updates_page.dart';
 
 enum SettingsPage {
   profile('profile', 'Profile', Icons.person_outline_rounded),
@@ -35,6 +36,7 @@ enum SettingsPage {
   health('health', 'Apple Health', Icons.favorite_border_rounded),
   coach('coach', 'AI coach data access', Icons.auto_awesome_outlined),
   privacy('privacy', 'Privacy & data', Icons.lock_outline_rounded),
+  updates('updates', 'App updates', Icons.system_update_alt_rounded),
   about('about', 'About & data sources', Icons.info_outline_rounded);
 
   const SettingsPage(this.path, this.title, this.icon);
@@ -122,6 +124,7 @@ class SettingsDetailScreen extends ConsumerWidget {
                 SettingsPage.health => _HealthPage(prefs: p),
                 SettingsPage.coach => _CoachPage(prefs: p),
                 SettingsPage.privacy => const _PrivacyPage(),
+                SettingsPage.updates => const AppUpdatesPage(),
                 SettingsPage.about => const _AboutPage(),
               },
             ),

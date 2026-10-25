@@ -69,30 +69,33 @@ class ExerciseRepository extends Repository {
     if (current >= version) return;
     final items = (data['exercises'] as List<dynamic>).cast<Map<String, dynamic>>();
     await db.transaction(() async {
-      await db.batch((b) {
-        for (final e in items) {
-          b.insert(
-            db.exercises,
-            ExercisesCompanion.insert(
-              id: Value(e['id'] as String),
-              name: e['name'] as String,
-              primaryMuscle: e['primary'] as String,
-              secondaryMuscles: Value((e['secondary'] as List<dynamic>).join(',')),
-              equipment: Value((e['equipment'] as List<dynamic>).join(',')),
-              pattern: e['pattern'] as String,
-              mechanic: Value(e['mechanic'] as String),
-              trackingType: Value(e['tracking'] as String),
-              instructions: Value((e['instructions'] as List<dynamic>).join('\n')),
-              isCustom: const Value(false),
-              dirty: const Value(false),
-            ),
-            mode: InsertMode.insertOrReplace,
-          );
-        }
-      });
+      await upsertLibrary(items);
       await db.writeMeta(_seedKey, '$version');
     });
   }
+
+  /// Inserts or updates library exercises (the `assets/exercises.json` item
+  /// format). A true upsert: rows that workouts reference are updated in
+  /// place, never deleted and re-inserted, and exercises that are no longer
+  /// listed are kept. A custom exercise with the same id is left alone.
+  Future<void> upsertLibrary(List<Map<String, dynamic>> items) => db.transaction(() async {
+        for (final e in items) {
+          final row = ExercisesCompanion(
+            name: Value(e['name'] as String),
+            primaryMuscle: Value(e['primary'] as String),
+            secondaryMuscles: Value((e['secondary'] as List<dynamic>).join(',')),
+            equipment: Value((e['equipment'] as List<dynamic>).join(',')),
+            pattern: Value(e['pattern'] as String),
+            mechanic: Value(e['mechanic'] as String),
+            trackingType: Value(e['tracking'] as String),
+            instructions: Value((e['instructions'] as List<dynamic>).join('\n')),
+          );
+          await db.into(db.exercises).insert(
+                row.copyWith(id: Value(e['id'] as String), isCustom: const Value(false), dirty: const Value(false)),
+                onConflict: DoUpdate((_) => row, where: (old) => old.isCustom.equals(false)),
+              );
+        }
+      });
 
   Stream<List<Exercise>> watchAll() => (db.select(db.exercises)
         ..where((e) => e.deletedAt.isNull() & e.archived.equals(false))

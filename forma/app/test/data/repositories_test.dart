@@ -62,7 +62,7 @@ void main() {
   test('program generator only uses available, unrestricted exercises', () async {
     final library = await exercises.all();
     const ctx = TrainingContext(available: {'dumbbell', 'bench', 'pullup_bar'}, restrictions: [], increments: {});
-    final program = const ProgramGenerator().generate(library: library, context: ctx, daysPerWeek: 3, goal: TrainingGoal.muscle, experience: 'beginner');
+    final program = ProgramGenerator(testContentBundle().programs).generate(library: library, context: ctx, daysPerWeek: 3, goal: TrainingGoal.muscle, experience: 'beginner');
     expect(program.templates, hasLength(2));
     expect(program.templates.expand((t) => t.weekdays).toList()..sort(), [1, 3, 5]);
     final byId = {for (final e in library) e.id: e};

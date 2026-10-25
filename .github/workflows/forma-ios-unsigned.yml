@@ -4,12 +4,23 @@ name: Forma iOS (unsigned .ipa)
 # re-sign it with the installer's own Apple ID) and publishes it on the
 # `forma-ios-latest` release, so it has a fixed download link that works on
 # the phone without a GitHub login. See forma/docs/INSTALL-IPHONE.md.
+#
+# Content-only changes (assets/content, assets/exercises.json) don't need a
+# new app: they are published by forma-content.yml instead.
+#
+# Code push: when the SHOREBIRD_TOKEN secret is set and forma/app/shorebird.yaml
+# exists, the app is built as a Shorebird release so later Dart changes can
+# be shipped with forma-patch.yml. See forma/docs/UPDATES.md.
 on:
   workflow_dispatch:
   push:
     branches: [claude/lucid-planck-umj6jk]
     paths:
       - 'forma/app/**'
+      - '!forma/app/assets/content/**'
+      - '!forma/app/assets/exercises.json'
+      - '!forma/app/test/**'
+      - '!forma/app/integration_test/**'
       - '.github/workflows/forma-ios-unsigned.yml'
 
 concurrency:
@@ -19,6 +30,9 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  FLUTTER_VERSION: 3.47.8
+
 jobs:
   build:
     runs-on: macos-latest
@@ -26,6 +40,8 @@ jobs:
     defaults:
       run:
         working-directory: forma/app
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -33,12 +49,32 @@ jobs:
           xcode-version: latest-stable
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.8
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter pub get
-      # The run number makes every build a newer version than the last.
-      - run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
+      - name: Build settings
+        id: defs
+        run: |
+          # The built-in content is as new as this commit (UTC yyyymmddHHMM).
+          content_version=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M)
+          echo "defines=--dart-define=FORMA_BUILD=${{ github.run_number }} --dart-define=FORMA_CONTENT_VERSION=$content_version" >> "$GITHUB_OUTPUT"
+          if [ -n "$SHOREBIRD_TOKEN" ] && [ -f shorebird.yaml ]; then echo "shorebird=true" >> "$GITHUB_OUTPUT"; else echo "shorebird=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Build (Flutter)
+        if: steps.defs.outputs.shorebird != 'true'
+        run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }} ${{ steps.defs.outputs.defines }}
+      - uses: shorebirdtech/setup-shorebird@v1
+        if: steps.defs.outputs.shorebird == 'true'
+        with:
+          cache: true
+      - name: Build (Shorebird release)
+        if: steps.defs.outputs.shorebird == 'true'
+        run: |
+          shorebird release ios --no-codesign --flutter-version=${{ env.FLUTTER_VERSION }} --build-number=${{ github.run_number }} -- ${{ steps.defs.outputs.defines }}
+          mkdir -p build/ios/iphoneos
+          rm -rf build/ios/iphoneos/Runner.app
+          archive=$(ls -td build/ios/archive/*.xcarchive | head -1)
+          cp -R "$archive/Products/Applications/Runner.app" build/ios/iphoneos/
       - name: Package .ipa
         run: |
           rm -rf Payload
@@ -60,7 +96,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          notes="Forma til iPhone, build ${{ github.run_number }} (commit ${GITHUB_SHA:0:7}). Installér Forma.ipa med SideStore eller Sideloadly: se forma/docs/INSTALL-IPHONE.md på branchen ${GITHUB_REF_NAME}."
+          code_push=$([ "${{ steps.defs.outputs.shorebird }}" = "true" ] && echo " Kodeopdateringer (Shorebird) er slået til for denne build." || echo "")
+          notes="Forma til iPhone, build ${{ github.run_number }} (commit ${GITHUB_SHA:0:7}).$code_push Installér Forma.ipa med SideStore eller Sideloadly: se forma/docs/INSTALL-IPHONE.md på branchen ${GITHUB_REF_NAME}."
           if gh release view forma-ios-latest >/dev/null 2>&1; then
             gh release upload forma-ios-latest Forma.ipa --clobber
             gh release edit forma-ios-latest --notes "$notes"

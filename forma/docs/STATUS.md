@@ -83,6 +83,16 @@ the same owner's rows, a trigger blocking references to other users' custom
 exercises, no anon access. JSON export of all data; delete local data;
 delete account (cascades on the server).
 
+**Updates without a new IPA.** Programs, exercises, progression tuning,
+reference foods, coach suggestions, feature flags and announcements are a
+versioned content bundle (`app/assets/content/`, `app/lib/content/`). It is
+bundled for offline use, published by `.github/workflows/forma-content.yml`,
+validated in full before activation, applied in one transaction (exercises
+are only inserted or updated, never deleted), and the previous bundle is kept
+for manual or automatic (failed start) rollback. Settings → App updates shows
+versions, status and errors. Shorebird code push is prepared and switches on
+when the `SHOREBIRD_TOKEN` secret is added. See [UPDATES.md](UPDATES.md).
+
 ## Needs credentials, a device or a decision
 
 | Item | What is needed |
@@ -94,7 +104,8 @@ delete account (cascades on the server).
 | HealthKit | Run on an iPhone (and optionally Apple Watch) with the HealthKit capability and your signing team |
 | iOS build | GitHub Actions builds an unsigned `.ipa` on macOS (`.github/workflows/forma-ios-unsigned.yml`) and publishes it on the `forma-ios-latest` release; install with a free Apple ID via SideStore (weekly refresh on the phone) or Sideloadly — see [INSTALL-IPHONE.md](INSTALL-IPHONE.md) (Danish). Not yet tried on a device |
 | Background rest-timer alerts | Local notifications (e.g. `flutter_local_notifications`) so the timer alerts when the app is backgrounded — not added yet |
-| Regional food data | Decide on an import (below) |
+| Regional food data | Decide on an import (below); `assets/content/foods.json` can carry it as reference foods with a cited source |
+| Code push | Shorebird account + `SHOREBIRD_TOKEN` secret (steps in [UPDATES.md](UPDATES.md)); patch loading inside LiveContainer is untested |
 
 ### Regional food databases evaluated
 

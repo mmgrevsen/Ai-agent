@@ -1,0 +1,48 @@
+name: Forma code patch (Shorebird)
+
+# Ships Dart-only code changes to an installed app build without a new .ipa.
+# Requires the one-time Shorebird setup in forma/docs/UPDATES.md (the
+# SHOREBIRD_TOKEN secret and forma/app/shorebird.yaml), and the installed
+# build must have been built as a Shorebird release.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Build number of the installed app to patch (Settings → App updates → App build)'
+        required: true
+
+concurrency:
+  group: forma-patch
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: forma/app
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the setup
+        run: |
+          if [ -z "$SHOREBIRD_TOKEN" ] || [ ! -f shorebird.yaml ]; then
+            echo "::error::Code push is not set up yet. Follow 'Kodeopdateringer' in forma/docs/UPDATES.md."
+            exit 1
+          fi
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+      - name: Patch
+        run: |
+          version=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          content_version=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M)
+          # Same compile-time settings as the release, so only real code changes differ.
+          shorebird patch ios --no-codesign --release-version="$version+${{ inputs.build_number }}" -- \
+            --dart-define=FORMA_BUILD=${{ inputs.build_number }} --dart-define=FORMA_CONTENT_VERSION=$content_version
+          echo "Patched release $version+${{ inputs.build_number }}" >> "$GITHUB_STEP_SUMMARY"

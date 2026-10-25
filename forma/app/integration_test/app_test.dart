@@ -7,8 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/app/app.dart';
 import 'package:forma/app/bootstrap.dart';
 import 'package:forma/app/providers.dart';
+import 'package:forma/content/content_providers.dart';
 import 'package:forma/data/db/app_database.dart';
 import 'package:integration_test/integration_test.dart';
+
+import '../test/helpers.dart';
 
 /// End-to-end journeys on a real device/desktop with a real event loop.
 /// Run: flutter test integration_test -d DEVICE   (Linux: under Xvfb)
@@ -44,7 +47,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(ProviderScope(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [databaseProvider.overrideWithValue(db), contentServiceProvider.overrideWithValue(await testContentService(db))],
       child: const FormaApp(),
     ));
 

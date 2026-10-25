@@ -98,7 +98,11 @@ class Recommendation {
 /// 6. No progress for 3+ sessions at the same load → suggest a deload or a
 ///    substitution.
 class ProgressionEngine {
-  const ProgressionEngine();
+  const ProgressionEngine({this.tuning = const ProgressionTuning()});
+
+  /// Bounded knobs that can be updated with content (deload depth, plateau
+  /// length). Users' load-jump safety limits come from their settings.
+  final ProgressionTuning tuning;
 
   static final _date = DateFormat('MMM d');
 
@@ -128,10 +132,10 @@ class ProgressionEngine {
     final summary = _describe(working, input.tracking);
 
     if (input.deloadWeek) {
-      final sets = math.max(1, (p.sets * 0.6).round());
+      final sets = math.max(1, (p.sets * tuning.deloadSetFactor).round());
       double? kg;
       if (usesLoad) {
-        kg = inc == null ? workingKg * 0.9 : roundToIncrement(workingKg * 0.9, inc, mode: RoundMode.down);
+        kg = inc == null ? workingKg * tuning.deloadFactor : roundToIncrement(workingKg * tuning.deloadFactor, inc, mode: RoundMode.down);
       }
       return Recommendation(
         action: ProgressionAction.deload,
@@ -162,15 +166,15 @@ class ProgressionEngine {
     final rpeNote = rpes.isEmpty ? 'No effort (RPE) was recorded, so the engine judged by reps alone.' : null;
 
     // Stall: same load, no e1RM improvement across the last 3 sessions.
-    final stalled = usesLoad && _stalledSessions(history, workingKg) >= 3;
+    final stalled = usesLoad && _stalledSessions(history, workingKg) >= tuning.plateauSessions;
     if (stalled && !allTop) {
-      final kg = inc == null ? workingKg * 0.9 : roundToIncrement(workingKg * 0.9, inc, mode: RoundMode.down);
+      final kg = inc == null ? workingKg * tuning.deloadFactor : roundToIncrement(workingKg * tuning.deloadFactor, inc, mode: RoundMode.down);
       return Recommendation(
         action: ProgressionAction.deload,
         headline: 'Reset: ${_kg(kg)} × ${p.repMax}',
         reasons: [
           'Your last ${_stalledSessions(history, workingKg)} sessions at ${_kg(workingKg)} did not improve your estimated strength.',
-          'A short reset to about 90% usually breaks a plateau. Swapping to a similar exercise for a few weeks is another option.',
+          'A short reset to about ${(tuning.deloadFactor * 100).round()}% usually breaks a plateau. Swapping to a similar exercise for a few weeks is another option.',
         ],
         sets: p.sets,
         weightKg: kg,
@@ -292,7 +296,7 @@ class ProgressionEngine {
     final previous = history.length > 1 ? history[1] : null;
     final missedBefore = previous != null && _missedMinAt(previous, workingKg, p);
     if (missedBefore && usesLoad) {
-      final kg = inc == null ? workingKg * 0.9 : roundToIncrement(workingKg * 0.9, inc, mode: RoundMode.down);
+      final kg = inc == null ? workingKg * tuning.deloadFactor : roundToIncrement(workingKg * tuning.deloadFactor, inc, mode: RoundMode.down);
       return Recommendation(
         action: ProgressionAction.reduceLoad,
         headline: 'Drop to ${_kg(kg)} × ${p.repMin}',

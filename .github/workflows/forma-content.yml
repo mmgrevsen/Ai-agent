@@ -1,0 +1,79 @@
+name: Forma content update
+
+# Publishes server-updatable content (programs, exercises, progression,
+# reference foods, coach suggestions, flags, announcements) without a new
+# app build. The app downloads it from the `forma-content-latest` release,
+# validates it and keeps the previous version for rollback.
+#
+#   * Push changes to forma/app/assets/content/** or assets/exercises.json
+#     → validated, tested and published automatically.
+#   * Run manually with "rollback_to" = an old version number → that
+#     content is republished as a new (newer) version.
+# See forma/docs/UPDATES.md.
+on:
+  workflow_dispatch:
+    inputs:
+      rollback_to:
+        description: 'Republish an earlier content version (e.g. 202611011200). Leave empty to publish the current files.'
+        required: false
+        default: ''
+  push:
+    branches: [claude/lucid-planck-umj6jk]
+    paths:
+      - 'forma/app/assets/content/**'
+      - 'forma/app/assets/exercises.json'
+      - 'forma/app/lib/content/content_bundle.dart'
+      - '.github/workflows/forma-content.yml'
+
+concurrency:
+  group: forma-content
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: forma/app
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: forma-content-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.8
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Validate and test the content
+        run: |
+          dart run tool/build_content.dart --check
+          flutter test test/content
+      - name: Build the bundle
+        run: |
+          if [ -n "${{ inputs.rollback_to }}" ]; then
+            gh release download "$TAG" --pattern "content-v${{ inputs.rollback_to }}.json" --output old.json
+            dart run tool/build_content.dart --from old.json --out build/content.json
+          else
+            dart run tool/build_content.dart --out build/content.json
+          fi
+          version=$(python3 -c "import json; print(json.load(open('build/content.json'))['version'])")
+          cp build/content.json "build/content-v$version.json"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Publish
+        run: |
+          notes="Indhold til Forma. Seneste version: $VERSION (commit ${GITHUB_SHA:0:7}). Appen henter content.json automatisk. content-v<version>.json er gemt til tilbagerulning."
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "Forma indhold" --notes "$notes" --prerelease
+          fi
+          # The versioned copy first, so the rollback point exists before the app can see the new version.
+          gh release upload "$TAG" "build/content-v$VERSION.json" --clobber
+          gh release upload "$TAG" build/content.json --clobber
+          gh release edit "$TAG" --notes "$notes"
+          echo "Published content version $VERSION" >> "$GITHUB_STEP_SUMMARY"

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/app/app.dart';
 import 'package:forma/app/bootstrap.dart';
 import 'package:forma/app/providers.dart';
+import 'package:forma/content/content_providers.dart';
 import 'package:forma/data/db/app_database.dart';
 import 'package:forma/data/remote/ai_api.dart';
 import 'package:forma/data/remote/backend.dart';
@@ -19,6 +20,8 @@ import 'package:forma/features/nutrition/nutrition_providers.dart';
 import 'package:forma/features/nutrition/photo_input.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:integration_test/integration_test.dart';
+
+import '../test/helpers.dart';
 
 class _FakePicker implements PhotoPicker {
   int picks = 0;
@@ -120,6 +123,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        contentServiceProvider.overrideWithValue(await testContentService(db)),
         photoPickerProvider.overrideWithValue(picker),
         barcodeImageReaderProvider.overrideWithValue(reader),
         aiApiProvider.overrideWithValue(ai),

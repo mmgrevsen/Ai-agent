@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../content/content_providers.dart';
 import '../core/theme/app_theme.dart';
 import '../features/sync/sync_controller.dart';
 import 'providers.dart';
@@ -19,6 +20,8 @@ class FormaApp extends ConsumerWidget {
     };
     // Keeps background sync running while signed in.
     ref.watch(syncControllerProvider);
+    // Checks for content updates and confirms the content started fine.
+    ref.watch(contentUpdaterProvider);
     return MaterialApp.router(
       title: 'Forma',
       debugShowCheckedModeBanner: false,

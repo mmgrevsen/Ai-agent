@@ -66,6 +66,21 @@ class Prescription {
   double get effectiveTargetRpe => targetRpe ?? 8;
 }
 
+/// Bounded knobs of the progression engine that can be updated with content.
+/// Users' own safety limits (max load jumps) stay in their settings.
+class ProgressionTuning {
+  const ProgressionTuning({this.deloadFactor = 0.9, this.plateauSessions = 3, this.deloadSetFactor = 0.6});
+
+  /// Share of the working load used for deloads and resets.
+  final double deloadFactor;
+
+  /// Sessions at one load without improvement before a reset is suggested.
+  final int plateauSessions;
+
+  /// Share of the prescribed sets kept in a deload week.
+  final double deloadSetFactor;
+}
+
 /// User-configurable caps on how much load may be added between sessions.
 class SafetyLimits {
   const SafetyLimits({

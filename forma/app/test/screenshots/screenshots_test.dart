@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/app/app.dart';
 import 'package:forma/app/providers.dart';
 import 'package:forma/app/router.dart';
+import 'package:forma/content/content_providers.dart';
 import 'package:forma/data/db/app_database.dart';
 import 'package:forma/data/repositories/exercise_repository.dart';
 import 'package:forma/data/repositories/settings_repository.dart';
@@ -58,12 +59,14 @@ void main() {
       if (withSession) sessionId = await _startDemoSession(db, today);
       return db;
     }))!;
+    final content = (await tester.runAsync(() => testContentService(db)))!;
     final container = ProviderContainer(
       retry: (_, _) => null,
       overrides: [
         databaseProvider.overrideWithValue(db),
         healthPlatformProvider.overrideWithValue(const UnsupportedHealthPlatform()),
         clockProvider.overrideWithValue(() => today),
+        contentServiceProvider.overrideWithValue(content),
       ],
     );
     await tester.pumpWidget(UncontrolledProviderScope(

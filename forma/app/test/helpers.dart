@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:forma/app/bootstrap.dart';
+import 'package:forma/content/content_bundle.dart';
+import 'package:forma/content/content_service.dart';
 import 'package:forma/data/db/app_database.dart';
 import 'package:forma/services/sync_service.dart';
 
@@ -52,4 +54,17 @@ class FakeRemote implements RemoteStore {
       ..sort((a, b) => (a['server_updated_at'] as String).compareTo(b['server_updated_at'] as String));
     return rows.take(limit).map(Map<String, dynamic>.from).toList();
   }
+}
+
+/// The content bundled with the app, read from the asset files.
+ContentBundle testContentBundle({int version = 0, Map<String, dynamic> Function(Map<String, dynamic>)? edit, int minAppBuild = 0}) {
+  final sections = assembleSections({for (final e in kContentFiles.entries) e.key: File(e.value).readAsStringSync()});
+  return ContentBundle.create(sections: edit == null ? sections : edit(sections), version: version, minAppBuild: minAppBuild);
+}
+
+/// An initialised content service over [db] (no network unless [transport]).
+Future<ContentService> testContentService(AppDatabase db, {ContentTransport? transport, int appBuild = 0, ContentBundle? builtIn}) async {
+  final s = ContentService(db: db, builtIn: builtIn ?? testContentBundle(), transport: transport, appBuild: appBuild);
+  await s.init();
+  return s;
 }

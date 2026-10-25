@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
@@ -146,7 +147,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       if (_createPlan) {
         final library = await ref.read(exerciseRepositoryProvider).all();
         final equipment = await settings.equipment();
-        final program = const ProgramGenerator().generate(
+        final program = ProgramGenerator(ref.read(programCatalogProvider)).generate(
           library: library,
           context: TrainingContext(
             available: {for (final e in equipment) e.equipment},

@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_bundle.dart';
+import '../../content/content_providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/inputs.dart';
@@ -20,6 +22,7 @@ import '../../data/repositories/nutrition_repository.dart';
 import '../../domain/catalog.dart';
 import '../../domain/dates.dart';
 import '../../domain/nutrition/food.dart';
+import '../../domain/nutrition/nutrients.dart';
 import 'food_portion_sheet.dart';
 import 'nutrition_providers.dart';
 import 'nutrition_screen.dart' show showQuickAdd;
@@ -43,6 +46,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
   bool _searching = false;
   List<FoodItem> _remote = const [];
   List<Food> _local = const [];
+  List<FoodItem> _reference = const [];
   String? _error;
   int _requestId = 0;
 
@@ -63,6 +67,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       setState(() {
         _remote = const [];
         _local = const [];
+        _reference = const [];
         _error = null;
         _searching = false;
       });
@@ -79,7 +84,14 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     });
     final local = await ref.read(nutritionRepositoryProvider).searchLocal(q);
     if (id != _requestId || !mounted) return;
-    setState(() => _local = local);
+    final saved = {for (final f in local) '${f.source}:${f.sourceRef}'};
+    setState(() {
+      _local = local;
+      _reference = [
+        for (final f in ref.read(contentFoodsProvider))
+          if (f.matches(q) && !saved.contains('forma:${f.id}')) referenceFoodItem(f),
+      ];
+    });
     try {
       final remote = await ref.read(foodDataSourceProvider).search(q);
       if (id != _requestId || !mounted) return;
@@ -195,6 +207,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
   @override
   Widget build(BuildContext context) {
     final searching = _query.text.trim().length >= 2;
+    final config = ref.watch(appConfigProvider);
     return Scaffold(
       appBar: AppBar(title: Text('Add to ${_meal.label.toLowerCase()} · ${relativeDay(_day)}')),
       body: Column(children: [
@@ -223,13 +236,14 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
           child: Wrap(spacing: Space.sm, runSpacing: Space.xs, children: [
-            ActionChip(
-              avatar: const Icon(Icons.photo_camera_outlined, size: 18),
-              label: const Text('Photo'),
-              onPressed: () => context.push('/nutrition/photo?meal=${_meal.name}&day=${dayKey(_day)}'),
-            ),
-            ActionChip(avatar: const Icon(Icons.barcode_reader, size: 18), label: const Text('Barcode photo'), onPressed: _scanPhoto),
-            ActionChip(avatar: const Icon(Icons.document_scanner_outlined, size: 18), label: const Text('Nutrition label'), onPressed: _labelPhoto),
+            if (config.flag('photoLogging'))
+              ActionChip(
+                avatar: const Icon(Icons.photo_camera_outlined, size: 18),
+                label: const Text('Photo'),
+                onPressed: () => context.push('/nutrition/photo?meal=${_meal.name}&day=${dayKey(_day)}'),
+              ),
+            if (config.flag('barcodePhotos')) ActionChip(avatar: const Icon(Icons.barcode_reader, size: 18), label: const Text('Barcode photo'), onPressed: _scanPhoto),
+            if (config.flag('labelPhotos')) ActionChip(avatar: const Icon(Icons.document_scanner_outlined, size: 18), label: const Text('Nutrition label'), onPressed: _labelPhoto),
             ActionChip(avatar: const Icon(Icons.bolt_rounded, size: 18), label: const Text('Quick add'), onPressed: () async {
               await showQuickAdd(context, ref, meal: _meal, day: _day);
             }),
@@ -247,7 +261,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     final c = context.colors;
     final localIds = {for (final f in _local) '${f.source}:${f.sourceRef}'};
     final remote = [for (final r in _remote) if (!localIds.contains('${r.source}:${r.sourceRef}')) r];
-    if (_local.isEmpty && remote.isEmpty && !_searching) {
+    if (_local.isEmpty && _reference.isEmpty && remote.isEmpty && !_searching) {
       return EmptyState(
         icon: _error != null ? Icons.cloud_off_rounded : Icons.search_off_rounded,
         title: _error != null ? 'Search unavailable' : 'No foods found',
@@ -265,6 +279,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       if (_local.isNotEmpty) ...[
         const SectionHeader('Saved on this device'),
         for (final f in _local) _FoodTile(item: f.toItem(), onTap: () async => _pick(await ref.read(nutritionRepositoryProvider).foodItem(f.id) ?? f.toItem())),
+      ],
+      if (_reference.isNotEmpty) ...[
+        const SectionHeader('Forma reference foods'),
+        for (final r in _reference) _FoodTile(item: r, onTap: () => _pick(r)),
       ],
       if (remote.isNotEmpty) ...[
         SectionHeader(remote.any((r) => r.source == 'usda') ? 'Food databases' : 'Open Food Facts'),
@@ -499,3 +517,15 @@ Future<String?> readBarcodeFromPhoto(BuildContext context, WidgetRef ref) async 
   }
   return code;
 }
+
+/// A reference food from the content as a loggable item. Logging it saves a
+/// local copy (deduplicated by its content id).
+FoodItem referenceFoodItem(ContentFood f) => FoodItem(
+      name: f.name,
+      brand: f.brand,
+      source: 'forma',
+      sourceRef: f.id,
+      provenance: f.provenance == 'verified' ? Provenance.verified : Provenance.community,
+      per100g: Nutrients(kcal: f.kcal, proteinG: f.protein, carbsG: f.carbs, fatG: f.fat, fiberG: f.fiber),
+      servings: [for (final s in f.servings) ServingOption(s.label, s.grams), const ServingOption('100 g', 100)],
+    );

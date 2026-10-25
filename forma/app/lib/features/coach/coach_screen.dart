@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_bundle.dart';
+import '../../content/content_providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/states.dart';
@@ -14,6 +16,7 @@ import '../../services/insights_service.dart';
 import '../health/health_providers.dart';
 import 'coach_providers.dart';
 
+/// Fallback when the content has no suggestions.
 const _suggestions = [
   'Why has my progress stalled?',
   'What should my next workout be?',
@@ -145,7 +148,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                           ),
                           const SizedBox(height: Space.md),
                           Wrap(spacing: Space.sm, runSpacing: Space.sm, children: [
-                            for (final s in _suggestions) ActionChip(label: Text(s), onPressed: () => _send(s)),
+                            for (final s in ref.watch(appConfigProvider).coachSuggestions.ifEmpty(_suggestions)) ActionChip(label: Text(s), onPressed: () => _send(s)),
                           ]),
                         ]),
                       ),

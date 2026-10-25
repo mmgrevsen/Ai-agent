@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/primitives.dart';
@@ -70,6 +71,7 @@ class OverviewScreen extends ConsumerWidget {
         IconButton(tooltip: 'Settings', onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined)),
       ],
       slivers: [
+        const SliverToBoxAdapter(child: AnnouncementCard()),
         if (cards.isEmpty)
           SliverToBoxAdapter(
             child: EmptyState(
@@ -451,3 +453,43 @@ class _InsightsCard extends ConsumerWidget {
   }
 }
 
+
+final _dismissedAnnouncementProvider = FutureProvider<String?>((ref) => ref.watch(databaseProvider).readMeta('announcement.dismissed'));
+
+/// A message published with the content (e.g. "New: photo logging"),
+/// shown until it expires or is dismissed.
+class AnnouncementCard extends ConsumerWidget {
+  const AnnouncementCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final a = ref.watch(appConfigProvider).announcement;
+    final dismissed = ref.watch(_dismissedAnnouncementProvider);
+    if (a == null || !dismissed.hasValue || dismissed.value == a.id) return const SizedBox.shrink();
+    if (a.until != null && ref.watch(clockProvider)().isAfter(a.until!)) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, 0),
+      child: FCard(
+        color: context.colors.accentMuted,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.campaign_outlined, color: context.colors.accent),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(a.title, style: context.text.titleSmall),
+              if (a.body.isNotEmpty) ...[const SizedBox(height: Space.xs), Text(a.body, style: context.text.bodySmall)],
+            ]),
+          ),
+          IconButton(
+            tooltip: 'Dismiss',
+            icon: const Icon(Icons.close_rounded, size: 18),
+            onPressed: () async {
+              await ref.read(databaseProvider).writeMeta('announcement.dismissed', a.id);
+              ref.invalidate(_dismissedAnnouncementProvider);
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+}

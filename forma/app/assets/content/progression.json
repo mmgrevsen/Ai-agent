@@ -1,0 +1,5 @@
+{
+  "deloadFactor": 0.9,
+  "plateauSessions": 3,
+  "deloadSetFactor": 0.6
+}

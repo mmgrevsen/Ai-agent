@@ -1,0 +1,309 @@
+{
+  "slots": {
+    "squat": [
+      "barbell-back-squat",
+      "hack-squat",
+      "leg-press",
+      "goblet-squat",
+      "smith-squat",
+      "bodyweight-squat"
+    ],
+    "hinge": [
+      "romanian-deadlift",
+      "dumbbell-romanian-deadlift",
+      "hip-thrust",
+      "kettlebell-swing",
+      "back-extension",
+      "nordic-curl"
+    ],
+    "hinge_heavy": [
+      "conventional-deadlift",
+      "trap-bar-deadlift",
+      "romanian-deadlift",
+      "dumbbell-romanian-deadlift",
+      "kettlebell-swing"
+    ],
+    "press": [
+      "barbell-bench-press",
+      "dumbbell-bench-press",
+      "machine-chest-press",
+      "smith-bench-press",
+      "push-up"
+    ],
+    "incline_press": [
+      "incline-dumbbell-press",
+      "incline-barbell-bench-press",
+      "machine-chest-press",
+      "push-up"
+    ],
+    "overhead_press": [
+      "overhead-press",
+      "dumbbell-shoulder-press",
+      "machine-shoulder-press",
+      "landmine-press"
+    ],
+    "row": [
+      "barbell-row",
+      "chest-supported-row",
+      "seated-cable-row",
+      "dumbbell-row",
+      "machine-row",
+      "inverted-row"
+    ],
+    "pulldown": [
+      "pull-up",
+      "lat-pulldown",
+      "assisted-pull-up",
+      "chin-up"
+    ],
+    "lunge": [
+      "bulgarian-split-squat",
+      "walking-lunge",
+      "step-up",
+      "reverse-lunge"
+    ],
+    "leg_curl": [
+      "lying-leg-curl",
+      "seated-leg-curl",
+      "nordic-curl"
+    ],
+    "leg_extension": [
+      "leg-extension"
+    ],
+    "calf": [
+      "standing-calf-raise",
+      "seated-calf-raise"
+    ],
+    "chest_fly": [
+      "cable-fly",
+      "pec-deck",
+      "dumbbell-fly"
+    ],
+    "lateral_raise": [
+      "dumbbell-lateral-raise",
+      "cable-lateral-raise"
+    ],
+    "rear_delt": [
+      "face-pull",
+      "rear-delt-fly"
+    ],
+    "biceps": [
+      "dumbbell-curl",
+      "ez-bar-curl",
+      "barbell-curl",
+      "cable-curl",
+      "hammer-curl"
+    ],
+    "triceps": [
+      "triceps-pushdown",
+      "overhead-triceps-extension",
+      "dumbbell-overhead-extension",
+      "skull-crusher",
+      "dip"
+    ],
+    "core": [
+      "plank",
+      "cable-crunch",
+      "hanging-leg-raise",
+      "dead-bug"
+    ]
+  },
+  "compoundSlots": [
+    "squat",
+    "hinge",
+    "hinge_heavy",
+    "press",
+    "incline_press",
+    "overhead_press",
+    "row",
+    "pulldown",
+    "lunge"
+  ],
+  "layouts": [
+    {
+      "days": [
+        1,
+        2,
+        3
+      ],
+      "name": "Full body A/B",
+      "nameByDays": {
+        "1": "Full body"
+      },
+      "templates": [
+        {
+          "name": "Full body A",
+          "slots": [
+            "squat",
+            "press",
+            "row",
+            "hinge",
+            "lateral_raise",
+            "core"
+          ]
+        },
+        {
+          "name": "Full body B",
+          "slots": [
+            "hinge_heavy",
+            "overhead_press",
+            "pulldown",
+            "lunge",
+            "biceps",
+            "triceps"
+          ]
+        }
+      ]
+    },
+    {
+      "days": [
+        4
+      ],
+      "name": "Upper / Lower",
+      "templates": [
+        {
+          "name": "Upper",
+          "slots": [
+            "press",
+            "row",
+            "overhead_press",
+            "pulldown",
+            "biceps",
+            "triceps"
+          ]
+        },
+        {
+          "name": "Lower",
+          "slots": [
+            "squat",
+            "hinge",
+            "lunge",
+            "leg_curl",
+            "calf",
+            "core"
+          ]
+        }
+      ]
+    },
+    {
+      "days": [
+        5,
+        6
+      ],
+      "name": "Push / Pull / Legs",
+      "templates": [
+        {
+          "name": "Push",
+          "slots": [
+            "press",
+            "overhead_press",
+            "incline_press",
+            "lateral_raise",
+            "triceps"
+          ]
+        },
+        {
+          "name": "Pull",
+          "slots": [
+            "pulldown",
+            "row",
+            "rear_delt",
+            "biceps",
+            "core"
+          ]
+        },
+        {
+          "name": "Legs",
+          "slots": [
+            "squat",
+            "hinge",
+            "leg_extension",
+            "leg_curl",
+            "calf"
+          ]
+        }
+      ]
+    }
+  ],
+  "weekdays": {
+    "1": [
+      1
+    ],
+    "2": [
+      1,
+      4
+    ],
+    "3": [
+      1,
+      3,
+      5
+    ],
+    "4": [
+      1,
+      2,
+      4,
+      5
+    ],
+    "5": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "6": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "repRanges": {
+    "build_strength": {
+      "compound": [
+        4,
+        6
+      ],
+      "isolation": [
+        8,
+        12
+      ]
+    },
+    "build_muscle": {
+      "compound": [
+        6,
+        10
+      ],
+      "isolation": [
+        10,
+        15
+      ]
+    },
+    "default": {
+      "compound": [
+        8,
+        12
+      ],
+      "isolation": [
+        10,
+        15
+      ]
+    }
+  },
+  "prescription": {
+    "setsByExperience": {
+      "beginner": 3,
+      "intermediate": 3,
+      "advanced": 4
+    },
+    "isolationSets": 3,
+    "compoundRpe": 8,
+    "isolationRpe": 9,
+    "restStrengthCompound": 180,
+    "restCompound": 150,
+    "restIsolation": 90,
+    "barbellWarmupSets": 2
+  }
+}

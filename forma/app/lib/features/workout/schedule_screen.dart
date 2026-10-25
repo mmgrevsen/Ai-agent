@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../content/content_providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/primitives.dart';
@@ -83,7 +84,7 @@ class ScheduleScreen extends ConsumerWidget {
     final profile = await ref.read(settingsRepositoryProvider).profile();
     final prefs = await ref.read(settingsRepositoryProvider).prefs();
     final library = await ref.read(exerciseRepositoryProvider).all();
-    final program = const ProgramGenerator().generate(
+    final program = ProgramGenerator(ref.read(programCatalogProvider)).generate(
       library: library,
       context: ref.read(trainingContextProvider),
       daysPerWeek: prefs.weeklyWorkoutTarget,

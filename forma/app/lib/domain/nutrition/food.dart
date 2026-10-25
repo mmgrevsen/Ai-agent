@@ -25,7 +25,7 @@ class FoodItem {
   final String name;
   final String? brand;
 
-  /// off | usda | custom | ai
+  /// off | usda | custom | ai | forma
   final String source;
 
   /// Barcode, FoodData Central id, …
@@ -40,6 +40,7 @@ class FoodItem {
         'usda' => 'USDA FoodData Central',
         'custom' => 'Your food',
         'ai' => 'AI photo estimate',
+        'forma' => 'Forma reference data',
         _ => source,
       };
 
