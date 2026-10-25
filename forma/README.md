@@ -20,6 +20,9 @@ credentials or a device.
 
 Requirements: Flutter 3.47 (Dart 3.13). iOS builds need macOS with Xcode 26+.
 
+No Mac? GitHub Actions builds an unsigned `.ipa` you can sideload with a free
+Apple ID — see [docs/INSTALL-IPHONE.md](docs/INSTALL-IPHONE.md).
+
 ```bash
 cd forma/app
 flutter pub get

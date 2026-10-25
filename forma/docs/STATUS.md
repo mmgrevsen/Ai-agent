@@ -84,9 +84,9 @@ delete account (cascades on the server).
 | Supabase project | Create a project, `supabase db push`, deploy the four functions, pass URL + publishable key via `--dart-define` |
 | AI coach & photo estimates | `ANTHROPIC_API_KEY` secret on the Supabase project |
 | USDA FoodData Central | Free `FDC_API_KEY` secret (Open Food Facts works without a key) |
-| Sign in with Apple | Apple Developer account: Service ID + key configured in Supabase Auth |
+| Sign in with Apple | Apple Developer account: Service ID + key configured in Supabase Auth (uses the web OAuth flow; the native entitlement was removed so free Apple IDs can sign the app) |
 | HealthKit | Run on an iPhone (and optionally Apple Watch) with the HealthKit capability and your signing team |
-| iOS build | macOS + Xcode; not possible in the Linux build environment used here |
+| iOS build | GitHub Actions builds an unsigned `.ipa` on macOS (`.github/workflows/forma-ios-unsigned.yml`); install with a free Apple ID via Sideloadly/AltStore — see [INSTALL-IPHONE.md](INSTALL-IPHONE.md) (Danish) |
 | Background rest-timer alerts | Local notifications (e.g. `flutter_local_notifications`) so the timer alerts when the app is backgrounded — not added yet |
 | Regional food data | Decide on an import (below) |
 
