@@ -200,7 +200,9 @@ export function finalizeBattle(state: GameState, result: BattleResult, now: numb
   }
 
   summary.heroLevelsGained = state.hero.level - levelBefore;
-  if (!won && result.mode !== 'endless' && result.mode !== 'blitz' && result.mode !== 'weekly' && result.mode !== 'challenge') {
+  // Waves all beaten (the stage only lacked its push-ups): army advice would be beside the point
+  const beatenWaves = result.wavesCleared >= result.totalWaves;
+  if (!won && !beatenWaves && result.mode !== 'endless' && result.mode !== 'blitz' && result.mode !== 'weekly' && result.mode !== 'challenge') {
     summary.suggestions = buildSuggestions(state, result);
   }
   summary.progressLines = progressLines(result);

@@ -13,6 +13,7 @@ const path = require('path');
 const PORT = 18700 + Math.floor(Math.random() * 200);
 const dataFile = path.join(os.tmpdir(), `pl-smoke-${PORT}.json`);
 const server = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'main.mjs'), '--port', String(PORT), '--host', '127.0.0.1', '--data', dataFile]);
+let failPage = null;
 const stopServer = () => {
   server.kill('SIGTERM');
   require('fs').rmSync(dataFile, { force: true });
@@ -22,6 +23,7 @@ const stopServer = () => {
   const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, permissions: ['camera'] });
   const page = await ctx.newPage();
+  failPage = page;
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
@@ -103,7 +105,11 @@ const stopServer = () => {
   await shot('12-building-modal');
   await page.getByRole('button', { name: /^Upgrade$/ }).click().catch(() => {});
   await page.waitForTimeout(300);
-  await page.locator('.modal-backdrop').click({ position: { x: 10, y: 10 } }).catch(() => {});
+  // Close the sheet if it is still open (e.g. not enough gold): tap the dimmed area above it
+  if (await page.locator('.modal-backdrop').count()) {
+    await page.mouse.click(195, 400);
+    await page.waitForTimeout(400);
+  }
   // modes + social + settings
   await page.getByRole('navigation').getByRole('button', { name: /Battle/ }).click({ force: true });
   await page.getByRole('button', { name: /Battle Modes/ }).click({ force: true });
@@ -144,8 +150,9 @@ const stopServer = () => {
   console.log('ERRORS:\n' + (errors.join('\n') || 'none'));
   await browser.close();
   stopServer();
-})().catch((e) => {
+})().catch(async (e) => {
   console.error('E2E FAILED', e);
+  await failPage?.screenshot({ path: `${OUT}/99-failure.png` }).catch(() => {});
   stopServer();
   process.exit(1);
 });

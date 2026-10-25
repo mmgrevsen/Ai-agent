@@ -1,6 +1,6 @@
 # Push Legends - Project Status
 
-Last updated: 2026-10-16
+Last updated: 2026-10-25
 
 ## Phase summary
 
@@ -13,7 +13,34 @@ Last updated: 2026-10-16
 | 5. Social foundation | Done (offline parts): friend codes, local contacts, blocking, privacy setting, deck codes, fair asynchronous Friend Challenges with shareable codes, personal bests. Online features are labelled "Planned"; see BACKEND_PLAN.md. |
 | 6. Polish and verify | In progress: balance tuned with the simulator; UI checked in headless Chromium at phone size; reduced motion / large text / haptics / volume settings. Not yet tested on physical devices. |
 
-## Latest change (2026-10-17): log in first, cloud saves
+## Latest change (2026-10-25): push-ups claim stages, training log, castle-courtyard arenas
+
+- **Stages are claimed with push-ups** (client decision; replaces "everything playable without
+  exercise" for campaign stages). Requirement per stage in `BALANCE.exercise.stageReps`
+  (`systems/training.ts`): starts at 3, grows slowly, more for bosses, max 30, and never more than
+  3 above the player's best battle. Beating the waves first shows a "Victory sealed" panel and the
+  battle waits (no time limit); retreating keeps every reward. Starting a stage with the camera off
+  opens camera setup first; without a camera the base, idle income, upgrades and other modes still
+  work and the screens explain why stages cannot be claimed.
+- **Training screen** (Home → Training, and from the result screen): total push-ups, calorie
+  estimate with the player's body weight, today / 7 days, 14-day chart, rank by best battle,
+  records, streak and progressive goals. Push-up log saved per day (sanitised, max 366 days).
+- **Arenas** rebuilt as a gothic castle courtyard after the client's reference image
+  (`src/ui/battle3d/arena/`): paving with a gold sigil, walls and keep, crimson banners, braziers,
+  knight statues, golden-hour light; per-world variations (frost, forge, ruins, crystal night). The
+  field is now 8–9 meshes (~55k triangles) instead of 43 (~92k).
+- **Dark unit redesign** after the client's four reference paintings: card units, hero and enemy
+  troops restyled (glossy dark plate, glowing eye slits and runes, accent smoke in portraits).
+  **Not done yet:** the 10 bosses and mini-bosses (`dark/units/bossesA.ts`, `bossesB.ts`) are still
+  simple placeholders built from the shared warrior parts.
+- Friends client: a non-JSON answer from the server address is reported instead of crashing.
+
+Tests run: `npx tsc --noEmit` clean; `npx vitest run` 138/138 passed (new: training rules, stage
+waits for push-ups, retreat keeps rewards without clearing, save round trip of the push-up log);
+UI smoke test (`scripts/e2e-smoke.cjs`, login → camera prompt → battle → sealed → result →
+training → all tabs) passed; `npm run build:mac` built `release/PushLegends.html`.
+
+## Earlier change (2026-10-17): log in first, cloud saves
 
 The game now opens on a login screen: create an account (username + password) or log in before
 playing. The server (same `server/`, see FRIENDS_SERVER.md) got accounts with salted scrypt
