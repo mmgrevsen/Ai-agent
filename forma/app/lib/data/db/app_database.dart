@@ -49,11 +49,15 @@ class AppDatabase extends _$AppDatabase {
   static const singletonId = 'me';
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
+        // Only additive changes: existing data is never rewritten.
+        onUpgrade: (m, from, to) async {
+          if (from < 2) await m.addColumn(templateExercises, templateExercises.startWeightKg);
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },

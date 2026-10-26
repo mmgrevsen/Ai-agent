@@ -142,6 +142,10 @@ class TemplateExercises extends Table with SyncColumns {
   RealColumn get targetRpe => real().nullable()();
   IntColumn get restSeconds => integer().nullable()();
   TextColumn get notes => text().nullable()();
+
+  /// Load to start with while the exercise has no recorded history (added in
+  /// schema 2). Once sets are logged, progression works from those instead.
+  RealColumn get startWeightKg => real().nullable()();
 }
 
 @DataClassName('TrainingSchedule')

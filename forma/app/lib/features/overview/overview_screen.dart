@@ -18,6 +18,7 @@ import '../health/health_providers.dart';
 import '../nutrition/nutrition_providers.dart';
 import '../nutrition/nutrition_screen.dart' show DaySummaryCard;
 import '../progress/weight_screen.dart';
+import '../workout/plan_widgets.dart';
 import '../workout/workout_home_screen.dart' show startWorkout;
 import '../workout/workout_providers.dart';
 
@@ -167,7 +168,10 @@ class _WorkoutCard extends ConsumerWidget {
         const SizedBox(height: Space.xs),
         Text(template.template.name, style: context.text.headlineMedium),
         const SizedBox(height: Space.xs),
-        Text(template.items.map((i) => i.exercise.name).join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis, style: context.text.bodyMedium),
+        const SizedBox(height: Space.sm),
+        for (final item in template.items.take(4)) PlanExerciseRow(item, dense: true),
+        if (template.items.length > 4)
+          Text('+ ${template.items.length - 4} more', style: context.text.labelSmall?.copyWith(color: c.textSecondary)),
         const SizedBox(height: Space.lg),
         SizedBox(
           width: double.infinity,

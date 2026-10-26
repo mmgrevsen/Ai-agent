@@ -699,6 +699,7 @@ class _RecommendationChip extends StatelessWidget {
       'increaseLoad' => (Icons.trending_up_rounded, c.positive),
       'reduceLoad' || 'deload' => (Icons.trending_down_rounded, c.caution),
       'baseline' => (Icons.flag_outlined, c.textSecondary),
+      'startingWeight' => (Icons.flag_rounded, c.accent),
       _ => (Icons.trending_flat_rounded, c.textSecondary),
     };
     var headline = rec.headline;

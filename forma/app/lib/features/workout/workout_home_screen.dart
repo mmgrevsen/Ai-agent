@@ -7,9 +7,9 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/states.dart';
-import '../../data/repositories/exercise_repository.dart';
 import '../../data/repositories/workout_repository.dart';
 import '../health/health_providers.dart';
+import 'plan_widgets.dart';
 import 'workout_providers.dart';
 
 /// Starts a workout (from a template or empty) and opens the logger.
@@ -207,19 +207,9 @@ class _TodayCard extends ConsumerWidget {
           const SizedBox(height: Space.xs),
           Text('${t.items.length} exercises · $sets working sets', style: context.text.bodyMedium),
           const SizedBox(height: Space.md),
-          for (final item in t.items.take(6))
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  Expanded(child: Text(item.exercise.name, style: context.text.bodyLarge)),
-                  Text(
-                    item.exercise.tracking.usesReps ? '${item.row.sets} × ${item.row.repMin}–${item.row.repMax}' : '${item.row.sets} sets',
-                    style: context.text.labelMedium,
-                  ),
-                ],
-              ),
-            ),
+          // Every exercise with the weight to use: from the last workout, or
+          // the starting weight set in the template.
+          for (final item in t.items) PlanExerciseRow(item),
           const SizedBox(height: Space.lg),
           SizedBox(
             width: double.infinity,
@@ -293,29 +283,28 @@ class _TemplateCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return FCard(
       onTap: () => context.go('/workout/templates/${item.template.id}'),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.template.name, style: context.text.titleMedium),
-                const SizedBox(height: Space.xs),
-                Text(
-                  item.items.isEmpty ? 'No exercises' : item.items.map((i) => i.exercise.name).join(' · '),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.bodySmall,
-                ),
-              ],
-            ),
+          Row(
+            children: [
+              Expanded(child: Text(item.template.name, style: context.text.titleMedium)),
+              const SizedBox(width: Space.md),
+              IconButton.filledTonal(
+                tooltip: 'Start ${item.template.name}',
+                onPressed: disabled || item.items.isEmpty ? null : () => startWorkout(context, ref, templateId: item.template.id),
+                icon: const Icon(Icons.play_arrow_rounded),
+              ),
+            ],
           ),
-          const SizedBox(width: Space.md),
-          IconButton.filledTonal(
-            tooltip: 'Start ${item.template.name}',
-            onPressed: disabled || item.items.isEmpty ? null : () => startWorkout(context, ref, templateId: item.template.id),
-            icon: const Icon(Icons.play_arrow_rounded),
-          ),
+          if (item.items.isEmpty)
+            Text('No exercises', style: context.text.bodySmall)
+          else ...[
+            // The first few with their weights; the editor shows them all.
+            for (final i in item.items.take(3)) PlanExerciseRow(i, dense: true),
+            if (item.items.length > 3)
+              Text('+ ${item.items.length - 3} more — tap to see all', style: context.text.labelSmall?.copyWith(color: context.colors.textSecondary)),
+          ],
         ],
       ),
     );

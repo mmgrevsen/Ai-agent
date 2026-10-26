@@ -91,13 +91,15 @@ class TrainingService {
     );
   }
 
-  /// Computes the recommendation for [exercise] from recorded history.
+  /// Computes the recommendation for [exercise] from recorded history. The
+  /// plan's [startWeightKg] is used while the exercise has no history.
   Future<Recommendation> recommend({
     required Exercise exercise,
     required Prescription prescription,
     String? excludeWorkoutId,
     bool deload = false,
     bool lowReadiness = false,
+    double? startWeightKg,
     TrainingContext? context,
     UserPrefs? prefs,
   }) async {
@@ -114,8 +116,22 @@ class TrainingService {
         incrementKg: ctx.incrementFor(exercise),
         deloadWeek: deload,
         lowReadiness: lowReadiness,
+        startWeightKg: startWeightKg,
       ),
     );
+  }
+
+  /// What the next session of a template item will suggest, for showing the
+  /// plan before a workout starts (same rules as [startWorkout]).
+  Future<Recommendation> nextLoad({
+    required Exercise exercise,
+    required Prescription prescription,
+    double? startWeightKg,
+    DateTime? now,
+  }) async {
+    final schedule = await workouts.activeSchedule();
+    final deload = schedule != null && WorkoutRepository.isDeloadWeek(schedule.schedule, now ?? DateTime.now());
+    return recommend(exercise: exercise, prescription: prescription, deload: deload, startWeightKg: startWeightKg);
   }
 
   /// Starts a session, optionally from a template. Each exercise gets a
@@ -150,6 +166,7 @@ class TrainingService {
         supersetGroup: item.row.supersetGroup,
         deload: deload,
         lowReadiness: lowReadiness,
+        startWeightKg: item.row.startWeightKg,
         context: ctx,
         prefs: prefs,
       );
@@ -168,6 +185,7 @@ class TrainingService {
     bool lowReadiness = false,
     String? substitutedFromId,
     int? position,
+    double? startWeightKg,
     TrainingContext? context,
     UserPrefs? prefs,
   }) async {
@@ -178,6 +196,7 @@ class TrainingService {
       excludeWorkoutId: workoutId,
       deload: deload,
       lowReadiness: lowReadiness,
+      startWeightKg: startWeightKg,
       context: ctx,
       prefs: prefs,
     );

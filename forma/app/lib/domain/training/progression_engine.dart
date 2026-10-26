@@ -9,6 +9,9 @@ import 'strength.dart';
 enum ProgressionAction {
   /// No usable history: the user establishes a starting load.
   baseline,
+
+  /// No usable history, but the user set a starting load in the plan.
+  startingWeight,
   increaseLoad,
   increaseReps,
   increaseDuration,
@@ -27,6 +30,7 @@ class ProgressionInput {
     this.incrementKg,
     this.deloadWeek = false,
     this.lowReadiness = false,
+    this.startWeightKg,
   });
 
   final TrackingType tracking;
@@ -46,6 +50,10 @@ class ProgressionInput {
   /// Set when recovery signals are below the user's baseline; the engine then
   /// holds instead of adding load (it never reduces load for this alone).
   final bool lowReadiness;
+
+  /// The user's own starting load from the plan, used only while there is
+  /// no history. It is never invented by the engine.
+  final double? startWeightKg;
 }
 
 class Recommendation {
@@ -87,7 +95,8 @@ class Recommendation {
 /// Deterministic double-progression engine with effort (RPE) awareness.
 ///
 /// Rules, in order:
-/// 1. No history → baseline (never invent a load).
+/// 1. No history → baseline (never invent a load), or the starting load the
+///    user set in the plan.
 /// 2. Deload week → ~90% load, ~60% of sets.
 /// 3. Hit the top of the rep range on every prescribed set at acceptable
 ///    effort → smallest load increase (two increments after repeated easy
@@ -360,6 +369,22 @@ class ProgressionEngine {
 
   Recommendation _baseline(ProgressionInput input) {
     final p = input.prescription;
+    final start = input.startWeightKg;
+    final weighted = input.tracking == TrackingType.weightReps || input.tracking == TrackingType.weightDistance;
+    if (start != null && start > 0 && weighted) {
+      final reps = input.tracking.usesReps ? p.repMax : null;
+      return Recommendation(
+        action: ProgressionAction.startingWeight,
+        headline: 'Starting weight from your plan: ${_kg(start)}${reps == null ? '' : ' × $reps'}',
+        reasons: [
+          'No previous sessions recorded, so Forma uses the starting weight you set in the plan.',
+          'Log what you actually lift. From the next session, progression works from your logged sets.',
+        ],
+        sets: p.sets,
+        weightKg: start,
+        reps: reps,
+      );
+    }
     final reasons = switch (input.tracking) {
       TrackingType.duration => ['No previous sessions recorded. Hold for as long as you can with good form.'],
       TrackingType.distanceDuration => ['No previous sessions recorded. Log distance and time to build a reference.'],

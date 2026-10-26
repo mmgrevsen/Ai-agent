@@ -26,7 +26,12 @@ placeholders (never recorded until confirmed); warm-up ramps; rest timer;
 substitutions ranked by pattern/muscle; auto-saved sessions that survive app
 restarts; editable history (including date/time); post-workout summary with
 PRs and next-session suggestions; equipment/restriction settings; Apple
-Health workout export.
+Health workout export. The plan shows each exercise's next weight (Today
+card, template cards, overview and template editor), from the progression
+engine with an up/down marker; an exercise without history can be given a
+starting weight in the template (schema 2, an additive column with a
+migration that keeps existing data, and a matching Supabase migration),
+which the first session pre-fills and warms up to.
 
 **Progression engine** (`lib/domain/training/progression_engine.dart`):
 baseline without history (no invented loads), double progression with RPE,

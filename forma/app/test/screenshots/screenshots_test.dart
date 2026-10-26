@@ -174,6 +174,28 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
+  testWidgets('capture plan weights', (tester) async {
+    final (db, c) = await boot(tester);
+    final id = (await tester.runAsync(() => WorkoutRepository(db).saveTemplate(name: 'Full body', items: const [
+          TemplateItemInput(exerciseId: 'barbell-bench-press', sets: 3, repMin: 6, repMax: 10, targetRpe: 8),
+          TemplateItemInput(exerciseId: 'barbell-back-squat', sets: 3, repMin: 5, repMax: 8, targetRpe: 8),
+          TemplateItemInput(exerciseId: 'dumbbell-lateral-raise', sets: 3, repMin: 12, repMax: 15, startWeightKg: 8),
+          TemplateItemInput(exerciseId: 'hip-thrust', sets: 3, repMin: 8, repMax: 12),
+        ])))!;
+    await go(tester, c, '/workout');
+    await shoot(tester, '16_workout_weights');
+    await go(tester, c, '/workout/templates/$id');
+    await shoot(tester, '17_template_weights');
+    await tester.tap(find.text('Barbell Hip Thrust'));
+    await shoot(tester, '18_starting_weight');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+    c.dispose();
+    unawaited(db.close());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('capture light overview', (tester) async {
     final (db, c) = await boot(tester, theme: 'light');
     await shoot(tester, '10_overview_light');

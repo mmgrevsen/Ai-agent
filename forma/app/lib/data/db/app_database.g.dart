@@ -6055,6 +6055,17 @@ class $TemplateExercisesTable extends TemplateExercises
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startWeightKgMeta = const VerificationMeta(
+    'startWeightKg',
+  );
+  @override
+  late final GeneratedColumn<double> startWeightKg = GeneratedColumn<double>(
+    'start_weight_kg',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6073,6 +6084,7 @@ class $TemplateExercisesTable extends TemplateExercises
     targetRpe,
     restSeconds,
     notes,
+    startWeightKg,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6191,6 +6203,15 @@ class $TemplateExercisesTable extends TemplateExercises
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('start_weight_kg')) {
+      context.handle(
+        _startWeightKgMeta,
+        startWeightKg.isAcceptableOrUnknown(
+          data['start_weight_kg']!,
+          _startWeightKgMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6264,6 +6285,10 @@ class $TemplateExercisesTable extends TemplateExercises
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      startWeightKg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}start_weight_kg'],
+      ),
     );
   }
 
@@ -6291,6 +6316,10 @@ class TemplateExercise extends DataClass
   final double? targetRpe;
   final int? restSeconds;
   final String? notes;
+
+  /// Load to start with while the exercise has no recorded history (added in
+  /// schema 2). Once sets are logged, progression works from those instead.
+  final double? startWeightKg;
   const TemplateExercise({
     required this.id,
     required this.createdAt,
@@ -6308,6 +6337,7 @@ class TemplateExercise extends DataClass
     this.targetRpe,
     this.restSeconds,
     this.notes,
+    this.startWeightKg,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6337,6 +6367,9 @@ class TemplateExercise extends DataClass
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || startWeightKg != null) {
+      map['start_weight_kg'] = Variable<double>(startWeightKg);
     }
     return map;
   }
@@ -6369,6 +6402,9 @@ class TemplateExercise extends DataClass
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      startWeightKg: startWeightKg == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startWeightKg),
     );
   }
 
@@ -6394,6 +6430,7 @@ class TemplateExercise extends DataClass
       targetRpe: serializer.fromJson<double?>(json['targetRpe']),
       restSeconds: serializer.fromJson<int?>(json['restSeconds']),
       notes: serializer.fromJson<String?>(json['notes']),
+      startWeightKg: serializer.fromJson<double?>(json['startWeightKg']),
     );
   }
   @override
@@ -6416,6 +6453,7 @@ class TemplateExercise extends DataClass
       'targetRpe': serializer.toJson<double?>(targetRpe),
       'restSeconds': serializer.toJson<int?>(restSeconds),
       'notes': serializer.toJson<String?>(notes),
+      'startWeightKg': serializer.toJson<double?>(startWeightKg),
     };
   }
 
@@ -6436,6 +6474,7 @@ class TemplateExercise extends DataClass
     Value<double?> targetRpe = const Value.absent(),
     Value<int?> restSeconds = const Value.absent(),
     Value<String?> notes = const Value.absent(),
+    Value<double?> startWeightKg = const Value.absent(),
   }) => TemplateExercise(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -6455,6 +6494,9 @@ class TemplateExercise extends DataClass
     targetRpe: targetRpe.present ? targetRpe.value : this.targetRpe,
     restSeconds: restSeconds.present ? restSeconds.value : this.restSeconds,
     notes: notes.present ? notes.value : this.notes,
+    startWeightKg: startWeightKg.present
+        ? startWeightKg.value
+        : this.startWeightKg,
   );
   TemplateExercise copyWithCompanion(TemplateExercisesCompanion data) {
     return TemplateExercise(
@@ -6484,6 +6526,9 @@ class TemplateExercise extends DataClass
           ? data.restSeconds.value
           : this.restSeconds,
       notes: data.notes.present ? data.notes.value : this.notes,
+      startWeightKg: data.startWeightKg.present
+          ? data.startWeightKg.value
+          : this.startWeightKg,
     );
   }
 
@@ -6505,7 +6550,8 @@ class TemplateExercise extends DataClass
           ..write('repMax: $repMax, ')
           ..write('targetRpe: $targetRpe, ')
           ..write('restSeconds: $restSeconds, ')
-          ..write('notes: $notes')
+          ..write('notes: $notes, ')
+          ..write('startWeightKg: $startWeightKg')
           ..write(')'))
         .toString();
   }
@@ -6528,6 +6574,7 @@ class TemplateExercise extends DataClass
     targetRpe,
     restSeconds,
     notes,
+    startWeightKg,
   );
   @override
   bool operator ==(Object other) =>
@@ -6548,7 +6595,8 @@ class TemplateExercise extends DataClass
           other.repMax == this.repMax &&
           other.targetRpe == this.targetRpe &&
           other.restSeconds == this.restSeconds &&
-          other.notes == this.notes);
+          other.notes == this.notes &&
+          other.startWeightKg == this.startWeightKg);
 }
 
 class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
@@ -6568,6 +6616,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
   final Value<double?> targetRpe;
   final Value<int?> restSeconds;
   final Value<String?> notes;
+  final Value<double?> startWeightKg;
   final Value<int> rowid;
   const TemplateExercisesCompanion({
     this.id = const Value.absent(),
@@ -6586,6 +6635,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
     this.targetRpe = const Value.absent(),
     this.restSeconds = const Value.absent(),
     this.notes = const Value.absent(),
+    this.startWeightKg = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TemplateExercisesCompanion.insert({
@@ -6605,6 +6655,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
     this.targetRpe = const Value.absent(),
     this.restSeconds = const Value.absent(),
     this.notes = const Value.absent(),
+    this.startWeightKg = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : templateId = Value(templateId),
        exerciseId = Value(exerciseId),
@@ -6626,6 +6677,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
     Expression<double>? targetRpe,
     Expression<int>? restSeconds,
     Expression<String>? notes,
+    Expression<double>? startWeightKg,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6645,6 +6697,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
       if (targetRpe != null) 'target_rpe': targetRpe,
       if (restSeconds != null) 'rest_seconds': restSeconds,
       if (notes != null) 'notes': notes,
+      if (startWeightKg != null) 'start_weight_kg': startWeightKg,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6666,6 +6719,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
     Value<double?>? targetRpe,
     Value<int?>? restSeconds,
     Value<String?>? notes,
+    Value<double?>? startWeightKg,
     Value<int>? rowid,
   }) {
     return TemplateExercisesCompanion(
@@ -6685,6 +6739,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
       targetRpe: targetRpe ?? this.targetRpe,
       restSeconds: restSeconds ?? this.restSeconds,
       notes: notes ?? this.notes,
+      startWeightKg: startWeightKg ?? this.startWeightKg,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6740,6 +6795,9 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (startWeightKg.present) {
+      map['start_weight_kg'] = Variable<double>(startWeightKg.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6765,6 +6823,7 @@ class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
           ..write('targetRpe: $targetRpe, ')
           ..write('restSeconds: $restSeconds, ')
           ..write('notes: $notes, ')
+          ..write('startWeightKg: $startWeightKg, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -23044,6 +23103,7 @@ typedef $$TemplateExercisesTableCreateCompanionBuilder =
       Value<double?> targetRpe,
       Value<int?> restSeconds,
       Value<String?> notes,
+      Value<double?> startWeightKg,
       Value<int> rowid,
     });
 typedef $$TemplateExercisesTableUpdateCompanionBuilder =
@@ -23064,6 +23124,7 @@ typedef $$TemplateExercisesTableUpdateCompanionBuilder =
       Value<double?> targetRpe,
       Value<int?> restSeconds,
       Value<String?> notes,
+      Value<double?> startWeightKg,
       Value<int> rowid,
     });
 
@@ -23195,6 +23256,11 @@ class $$TemplateExercisesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get startWeightKg => $composableBuilder(
+    column: $table.startWeightKg,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$WorkoutTemplatesTableFilterComposer get templateId {
     final $$WorkoutTemplatesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -23321,6 +23387,11 @@ class $$TemplateExercisesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get startWeightKg => $composableBuilder(
+    column: $table.startWeightKg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkoutTemplatesTableOrderingComposer get templateId {
     final $$WorkoutTemplatesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -23425,6 +23496,11 @@ class $$TemplateExercisesTableAnnotationComposer
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
+  GeneratedColumn<double> get startWeightKg => $composableBuilder(
+    column: $table.startWeightKg,
+    builder: (column) => column,
+  );
+
   $$WorkoutTemplatesTableAnnotationComposer get templateId {
     final $$WorkoutTemplatesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -23521,6 +23597,7 @@ class $$TemplateExercisesTableTableManager
                 Value<double?> targetRpe = const Value.absent(),
                 Value<int?> restSeconds = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<double?> startWeightKg = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TemplateExercisesCompanion(
                 id: id,
@@ -23539,6 +23616,7 @@ class $$TemplateExercisesTableTableManager
                 targetRpe: targetRpe,
                 restSeconds: restSeconds,
                 notes: notes,
+                startWeightKg: startWeightKg,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -23559,6 +23637,7 @@ class $$TemplateExercisesTableTableManager
                 Value<double?> targetRpe = const Value.absent(),
                 Value<int?> restSeconds = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<double?> startWeightKg = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TemplateExercisesCompanion.insert(
                 id: id,
@@ -23577,6 +23656,7 @@ class $$TemplateExercisesTableTableManager
                 targetRpe: targetRpe,
                 restSeconds: restSeconds,
                 notes: notes,
+                startWeightKg: startWeightKg,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

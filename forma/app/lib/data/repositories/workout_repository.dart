@@ -74,6 +74,7 @@ class TemplateItemInput {
     this.restSeconds,
     this.warmupSets = 0,
     this.supersetGroup,
+    this.startWeightKg,
   });
 
   final String exerciseId;
@@ -84,6 +85,9 @@ class TemplateItemInput {
   final int? restSeconds;
   final int warmupSets;
   final int? supersetGroup;
+
+  /// Starting load while the exercise has no history.
+  final double? startWeightKg;
 }
 
 class WorkoutRepository extends Repository {
@@ -156,6 +160,7 @@ class WorkoutRepository extends Repository {
               restSeconds: Value(item.restSeconds),
               warmupSets: Value(item.warmupSets),
               supersetGroup: Value(item.supersetGroup),
+              startWeightKg: Value(item.startWeightKg),
             ));
       }
       return templateId;

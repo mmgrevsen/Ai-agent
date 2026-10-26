@@ -11,10 +11,15 @@ import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/exercise_repository.dart';
 import '../../data/repositories/workout_repository.dart';
+import '../../domain/catalog.dart';
+import '../../domain/training/models.dart';
+import '../../domain/training/progression_engine.dart';
 import 'exercise_library_screen.dart';
+import 'plan_widgets.dart';
+import 'workout_providers.dart';
 
 class _Item {
-  _Item(this.exercise, {this.sets = 3, this.repMin = 8, this.repMax = 12, this.rpe, this.rest, this.warmups = 0, this.superset});
+  _Item(this.exercise, {this.sets = 3, this.repMin = 8, this.repMax = 12, this.rpe, this.rest, this.warmups = 0, this.superset, this.startWeightKg});
   Exercise exercise;
   int sets;
   int repMin;
@@ -23,6 +28,10 @@ class _Item {
   int? rest;
   int warmups;
   int? superset;
+  double? startWeightKg;
+
+  NextLoadQuery get query =>
+      NextLoadQuery(exercise, Prescription(sets: sets, repMin: repMin, repMax: repMax, targetRpe: rpe), startWeightKg: startWeightKg);
 }
 
 class TemplateEditorScreen extends ConsumerStatefulWidget {
@@ -63,6 +72,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
             rest: i.row.restSeconds,
             warmups: i.row.warmupSets,
             superset: i.row.supersetGroup,
+            startWeightKg: i.row.startWeightKg,
           ));
         }
       }
@@ -98,6 +108,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
                 restSeconds: i.rest,
                 warmupSets: i.warmups,
                 supersetGroup: i.superset,
+                startWeightKg: i.startWeightKg,
               ),
           ],
         );
@@ -179,7 +190,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
                       Text(
                         [
                           if (item.warmups > 0) '${item.warmups} warm-up',
-                          item.exercise.tracking.usesReps ? '${item.sets} × ${item.repMin}–${item.repMax}' : '${item.sets} sets',
+                          schemeText(item.sets, item.repMin, item.repMax, item.exercise.tracking),
                           if (item.rpe != null) 'RPE ${number(item.rpe!)}',
                           if (item.rest != null) 'rest ${clock(Duration(seconds: item.rest!))}',
                         ].join(' · '),
@@ -187,6 +198,8 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
                       ),
                     ]),
                   ),
+                  const SizedBox(width: Space.sm),
+                  NextLoad(item.query),
                   IconButton(onPressed: () => setState(() => _items.removeAt(i)), icon: const Icon(Icons.close_rounded), tooltip: 'Remove'),
                 ]),
               ),
@@ -213,6 +226,8 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
             padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.xxl),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text(item.exercise.name, style: c.text.titleLarge, textAlign: TextAlign.center),
+              const SizedBox(height: Space.lg),
+              _LoadSection(item: item, onStartWeight: (kg) => update(() => item.startWeightKg = kg)),
               const SizedBox(height: Space.xl),
               BigStepper(label: 'Working sets', value: item.sets.toDouble(), step: 1, min: 1, max: 10, decimals: 0, onChanged: (v) => update(() => item.sets = v.round())),
               if (item.exercise.tracking.usesReps) ...[
@@ -277,6 +292,74 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// The weight for this exercise: what the next session will use (from the
+/// logged sets), or a starting weight to set while there is no history.
+class _LoadSection extends ConsumerStatefulWidget {
+  const _LoadSection({required this.item, required this.onStartWeight});
+  final _Item item;
+  final ValueChanged<double?> onStartWeight;
+
+  @override
+  ConsumerState<_LoadSection> createState() => _LoadSectionState();
+}
+
+class _LoadSectionState extends ConsumerState<_LoadSection> {
+  late final _start = TextEditingController(
+    text: widget.item.startWeightKg == null ? '' : number(ref.read(unitsProvider).toDisplay(widget.item.startWeightKg!), maxDecimals: 2),
+  );
+
+  @override
+  void dispose() {
+    _start.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final units = ref.watch(unitsProvider);
+    final tracking = widget.item.exercise.tracking;
+    final rec = ref.watch(nextLoadProvider(widget.item.query)).value;
+    if (rec == null) return const SizedBox(height: 56);
+    final noHistory = rec.action == ProgressionAction.baseline || rec.action == ProgressionAction.startingWeight;
+    final weighted = tracking == TrackingType.weightReps || tracking == TrackingType.weightDistance;
+    if (noHistory && weighted) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        NumberField(
+          controller: _start,
+          label: 'Starting weight',
+          unit: units.weightLabel,
+          hint: 'The weight you want to begin with',
+          onChanged: (v) {
+            final x = parseNumber(v);
+            widget.onStartWeight(x == null || x <= 0 ? null : units.fromDisplay(x));
+          },
+        ),
+        const SizedBox(height: Space.xs),
+        Text(
+          'Used the first time you train it. After that Forma suggests the weight from what you log.',
+          style: context.text.bodySmall,
+        ),
+      ]);
+    }
+    final load = loadText(rec, tracking, units);
+    final summary = [?load, if (tracking.usesReps && rec.reps != null) '× ${rec.reps}'].join(' ');
+    return FCard(
+      color: c.surfaceRaised,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Eyebrow('Next time'),
+        const SizedBox(height: Space.xs),
+        if (summary.isNotEmpty) ...[
+          Text(summary, style: context.text.headlineSmall),
+          const SizedBox(height: Space.xs),
+        ],
+        Text(rec.headline, style: context.text.bodyMedium),
+        for (final r in rec.reasons) Text(r, style: context.text.bodySmall),
+      ]),
     );
   }
 }

@@ -9,6 +9,7 @@ import 'package:forma/app/bootstrap.dart';
 import 'package:forma/app/providers.dart';
 import 'package:forma/content/content_providers.dart';
 import 'package:forma/data/db/app_database.dart';
+import 'package:forma/features/workout/workout_home_screen.dart';
 import 'package:integration_test/integration_test.dart';
 
 import '../test/helpers.dart';
@@ -82,7 +83,14 @@ void main() {
     await tap(tester, find.descendant(of: find.byType(AlertDialog), matching: find.text('Finish')));
     await until(tester, find.text('WORKOUT COMPLETE'));
     await tap(tester, find.text('Done'));
-    await until(tester, find.text('HISTORY'));
+    // Back on Workout; the finished session is listed under History, below
+    // the plan (which now shows every exercise with its weight).
+    await until(tester, find.text('Start empty workout'));
+    await tester.scrollUntilVisible(
+      find.text('HISTORY'),
+      300,
+      scrollable: find.descendant(of: find.byType(WorkoutHomeScreen), matching: find.byType(Scrollable)).first,
+    );
 
     // Start a planned workout — 6 exercises with recommendations.
     final t2 = DateTime.now();
