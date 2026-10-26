@@ -1,0 +1,69 @@
+name: Forma photo recognition (Vision check)
+
+# Runs Forma's on-device photo recognition (Apple Vision, the same Swift code
+# as the apps) on a Mac: the committed test photos plus real food photos and
+# nutrition labels downloaded for the run. The Dart tests then check what the
+# app makes of the results. Nothing here is published.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/lucid-planck-umj6jk]
+    paths:
+      - 'forma/app/native/**'
+      - 'forma/app/tool/vision/**'
+      - 'forma/app/lib/features/nutrition/vision/**'
+      - 'forma/app/test/vision/**'
+      - '.github/workflows/forma-vision.yml'
+
+concurrency:
+  group: forma-vision
+  cancel-in-progress: true
+
+jobs:
+  vision:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: forma/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Build the Vision probe
+        run: |
+          mkdir -p build
+          swiftc -O native/FormaVision.swift tool/vision/main.swift -o build/vision-probe
+      - name: Supported labels and languages
+        run: |
+          build/vision-probe identifiers > build/vision-identifiers.txt
+          echo "$(wc -l < build/vision-identifiers.txt) classification labels"
+          cat build/vision-identifiers.txt | tr '\n' ' '
+          echo
+          build/vision-probe languages
+      - name: Download real sample photos
+        run: python3 tool/vision/fetch_samples.py build/vision-samples
+      - name: Analyse photos
+        run: |
+          # Same size limit as the app's photo picker (1600 px).
+          for f in build/vision-samples/*.jpg; do sips -Z 1600 "$f" >/dev/null 2>&1 || true; done
+          build/vision-probe analyze build/vision-out test/vision/fixtures/*.jpg build/vision-samples/*.jpg
+          cp build/vision-samples/expected.json build/vision-out/expected.json
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.8
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Check the app's reading of the results
+        env:
+          FORMA_VISION_OUT: build/vision-out
+        run: flutter test test/vision --reporter expanded
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vision-results
+          path: |
+            forma/app/build/vision-out
+            forma/app/build/vision-identifiers.txt

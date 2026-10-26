@@ -21,6 +21,7 @@ on:
       - '!forma/app/assets/exercises.json'
       - '!forma/app/test/**'
       - '!forma/app/integration_test/**'
+      - '!forma/app/tool/**'
       - '.github/workflows/forma-ios-unsigned.yml'
 
 concurrency:
