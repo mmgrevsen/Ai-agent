@@ -138,7 +138,6 @@ const visionFoodQueries = <String, List<String>>{
   'kebab': ['kebab'],
   'lobster': ['hummer'],
   'mackerel': ['makrel'],
-  'meat': ['kød'],
   'meatball': ['frikadelle', 'kødboller', 'meatball'],
   'mussel': ['musling'],
   'oyster': ['østers'],
@@ -186,7 +185,7 @@ const visionFoodQueries = <String, List<String>>{
   'quesadilla': ['quesadilla'],
   'ramen': ['ramen', 'noodles'],
   'risotto': ['risotto', 'ris kogte'],
-  'salad': ['salat', 'salad'],
+  'salad': ['salat kylling', 'caesar salad', 'salad greens', 'salat'],
   'samosa': ['samosa'],
   'sandwich': ['sandwich', 'smørrebrød'],
   'satay': ['satay', 'peanut sauce'],
@@ -205,8 +204,8 @@ const visionFoodQueries = <String, List<String>>{
   'biscotti': ['biscotti'],
   'biscuit': ['kiks'],
   'brownie': ['brownie'],
-  'cake': ['kage', 'cake'],
-  'cake_regular': ['kage', 'cake'],
+  'cake': ['lagkage', 'chokoladekage', 'cake'],
+  'cake_regular': ['lagkage', 'chokoladekage', 'cake'],
   'candy': ['slik', 'vingummi', 'lakrids'],
   'candy_cane': ['candy cane', 'lakrids', 'vingummi'],
   'candy_other': ['slik', 'vingummi', 'lakrids'],
@@ -285,6 +284,9 @@ const _titles = {
   'grilled_chicken': 'Grillet kylling',
   'cantaloupe': 'Melon',
   'fish': 'Fisk',
+  'salad': 'Salat',
+  'cake': 'Kage',
+  'cake_regular': 'Kage',
   'bacon': 'Bacon',
   'meatball': 'Frikadeller',
   'candy_cane': 'Slikstok',
@@ -298,6 +300,13 @@ const _titles = {
 /// Labels that mean "there is food" without saying which.
 const visionGenericFood = {
   'food', 'fruit', 'vegetable', 'dessert', 'drink', 'baked_goods', 'grain', 'herb', 'spice', 'seasonings', 'liquid',
+};
+
+/// Labels Vision adds on top of a more specific one ("bread" with
+/// "croissant", "cake" with "pancake"). They are listed after the specific
+/// foods.
+const visionBroadFood = {
+  'bread', 'cake', 'cake_regular', 'berry', 'nut', 'seafood', 'shellfish', 'citrus_fruit', 'condiment', 'poultry', 'fish', 'cereal',
 };
 
 /// Labels that mean the photo shows printed text, e.g. a nutrition label.
@@ -316,6 +325,7 @@ class FoodSuggestionGroup {
 class _Indexed {
   _Indexed(this.food)
       : name = _words(food.name),
+        processed = _words(food.name).any(_processedWords.contains) ? 1 : 0,
         aliases = [for (final a in food.aliases) _words(a)],
         source = food.id.startsWith('frida-')
             ? 0
@@ -326,7 +336,15 @@ class _Indexed {
   final List<String> name;
   final List<List<String>> aliases;
   final int source;
+
+  /// 1 for dried, frozen, canned or powdered foods: rarely what a photo shows.
+  final int processed;
 }
+
+const _processedWords = {
+  'tørret', 'pulver', 'dybfrost', 'konserves', 'syltet', 'syltede', 'sukrede', 'industrifremstillet', 'dried', 'powder',
+  'canned', 'frozen', 'dehydrated',
+};
 
 final _split = RegExp(r'[^0-9a-zæøåéèüöäßñ]+');
 List<String> _words(String s) => [for (final w in s.toLowerCase().split(_split)) if (w.isNotEmpty) w];
@@ -337,9 +355,9 @@ class VisionFoodMatcher {
   VisionFoodMatcher(List<ContentFood> foods) : _index = [for (final f in foods) _Indexed(f)];
   final List<_Indexed> _index;
 
-  /// Lower is better; null when a query word is missing.
+  /// Lower is better (the sum over the query's words); null when a word is missing.
   static int? _score(_Indexed e, List<String> query) {
-    var worst = 0;
+    var total = 0;
     for (final q in query) {
       int? s;
       if (e.name.isNotEmpty && e.name.first == q) {
@@ -354,13 +372,14 @@ class VisionFoodMatcher {
         s = 4;
       }
       if (s == null) return null;
-      if (s > worst) worst = s;
+      total += s;
     }
-    return worst;
+    return total;
   }
 
-  /// Best matches first: whole-word matches, then Danish foods, Forma's
-  /// meals and USDA, then the shortest (most basic) name.
+  /// Best matches first: whole-word matches, then fresh before processed
+  /// (dried, frozen, canned …), then Danish foods, Forma's meals and USDA,
+  /// then the shortest (most basic) name.
   List<ContentFood> search(String query, {int limit = 4}) {
     final q = _words(query);
     if (q.isEmpty) return const [];
@@ -372,6 +391,8 @@ class VisionFoodMatcher {
     hits.sort((a, b) {
       final s = a.$1.compareTo(b.$1);
       if (s != 0) return s;
+      final p = a.$2.processed.compareTo(b.$2.processed);
+      if (p != 0) return p;
       final src = a.$2.source.compareTo(b.$2.source);
       return src != 0 ? src : a.$2.food.name.length.compareTo(b.$2.food.name.length);
     });
@@ -383,7 +404,11 @@ class VisionFoodMatcher {
   List<FoodSuggestionGroup> suggest(List<VisionLabel> labels, {int perLabel = 4, int maxGroups = 5, double minConfidence = 0.1}) {
     final seen = <String>{};
     final groups = <FoodSuggestionGroup>[];
-    for (final label in labels) {
+    final ordered = [
+      for (final l in labels) if (!visionBroadFood.contains(l.id)) l,
+      for (final l in labels) if (visionBroadFood.contains(l.id)) l,
+    ];
+    for (final label in ordered) {
       if (groups.length >= maxGroups) break;
       final queries = visionFoodQueries[label.id];
       if (queries == null || label.confidence < minConfidence) continue;

@@ -16,6 +16,7 @@ void main() {
     expect(appleLabels.length, 1303);
     expect(visionFoodQueries.keys.where((k) => !appleLabels.contains(k)), isEmpty);
     expect(visionGenericFood.where((k) => !appleLabels.contains(k)), isEmpty);
+    expect(visionBroadFood.where((k) => !visionFoodQueries.containsKey(k)), isEmpty);
     expect(visionDocument.where((k) => !appleLabels.contains(k)), isEmpty);
   });
 
@@ -40,6 +41,21 @@ void main() {
   test('a plain food comes before dishes that contain it', () {
     expect(matcher.search('banan').first.name, 'Banan, rå');
     expect(matcher.search('agurk').first.name, 'Agurk, rå');
+    expect(matcher.search('pommes frites').first.name, startsWith('Pommes frites'));
+  });
+
+  test('fresh food comes before dried, frozen or canned', () {
+    expect(matcher.search('æble').first.name, 'Æble, uspec., råt');
+    expect(matcher.search('jordbær').first.name, 'Jordbær, rå');
+  });
+
+  // Label sets as Vision returned them for real photos in CI.
+  test('the specific food is listed before the broad one Vision adds', () {
+    String first(List<VisionLabel> labels) => matcher.suggest(labels).first.title;
+    expect(first(const [VisionLabel('food', 1), VisionLabel('baked_goods', .98), VisionLabel('dessert', .98), VisionLabel('cake', .98), VisionLabel('pancake', .98)]), 'Pandekage');
+    expect(first(const [VisionLabel('baked_goods', .89), VisionLabel('bread', .89), VisionLabel('croissant', .89), VisionLabel('food', .89)]), 'Croissant');
+    expect(first(const [VisionLabel('berry', .98), VisionLabel('food', .98), VisionLabel('fruit', .98), VisionLabel('strawberry', .98)]), 'Jordbær');
+    expect(first(const [VisionLabel('food', .91), VisionLabel('meat', .91), VisionLabel('hotdog', .91), VisionLabel('mustard', .47)]), 'Hotdog');
   });
 
   test('pizza photo → pizzas', () {
