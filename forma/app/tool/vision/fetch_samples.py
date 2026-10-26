@@ -9,6 +9,7 @@ Writes OUT_DIR/food-<slug>.jpg, OUT_DIR/off-<barcode>.jpg and
 OUT_DIR/expected.json ({"foods": {file: expected words}, "labels": {file: per-100 g values}}).
 """
 import json
+import re
 import sys
 import time
 import urllib.parse
@@ -75,7 +76,7 @@ def main():
                 print(f'{title}: no image')
                 continue
             # Ask for a 1024 px wide rendition, close to what the app sends.
-            src = src.replace('/320px-', '/1024px-') if '/320px-' in src else src
+            src = re.sub(r'/\d+px-', '/1024px-', src.split('?')[0])
             name = f"food-{title.lower().replace('_', '-')}.jpg"
             if not src.lower().endswith(('.jpg', '.jpeg')):
                 print(f'{title}: skipped non-JPEG {src}')
@@ -87,18 +88,29 @@ def main():
             print(f'{title}: failed {e}')
         time.sleep(0.3)
 
-    query = urllib.parse.urlencode({
-        'countries_tags_en': 'denmark',
-        'states_tags': 'en:nutrition-photo-selected',
-        'fields': 'code,product_name,image_nutrition_url,nutriments',
-        'sort_by': 'unique_scans_n',
-        'page_size': 80,
-    })
-    try:
-        products = json.loads(get('https://world.openfoodfacts.org/api/v2/search?' + query)).get('products', [])
-    except Exception as e:
-        print(f'Open Food Facts search failed: {e}')
-        products = []
+    products = []
+    searches = [
+        'https://world.openfoodfacts.org/api/v2/search?' + urllib.parse.urlencode({
+            'countries_tags_en': 'denmark',
+            'fields': 'code,product_name,image_nutrition_url,nutriments',
+            'sort_by': 'unique_scans_n',
+            'page_size': 100,
+        }),
+        'https://world.openfoodfacts.org/cgi/search.pl?' + urllib.parse.urlencode({
+            'action': 'process', 'json': 1, 'page_size': 100, 'sort_by': 'unique_scans_n',
+            'tagtype_0': 'countries', 'tag_contains_0': 'contains', 'tag_0': 'denmark',
+            'fields': 'code,product_name,image_nutrition_url,nutriments',
+        }),
+    ]
+    for attempt in range(6):
+        url = searches[attempt % len(searches)]
+        try:
+            products = json.loads(get(url)).get('products', [])
+            if products:
+                break
+        except Exception as e:
+            print(f'Open Food Facts search failed ({e}), retrying')
+        time.sleep(5 * (attempt + 1))
     taken = 0
     for p in products:
         n = p.get('nutriments') or {}
