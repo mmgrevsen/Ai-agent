@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../app/providers.dart';
@@ -16,6 +15,7 @@ import '../../core/widgets/primitives.dart';
 import '../../core/widgets/prompts.dart';
 import '../../core/widgets/states.dart';
 import '../../data/db/app_database.dart';
+import '../../data/remote/ai_api.dart';
 import '../../data/remote/backend.dart';
 import '../../data/remote/food_api.dart';
 import '../../data/repositories/nutrition_repository.dart';
@@ -27,6 +27,8 @@ import 'food_portion_sheet.dart';
 import 'nutrition_providers.dart';
 import 'nutrition_screen.dart' show showQuickAdd;
 import 'photo_input.dart';
+import 'vision/label_reader.dart';
+import 'vision/on_device_vision.dart';
 
 class AddFoodScreen extends ConsumerStatefulWidget {
   const AddFoodScreen({super.key, this.meal, this.day});
@@ -153,7 +155,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       if (!mounted) return;
       setState(() => _searching = false);
       if (item == null) {
-        final canRead = ref.read(photoAiAvailableProvider);
+        final canRead = ref.read(photoAiAvailableProvider) || ref.read(onDeviceVisionProvider).available;
         final choice = await showDialog<String>(
           context: context,
           builder: (c) => AlertDialog(
@@ -184,29 +186,53 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
   }
 
   /// Photographs a nutrition label; the values open in the custom-food form
-  /// for review, so the product is known the next time it's scanned.
+  /// for review, so the product is known the next time it's scanned. The
+  /// label is read on the server when signed in, otherwise on the device.
   Future<void> _labelPhoto({String? barcode}) async {
-    if (!ref.read(photoAiAvailableProvider)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading labels needs the Forma server and an account. You can type the values in instead.')));
+    final server = ref.read(photoAiAvailableProvider);
+    final vision = ref.read(onDeviceVisionProvider);
+    if (!server && !vision.available) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading labels needs an iPhone or Mac. You can type the values in instead.')));
       return _createCustom(barcode: barcode);
     }
-    final photo = await ref.read(photoPickerProvider).pick(ImageSource.camera);
+    final photo = await ref.read(photoPickerProvider).pick(defaultPhotoSource(ref));
     if (photo == null || !mounted) return;
     setState(() => _searching = true);
     try {
-      final reading = await ref.read(aiApiProvider).readLabel(photo.bytes, mimeType: photo.mimeType);
+      LabelReading? reading;
+      var code = barcode;
+      if (server) {
+        reading = await ref.read(aiApiProvider).readLabel(photo.bytes, mimeType: photo.mimeType);
+      } else {
+        final result = await vision.analyze(photo.bytes, classify: false);
+        reading = readNutritionLabel(result.lines);
+        // The barcode is often in the same photo.
+        if (code == null) {
+          try {
+            code = await ref.read(barcodeImageReaderProvider).read(photo);
+          } catch (_) {
+            // Barcode decoding isn't available everywhere (e.g. some Macs).
+            code = null;
+          }
+        }
+      }
       if (!mounted) return;
       setState(() => _searching = false);
-      if (reading.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No nutrition values could be read. Try a sharper photo of the table, or type them in.')));
+      if (reading == null || reading.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No nutrition values could be read. Try a sharper, straight-on photo of the table, or type them in.')));
         return;
       }
       final created = await context.push<FoodItem>(
-        barcode == null ? '/nutrition/custom' : '/nutrition/custom?barcode=$barcode',
+        code == null ? '/nutrition/custom' : '/nutrition/custom?barcode=$code',
         extra: reading,
       );
       if (created != null && mounted) await _pick(created);
     } on BackendException catch (e) {
+      if (mounted) {
+        setState(() => _searching = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } on VisionException catch (e) {
       if (mounted) {
         setState(() => _searching = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -512,12 +538,12 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
 
 /// Takes a photo and returns the barcode in it, or tells the user why not.
 Future<String?> readBarcodeFromPhoto(BuildContext context, WidgetRef ref) async {
-  final photo = await ref.read(photoPickerProvider).pick(ImageSource.camera);
+  final photo = await ref.read(photoPickerProvider).pick(defaultPhotoSource(ref));
   if (photo == null) return null;
   String? code;
   try {
     code = await ref.read(barcodeImageReaderProvider).read(photo);
-  } on Exception {
+  } catch (_) {
     code = null;
   }
   if (code == null && context.mounted) {

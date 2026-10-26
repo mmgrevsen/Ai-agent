@@ -54,7 +54,10 @@ void main() {
     final groups = matcher.suggest([const VisionLabel('fried_egg', 0.7), const VisionLabel('bacon', 0.5), const VisionLabel('egg', 0.4)]);
     expect(groups.map((g) => g.title), ['Spejlæg', 'Bacon', 'Æg']);
     expect(groups.first.foods.first.name, contains('spejlæg'));
-    expect(groups.last.foods.every((f) => f.name.startsWith('Æg') || f.name.contains('æg')), isTrue);
+    expect(groups.first.foods.skip(1).every((f) => f.name.startsWith('Egg, whole, fried')), isTrue);
+    expect(groups.last.foods.map((f) => f.name), contains('2 hårdkogte æg'));
+    // Egg powder and yolks are not what a photo of eggs shows.
+    expect([for (final g in groups) ...g.foods].where((f) => f.name.contains('tørret') || f.name.contains('blomme')), isEmpty);
   });
 
   test('a food is listed once, under the most confident label', () {

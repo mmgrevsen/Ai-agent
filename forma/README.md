@@ -30,8 +30,9 @@ flutter pub get
 flutter run                     # local-only mode: no account, no server needed
 ```
 
-Everything except the account, sync, AI coach and photo estimates works
-offline without any configuration.
+Everything except the account, sync, AI coach and AI photo estimates works
+offline without any configuration. Food and nutrition-label photos are
+recognised on the device (iPhone and Mac) without a server.
 
 ### With a Supabase backend
 

@@ -16,5 +16,9 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // On-device photo recognition (native/FormaVision.swift).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "FormaVisionPlugin") {
+      FormaVisionPlugin.register(with: registrar)
+    }
   }
 }

@@ -81,6 +81,39 @@ forsvinder ikke.
 Hent linket øverst igen, og installér med **+** i SideStore som i trin 4.
 Jeres data bliver liggende. Slet ikke appen først.
 
+## Log mad med et billede
+
+Billedet genkendes på telefonen med Apples egen billedgenkendelse. Det
+kræver ingen konto, ingen server og intet internet, og billedet bliver
+ikke sendt nogen steder hen.
+
+1. **Nutrition → Add food → Photo → Take photo.**
+2. Forma viser, hvad den tror, der er på tallerkenen (fx "Spejlæg · 72 %"),
+   med forslag fra Formas fødevaredata. Retter du tidligere har logget,
+   står øverst under **Logged before**.
+3. Tryk på de retter, der er på tallerkenen. Næringsværdierne kommer fra
+   fødevaredataene (Frida/USDA), ikke fra et gæt. Du vælger kun gram.
+4. Mangler noget, så søg i feltet under forslagene.
+5. Tryk **Log**. Med flere retter kan du gemme dem som et måltid, så du kan
+   logge det hele igen med ét tryk (også fra uret).
+
+**Med køkkenvægt (mest præcist):** stil tallerkenen på vægten, nulstil den
+med tallerkenen på, og tag billedet, så displayet er med. Forma læser
+vægten og bruger den som gram for den første ret, du vælger. Står der kun
+et tal uden "g", spørger Forma først (kontakten på kortet "Scale shows").
+
+**Næringsdeklaration:** **Add food → Nutrition label**, og tag et billede
+af tabellen lige forfra. Værdierne pr. 100 g udfyldes, og stregkoden læses
+fra samme billede, hvis den er med. Tjek tallene, giv varen et navn, og
+gem. Næste gang finder stregkoden varen med det samme.
+
+**Godt at vide:**
+* Genkendelsen kender cirka 250 slags mad og retter. Den kan tage fejl
+  eller ikke vide, hvad det er. Så søger du bare.
+* Den gætter ikke mængden. Det gør vægten eller dig.
+* Er I logget ind på en Forma-server (Supabase med AI), bruges AI-analysen
+  i stedet. Den kan også gætte portioner.
+
 ## Log fra Apple Watch og Siri
 
 Forma har to genveje, som virker fra Siri, Genveje-appen og uret (uret

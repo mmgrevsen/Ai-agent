@@ -5,7 +5,7 @@ labels come from Open Food Facts with the values entered for the same
 product, so OCR results can be compared with what is printed on the label.
 
 Usage: python3 tool/vision/fetch_samples.py OUT_DIR
-Writes OUT_DIR/food-<slug>.jpg, OUT_DIR/off-<barcode>.jpg and
+Writes OUT_DIR/food-<slug>.jpg (or .png), OUT_DIR/off-<barcode>.jpg and
 OUT_DIR/expected.json ({"foods": {file: expected words}, "labels": {file: per-100 g values}}).
 """
 import json
@@ -75,12 +75,11 @@ def main():
             if not src:
                 print(f'{title}: no image')
                 continue
-            # Ask for a 1024 px wide rendition, close to what the app sends.
-            src = re.sub(r'/\d+px-', '/1024px-', src.split('?')[0])
-            name = f"food-{title.lower().replace('_', '-')}.jpg"
-            if not src.lower().endswith(('.jpg', '.jpeg')):
-                print(f'{title}: skipped non-JPEG {src}')
-                continue
+            # A 960 px rendition (Wikimedia only serves its standard sizes),
+            # close to the 1600 px the app sends.
+            src = re.sub(r'/\d+px-', '/960px-', src.split('?')[0])
+            ext = 'png' if src.lower().endswith('.png') else 'jpg'
+            name = f"food-{title.lower().replace('_', '-')}.{ext}"
             save_jpeg(get(src, 'image/*'), out / name)
             expected['foods'][name] = words
             print(f'{title}: {src}')
@@ -96,6 +95,12 @@ def main():
             'sort_by': 'unique_scans_n',
             'page_size': 100,
         }),
+        'https://search.openfoodfacts.org/search?' + urllib.parse.urlencode({
+            'q': 'countries_tags:"en:denmark"',
+            'fields': 'code,product_name,image_nutrition_url,nutriments',
+            'sort_by': '-unique_scans_n',
+            'page_size': 100,
+        }),
         'https://world.openfoodfacts.org/cgi/search.pl?' + urllib.parse.urlencode({
             'action': 'process', 'json': 1, 'page_size': 100, 'sort_by': 'unique_scans_n',
             'tagtype_0': 'countries', 'tag_contains_0': 'contains', 'tag_0': 'denmark',
@@ -105,7 +110,8 @@ def main():
     for attempt in range(6):
         url = searches[attempt % len(searches)]
         try:
-            products = json.loads(get(url)).get('products', [])
+            reply = json.loads(get(url))
+            products = reply.get('products') or reply.get('hits') or []
             if products:
                 break
         except Exception as e:

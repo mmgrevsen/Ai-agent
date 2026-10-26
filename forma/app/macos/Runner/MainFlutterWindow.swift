@@ -13,6 +13,8 @@ class MainFlutterWindow: NSWindow {
     self.center()
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    // On-device photo recognition (native/FormaVision.swift).
+    FormaVisionPlugin.register(with: flutterViewController.registrar(forPlugin: "FormaVisionPlugin"))
 
     super.awakeFromNib()
   }

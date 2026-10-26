@@ -47,8 +47,10 @@ jobs:
       - name: Analyse photos
         run: |
           # Same size limit as the app's photo picker (1600 px).
-          for f in build/vision-samples/*.jpg; do sips -Z 1600 "$f" >/dev/null 2>&1 || true; done
-          build/vision-probe analyze build/vision-out test/vision/fixtures/*.jpg build/vision-samples/*.jpg
+          shopt -s nullglob
+          samples=(build/vision-samples/*.jpg build/vision-samples/*.png)
+          for f in "${samples[@]}"; do sips -Z 1600 "$f" >/dev/null 2>&1 || true; done
+          build/vision-probe analyze build/vision-out test/vision/fixtures/*.jpg "${samples[@]}"
           cp build/vision-samples/expected.json build/vision-out/expected.json
       - uses: subosito/flutter-action@v2
         with:

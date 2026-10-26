@@ -31,14 +31,11 @@ void main() {
     test('takes the serving size from the header', () {
       final r = readNutritionLabel(danish)!;
       expect(r.serving?.grams, 40);
-      expect(r.serving?.label, contains('40 g'));
+      expect(r.serving?.label, '1 portion');
     });
 
-    test('says it was read on the device and raises no false alarms', () {
-      final r = readNutritionLabel(danish)!;
-      expect(r.caveats.first, contains('Read on this device'));
-      expect(r.caveats.where((c) => c.contains('don\'t match')), isEmpty);
-      expect(r.caveats.where((c) => c.contains('could not be read')), isEmpty);
+    test('a clean read raises no false alarms', () {
+      expect(readNutritionLabel(danish)!.caveats, isEmpty);
     });
 
     test('works whatever order Vision returns the pieces in', () {

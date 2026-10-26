@@ -28,5 +28,8 @@ xattr -dr com.apple.quarantine /Applications/Forma.app
 * Indholdsopdateringer (programmer, fødevarer, beskeder) kommer automatisk
   ligesom på telefonen.
 * Apple Health og Siri-genvejene findes kun på iPhone.
+* Billeder af mad og næringsdeklarationer virker også på Mac'en og
+  genkendes på Mac'en. Mac-appen kan ikke åbne kameraet. Tryk **Choose
+  photo**, og vælg et billede, fx et du har AirDroppet fra iPhonen.
 * Ny version af selve appen: hent zip-filen igen og erstat Forma i
   Programmer. Dine data bevares.

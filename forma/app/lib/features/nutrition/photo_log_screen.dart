@@ -14,7 +14,9 @@ import '../../data/remote/backend.dart';
 import '../../domain/catalog.dart';
 import '../../domain/dates.dart';
 import '../../domain/nutrition/nutrients.dart';
+import 'device_photo_log.dart';
 import 'photo_input.dart';
+import 'vision/on_device_vision.dart';
 
 class _Editable {
   _Editable(PhotoFoodEstimate e)
@@ -163,7 +165,10 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
   @override
   Widget build(BuildContext context) {
     final available = ref.watch(photoAiAvailableProvider);
+    // Without the server, photos are recognised on the device instead.
+    if (!available && ref.watch(onDeviceVisionProvider).available) return DevicePhotoLogScreen(meal: _meal, day: _day);
     final backend = ref.watch(backendProvider);
+    final camera = ref.watch(photoCameraAvailableProvider);
     final c = context.colors;
     final result = _result;
     return Scaffold(
@@ -171,8 +176,8 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
       body: !available
           ? EmptyState(
               icon: Icons.photo_camera_outlined,
-              title: backend.configured ? 'Sign in to use photo estimates' : 'Photo estimates need the Forma server',
-              message: 'Photos are analysed on the server so no AI keys are stored in the app. You can still search, scan or quick-add food.',
+              title: backend.configured ? 'Sign in to use photo estimates' : 'Photo logging isn’t available here',
+              message: 'Photos are recognised on iPhone and Mac. You can still search, scan or quick-add food.',
               actionLabel: backend.configured ? 'Sign in' : null,
               onAction: backend.configured ? () => context.push('/settings/account') : null,
             )
@@ -201,9 +206,11 @@ class _PhotoLogScreenState extends ConsumerState<PhotoLogScreen> {
               TextField(controller: _hint, decoration: const InputDecoration(labelText: 'Optional hint (e.g. “chicken curry, half a plate of rice”)')),
               const SizedBox(height: Space.md),
               Row(children: [
-                Expanded(child: FilledButton.icon(onPressed: _busy ? null : () => _pick(ImageSource.camera), icon: const Icon(Icons.photo_camera_outlined), label: const Text('Take photo'))),
-                const SizedBox(width: Space.sm),
-                Expanded(child: OutlinedButton.icon(onPressed: _busy ? null : () => _pick(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('Library'))),
+                if (camera) ...[
+                  Expanded(child: FilledButton.icon(onPressed: _busy ? null : () => _pick(ImageSource.camera), icon: const Icon(Icons.photo_camera_outlined), label: const Text('Take photo'))),
+                  const SizedBox(width: Space.sm),
+                ],
+                Expanded(child: OutlinedButton.icon(onPressed: _busy ? null : () => _pick(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: Text(camera ? 'Library' : 'Choose photo'))),
               ]),
               if (_busy) const Padding(padding: EdgeInsets.all(Space.xl), child: LoadingState(compact: true)),
               if (_error != null) Padding(padding: const EdgeInsets.only(top: Space.lg), child: Text(_error!, style: context.text.bodyMedium?.copyWith(color: c.caution))),

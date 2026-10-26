@@ -38,7 +38,14 @@ lower body), explanations that quote the recorded sets. 20 unit tests.
 **Nutrition.** Diary by meal with calories, protein, carbs, fat and fiber;
 Open Food Facts search and barcode lookup (direct, or via the server with
 USDA FoodData Central); custom foods (per 100 g or per serving); recipes;
-saved meals; copy meal from yesterday; quick add; water; AI photo estimates
+saved meals; copy meal from yesterday; quick add; water. Food photos are
+recognised on the device (Apple Vision on iPhone and Mac; no account, key
+or network): about 250 food labels map to Forma's reference foods, foods
+logged before come first, the user picks what is on the plate and sets the
+grams, and a kitchen-scale display in the photo is read as the weight.
+Nutrition-label photos are read on the device too (per-100 g column of
+Danish, Nordic, German and English tables; barcode from the same photo).
+With a signed-in server the AI estimate is used instead: AI photo estimates
 with ranges and mandatory review. A kitchen scale visible in the photo is
 read and its weight replaces the portion guess (not applied when the
 reading includes the plate). Photo estimates are kept as foods (and
@@ -98,7 +105,8 @@ when the `SHOREBIRD_TOKEN` secret is added. See [UPDATES.md](UPDATES.md).
 | Item | What is needed |
 | --- | --- |
 | Supabase project | Create a project, `supabase db push`, deploy the four functions, pass URL + publishable key via `--dart-define` |
-| AI coach & photo estimates | `ANTHROPIC_API_KEY` secret on the Supabase project |
+| AI coach & AI photo estimates | `ANTHROPIC_API_KEY` secret on the Supabase project (on-device photo recognition needs nothing) |
+| On-device photo recognition | Tested on a Mac in CI with Apple's real Vision output (`.github/workflows/forma-vision.yml`); not yet tried on an iPhone camera photo |
 | USDA FoodData Central | Free `FDC_API_KEY` secret (Open Food Facts works without a key) |
 | Sign in with Apple | Apple Developer account: Service ID + key configured in Supabase Auth (uses the web OAuth flow; the native entitlement was removed so free Apple IDs can sign the app) |
 | HealthKit | Run on an iPhone (and optionally Apple Watch) with the HealthKit capability and your signing team |

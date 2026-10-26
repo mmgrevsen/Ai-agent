@@ -6,8 +6,8 @@ Forma kan opdateres på tre måder. Vælg den letteste, der passer til ændringe
 | --- | --- | --- |
 | Træningsprogrammer, øvelser, progression, referencefødevarer, coach-forslag, funktionsknapper, beskeder på Overblik | **Indholdsopdatering** (denne guide, afsnit 1) | Nej |
 | AI-coachens og billedgenkendelsens instruktioner | Ret i `forma/supabase/functions/…` og kør `supabase functions deploy` (kræver Supabase-projektet) | Nej |
-| Ren Dart-kode: skærme, tekster, logik, nye funktioner uden nye pakker | **Kodeopdatering med Shorebird** (afsnit 2), når den er sat op | Nej |
-| Nye pakker/plugins, native iOS-kode, rettigheder (Info.plist, entitlements), app-ikon, Flutter-version, ændringer i databaseskemaet | Ny build | **Ja** |
+| Ren Dart-kode: skærme, tekster, logik, nye funktioner uden nye pakker. Det gælder også, hvilke fødevarer billedgenkendelsen foreslår (`lib/features/nutrition/vision/vision_foods.dart`), og hvordan deklarationer og vægtdisplays læses | **Kodeopdatering med Shorebird** (afsnit 2), når den er sat op | Nej |
+| Nye pakker/plugins, native iOS-kode (fx `native/FormaVision.swift`), rettigheder (Info.plist, entitlements), app-ikon, Flutter-version, ændringer i databaseskemaet | Ny build | **Ja** |
 
 Uanset metode ændres jeres logget data aldrig: træning, mad, vægt og historik ligger i den lokale database og røres ikke af opdateringer.
 

@@ -53,14 +53,14 @@ LabelReading? readNutritionLabel(List<VisionTextLine> lines) {
     }
     final portion = _serving.firstMatch(texts[i]);
     if (portion != null && serving == null) {
-      serving = _servingOf(rows[i].text, portion);
+      serving = _servingOf(portion);
       servingX = numbers[i].where((n) => n.value == serving?.grams).firstOrNull?.x;
     }
   }
   // A serving size printed elsewhere ("1 portion = 40 g") is still useful.
   for (var i = 0; i < rows.length && serving == null; i++) {
     final portion = _serving.firstMatch(texts[i]);
-    if (portion != null) serving = _servingOf(rows[i].text, portion);
+    if (portion != null) serving = _servingOf(portion);
   }
   // Only per-serving values: convert them with the printed serving size.
   final perServingOnly = per100X == null && servingX != null && serving != null;
@@ -113,8 +113,8 @@ LabelReading? readNutritionLabel(List<VisionTextLine> lines) {
   final found = [per100g.kcal, per100g.proteinG, per100g.carbsG, per100g.fatG].whereType<double>().length;
   if (found == 0) return null;
 
+  // The form already asks the user to compare every value with the package.
   final caveats = <String>[
-    'Read on this device from your photo. Compare each value with the package.',
     if (perServingOnly) 'The label only shows values per serving (${serving.label}); they were converted to per 100 g.',
     if (perMl) 'The label is per 100 ml; the values are used as per 100 g.',
     if (found < 4) 'Some values could not be read. Fill them in from the package, or leave them empty.',
@@ -164,10 +164,9 @@ RowNumber? _pick(List<RowNumber> numbers, double? per100X, double? servingX) {
   return (kcal: _pick(kcals, per100X, servingX)?.value, kj: _pick(kjs, per100X, servingX)?.value);
 }
 
-ServingOption? _servingOf(String rowText, RegExpMatch portion) {
+ServingOption? _servingOf(RegExpMatch portion) {
   final grams = double.tryParse(portion[2]!.replaceAll(',', '.'));
   if (grams == null || grams <= 0 || grams > 2000 || grams == 100) return null;
-  final unit = portion[3]!;
-  final inBrackets = RegExp(r'\(([^)]*\d[^)]*)\)').firstMatch(rowText)?[1]?.trim();
-  return ServingOption(inBrackets != null ? '1 serving ($inBrackets)' : '1 serving (${portion[2]} $unit)', grams);
+  // The app shows the grams next to the name, so the name doesn't repeat them.
+  return ServingOption(portion[1]!.startsWith('port') ? '1 portion' : '1 serving', grams);
 }

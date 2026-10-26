@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -58,6 +57,13 @@ class MobileScannerBarcodeImageReader implements BarcodeImageReader {
 }
 
 final photoPickerProvider = Provider<PhotoPicker>((ref) => const ImagePickerPhotoPicker());
+
+/// The phone has a camera the app can open. On a Mac photos are chosen from
+/// files (or Photos) instead.
+final photoCameraAvailableProvider = Provider<bool>((ref) => !kIsWeb && defaultTargetPlatform != TargetPlatform.macOS);
+
+/// Camera where there is one, otherwise the photo library.
+ImageSource defaultPhotoSource(WidgetRef ref) => ref.read(photoCameraAvailableProvider) ? ImageSource.camera : ImageSource.gallery;
 
 final barcodeImageReaderProvider = Provider<BarcodeImageReader>((ref) => const MobileScannerBarcodeImageReader());
 

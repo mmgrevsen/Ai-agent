@@ -51,7 +51,7 @@ void main() {
     final matcher = VisionFoodMatcher(testContentBundle().foods);
     var hits = 0;
     for (final MapEntry(key: file, value: words) in foods.entries) {
-      final r = result(file.replaceAll('.jpg', ''));
+      final r = result(file.replaceAll(RegExp(r'\.(jpg|png)$'), ''));
       final groups = matcher.suggest(r.labels);
       final names = [for (final g in groups) ...[g.title, ...g.foods.map((f) => '${f.name} ${f.aliases.join(' ')}')]].join(' | ').toLowerCase();
       final hit = (words as List).any((w) => names.contains((w as String).toLowerCase()));
@@ -76,7 +76,7 @@ void main() {
     bool close(double? got, num want, {double abs = 0.6, double rel = 0.05}) => got != null && (got - want).abs() <= abs + want.abs() * rel;
     for (final MapEntry(key: file, value: v) in labels.entries) {
       final want = v as Map<String, dynamic>;
-      final r = readNutritionLabel(result(file.replaceAll('.jpg', '')).lines);
+      final r = readNutritionLabel(result(file.replaceAll(RegExp(r'\.(jpg|png)$'), '')).lines);
       final got = <String, double?>{
         'kcal': r?.per100g.kcal,
         'protein': r?.per100g.proteinG,
