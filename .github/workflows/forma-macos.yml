@@ -1,0 +1,68 @@
+name: Forma macOS app
+
+# Builds Forma as a native Mac app (Apple silicon and Intel) and publishes
+# Forma-macOS.zip on the `forma-macos-latest` release. It is signed to run
+# locally (no Apple Developer account), so the first launch needs
+# "Open Anyway" in System Settings. See forma/docs/INSTALL-MAC.md.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/lucid-planck-umj6jk]
+    paths:
+      - 'forma/app/**'
+      - '!forma/app/assets/content/**'
+      - '!forma/app/assets/exercises.json'
+      - '!forma/app/test/**'
+      - '!forma/app/integration_test/**'
+      - '!forma/app/ios/**'
+      - '.github/workflows/forma-macos.yml'
+
+concurrency:
+  group: forma-macos
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: forma/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.8
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build
+        run: |
+          content_version=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M)
+          flutter build macos --release --build-number=${{ github.run_number }} \
+            --dart-define=FORMA_BUILD=${{ github.run_number }} --dart-define=FORMA_CONTENT_VERSION=$content_version
+      - name: Package
+        run: |
+          app=build/macos/Build/Products/Release/Forma.app
+          codesign -dv "$app" 2>&1 | head -5 || true
+          lipo -archs "$app/Contents/MacOS/Forma"
+          ditto -c -k --sequesterRsrc --keepParent "$app" Forma-macOS.zip
+          ls -la Forma-macOS.zip
+      - name: Publish on the forma-macos-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          notes="Forma til Mac, build ${{ github.run_number }} (commit ${GITHUB_SHA:0:7}). Pak zip-filen ud, læg Forma i Programmer, og se forma/docs/INSTALL-MAC.md første gang."
+          if gh release view forma-macos-latest >/dev/null 2>&1; then
+            gh release upload forma-macos-latest Forma-macOS.zip --clobber
+            gh release edit forma-macos-latest --notes "$notes"
+          else
+            gh release create forma-macos-latest Forma-macOS.zip --target "$GITHUB_SHA" --title "Forma til Mac" --notes "$notes"
+          fi
