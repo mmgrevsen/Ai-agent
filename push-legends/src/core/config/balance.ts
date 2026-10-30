@@ -81,10 +81,10 @@ export const BALANCE = {
 
   difficulty: {
     /** Baseline multiplier on all enemy health and damage. */
-    baseEnemyPower: 2.6,
+    baseEnemyPower: 3.4,
     /** Global multipliers for boss and mini-boss health and damage (relative to their data values). */
-    bossHpMult: 0.75,
-    bossDamageMult: 0.6,
+    bossHpMult: 0.8,
+    bossDamageMult: 0.65,
     /** Enemy HP and damage multiply by this per global stage (world * 10 + stage). */
     stageGrowth: 1.05,
     /** Extra step multiplier applied at each new world. */
