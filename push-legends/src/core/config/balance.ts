@@ -65,7 +65,9 @@ export const BALANCE = {
     waveIntervalSec: 2.5,
     /** Seconds between individual enemy spawns inside a wave. */
     spawnSpacingSec: 0.9,
-    stageTimeLimitSec: 210,
+    stageTimeLimitSec: 330,
+    /** Campaign stage waves: count = baseWaves + (stage-1)/stagesPerExtraWave; enemies per wave = baseEnemies + stage/2 + world/2 + 2 per wave (max maxEnemies). */
+    stageWaves: { baseWaves: 3, stagesPerExtraWave: 2, baseEnemies: 6, maxEnemies: 18 },
     eliteHpMult: 3.2,
     eliteDamageMult: 1.6,
     eliteGoldMult: 5,

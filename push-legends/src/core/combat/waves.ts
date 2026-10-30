@@ -1,3 +1,4 @@
+import { BALANCE } from '../config/balance';
 import { ENEMY_ROLES, type EnemyRole } from '../content/types';
 import { BOSS_STAGE, getWorld, MINI_BOSS_STAGE } from '../content/worlds';
 import { Rng } from '../rng';
@@ -21,12 +22,13 @@ export function buildStageWaves(world: number, stage: number, seed: number, modi
   const rng = new Rng(seed);
   const w = getWorld(world);
   const roles = availableRoles(world, stage);
-  const waveCount = 2 + Math.floor((stage - 1) / 3);
+  const SW = BALANCE.combat.stageWaves;
+  const waveCount = SW.baseWaves + Math.floor((stage - 1) / SW.stagesPerExtraWave);
   const waves: WaveDef[] = [];
   const eliteChance = stage >= w.eliteFromStage ? (modifiers.includes('elite_surge') ? 0.3 : 0.1) : 0;
 
   for (let i = 0; i < waveCount; i++) {
-    const count = Math.min(12, 4 + Math.floor(stage * 0.4) + Math.floor(world * 0.5) + i);
+    const count = Math.min(SW.maxEnemies, SW.baseEnemies + Math.floor(stage * 0.5) + Math.floor(world * 0.5) + i * 2);
     const spawns: EnemySpawn[] = [];
     let elites = 0;
     for (let k = 0; k < count; k++) {
