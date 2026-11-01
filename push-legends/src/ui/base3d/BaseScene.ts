@@ -139,20 +139,20 @@ export class BaseScene {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.9;
+    this.renderer.toneMappingExposure = 1.05;
     const canvas = this.renderer.domElement;
     canvas.className = `base3d-canvas${this.pixel ? ' pixel' : ''}`;
     canvas.style.touchAction = 'none';
     container.prepend(canvas);
 
-    this.scene.background = new THREE.Color('#a9d4ea');
-    this.scene.fog = new THREE.Fog('#bcd9e6', 120, 320);
-    // Warm low sun with soft shadows; the sky dome lights the shade and is reflected by metal
-    const sunDir = new THREE.Vector3(26, 30, 18).normalize();
-    this.scene.environment = skyEnvironment(this.renderer, '#6fa8d6', '#d7e8ee', '#5d7a45', sunDir);
-    this.scene.environmentIntensity = 0.5;
-    this.scene.add(new THREE.HemisphereLight('#dcecff', '#4d6b35', 0.3));
-    const sun = new THREE.DirectionalLight('#ffe6c0', 2.7);
+    // Golden-hour dusk over a dark keep (the same mood as the battle courtyard)
+    this.scene.background = new THREE.Color('#3a2f33');
+    this.scene.fog = new THREE.Fog('#4a3a36', 110, 300);
+    const sunDir = new THREE.Vector3(34, 20, 14).normalize();
+    this.scene.environment = skyEnvironment(this.renderer, '#3c3d4c', '#b0704a', '#2e2a22', sunDir);
+    this.scene.environmentIntensity = 0.55;
+    this.scene.add(new THREE.HemisphereLight('#9a8a86', '#2a2620', 0.35));
+    const sun = new THREE.DirectionalLight('#ffbf86', 3.0);
     sun.position.copy(sunDir).multiplyScalar(60);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -307,7 +307,7 @@ export class BaseScene {
       deco.rbox(3.1, 0.1, 1.5, 0.03, x, 0.95, z, C.woodDark);
       for (const s of [-1, 1]) for (const dz of [-0.6, 0.6]) deco.tube(0.06, 0.06, 2.4, x + s * 1.4, 1.2, z + dz, C.woodDark, 0, 0, 0, 6);
       for (let i = 0; i < 6; i++) deco.rbox(0.52, 0.06, 1.8, 0.02, x - 1.3 + i * 0.52, 2.45 - 0.0, z + 0.1, i % 2 ? c1 : C.white, 0.25, 0, 0);
-      for (let i = 0; i < 5; i++) deco.ball(0.15, x - 1.0 + i * 0.5, 1.12, z + 0.2, ['#e74c3c', '#f5b041', '#7bd389', '#f5c542', '#b98eff'][i]!);
+      for (let i = 0; i < 5; i++) deco.ball(0.15, x - 1.0 + i * 0.5, 1.12, z + 0.2, ['#6e1d1f', '#8a5a2a', '#4a5a34', '#a8842f', '#4d3a52'][i]!);
     }
     for (const z of [-2, 4, 10, 16]) for (const s of [-1, 1]) {
       const x = s * 3.4;
