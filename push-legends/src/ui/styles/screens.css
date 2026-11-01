@@ -37,7 +37,7 @@ svg.flip,
 .world-nav .icon-btn {
   width: 36px;
   height: 36px;
-  background: rgba(15, 10, 38, 0.75);
+  background: rgba(11, 11, 14, 0.75);
 }
 
 .world-nav .icon-btn:disabled {
@@ -55,8 +55,10 @@ svg.flip,
   position: relative;
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 3px solid #5c4bc4;
-  background: radial-gradient(circle at 40% 30%, #4a3aa8, #241a63);
+  border: 2px solid #4a4640;
+  font-family: var(--font-display);
+  font-weight: 700;
+  background: radial-gradient(circle at 40% 30%, #3a3732, #1d1d22);
   color: var(--text);
   font-size: 18px;
   display: flex;
@@ -79,9 +81,9 @@ svg.flip,
 }
 
 .stage-node.cleared {
-  border-color: var(--gold);
-  background: radial-gradient(circle at 40% 30%, #ffd666, #b8780a);
-  color: #4a2a00;
+  border-color: #a8842f;
+  background: radial-gradient(circle at 40% 30%, #3a3022, #17140f);
+  color: var(--gold);
 }
 
 .stage-node.locked {
@@ -90,22 +92,22 @@ svg.flip,
 }
 
 .stage-node.boss {
-  border-color: #ff5c7a;
+  border-color: #b3232b;
   border-width: 4px;
 }
 
 .stage-node.mini {
-  border-color: #ffb347;
+  border-color: #8f7130;
 }
 
 .stage-node.selected {
-  outline: 3px solid #fff;
+  outline: 2px solid var(--gold);
   outline-offset: 3px;
 }
 
 .stage-node.frontier:not(.cleared) {
   animation: pulse 1.4s ease-in-out infinite;
-  box-shadow: 0 0 16px rgba(255, 201, 74, 0.7), 0 4px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 16px rgba(179, 35, 43, 0.7), 0 4px 0 rgba(0, 0, 0, 0.4);
 }
 
 .stage-check,
@@ -121,7 +123,7 @@ svg.flip,
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #1a1246;
+  border: 2px solid #141418;
 }
 
 .stage-star {
@@ -224,7 +226,7 @@ svg.flip,
   border-radius: var(--radius-l);
   overflow: hidden;
   border: 2px solid var(--panel-edge);
-  background: radial-gradient(circle at 50% 70%, #4a3aa8, #160f42);
+  background: radial-gradient(circle at 50% 70%, #3a3732, #111114);
 }
 
 .slot-grid {
@@ -236,7 +238,7 @@ svg.flip,
 .slot {
   position: relative;
   border-radius: 14px;
-  border: 2px dashed rgba(207, 196, 240, 0.25);
+  border: 2px dashed rgba(214, 201, 173, 0.25);
   background: rgba(0, 0, 0, 0.25);
   padding: 6px;
   display: flex;
@@ -282,7 +284,7 @@ svg.flip,
   height: 46px;
   flex: none;
   border-radius: 12px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--rar) 35%, #241a63), #160f42);
+  background: radial-gradient(circle, color-mix(in srgb, var(--rar) 35%, #1d1d22), #111114);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -453,8 +455,8 @@ svg.flip,
   width: 78px;
   min-height: 74px;
   border-radius: 18px;
-  border: 3px solid #5c4bc4;
-  background: radial-gradient(circle at 40% 30%, #4a3aa8, #241a63);
+  border: 3px solid #4a4640;
+  background: radial-gradient(circle at 40% 30%, #3a3732, #1d1d22);
   color: var(--text);
   display: flex;
   flex-direction: column;
@@ -525,7 +527,7 @@ svg.flip,
   bottom: 8px;
   padding: 8px 10px;
   border-radius: 12px;
-  background: rgba(10, 6, 30, 0.75);
+  background: rgba(8, 8, 10, 0.75);
   font-size: var(--fs-s);
 }
 
@@ -552,7 +554,7 @@ svg.flip,
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  background: linear-gradient(180deg, rgba(15, 10, 38, 0) 0%, rgba(15, 10, 38, 0.9) 55%, #0f0a26 100%);
+  background: linear-gradient(180deg, rgba(11, 11, 14, 0) 0%, rgba(11, 11, 14, 0.9) 55%, #0b0b0e 100%);
 }
 
 .intro-canvas {
@@ -685,7 +687,7 @@ svg.flip,
   transform: translateX(-50%);
   padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(15, 10, 38, 0.55);
+  background: rgba(11, 11, 14, 0.55);
   color: var(--text);
   pointer-events: none;
   white-space: nowrap;

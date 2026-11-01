@@ -40,7 +40,7 @@
   height: 40px;
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.25);
-  background: rgba(15, 10, 38, 0.7);
+  background: rgba(11, 11, 14, 0.7);
   color: #fff;
   display: flex;
   align-items: center;
@@ -59,7 +59,7 @@
   gap: 6px;
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(15, 10, 38, 0.7);
+  background: rgba(11, 11, 14, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.18);
   font-size: var(--fs-s);
 }
@@ -150,7 +150,7 @@
 .battle-controls {
   flex: none;
   padding: 8px 10px calc(var(--safe-bottom) + 10px);
-  background: linear-gradient(180deg, #2a2068, #150f3d);
+  background: linear-gradient(180deg, #1a1a1f, #150f3d);
   border-top: 3px solid var(--panel-edge);
   display: flex;
   flex-direction: column;

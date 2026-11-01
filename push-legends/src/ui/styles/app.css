@@ -20,13 +20,13 @@
 }
 
 :root {
-  --bg-0: #0f0a26;
-  --bg-1: #191243;
+  --bg-0: #0b0b0e;
+  --bg-1: #121216;
   --bg-2: #241a5c;
-  --panel: #2a2068;
-  --panel-2: #372a85;
-  --panel-edge: #5c4bc4;
-  --panel-dark: #1b144a;
+  --panel: #1a1a1f;
+  --panel-2: #232328;
+  --panel-edge: #4a4640;
+  --panel-dark: #141418;
   --gold: #ffc94a;
   --gold-deep: #d98a0b;
   --ember: #ff7a3d;
@@ -37,8 +37,8 @@
   --danger: #ff5c7a;
   --danger-deep: #c2304f;
   --text: #fff8ec;
-  --text-dim: #cfc4f0;
-  --text-faint: #9488c4;
+  --text-dim: #b9b2a3;
+  --text-faint: #857e72;
   /* Rarity colours: restrained metals (see RARITY_FRAME in src/ui/art/darkArt.ts) */
   --r-common: #9aa0a6;
   --r-rare: #8fb2d4;
@@ -131,8 +131,8 @@ select {
   flex-direction: column;
   overflow: hidden;
   background:
-    radial-gradient(120% 60% at 50% -10%, #3b2a9a 0%, transparent 60%),
-    radial-gradient(80% 50% at 100% 100%, #2a1b6b 0%, transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, #3a1416 0%, transparent 60%),
+    radial-gradient(80% 50% at 100% 100%, #1e1214 0%, transparent 60%),
     var(--bg-1);
   box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
 }
@@ -143,8 +143,8 @@ select {
   align-items: center;
   gap: 8px;
   padding: calc(var(--safe-top) + 8px) 12px 8px;
-  background: linear-gradient(180deg, rgba(15, 10, 38, 0.95), rgba(15, 10, 38, 0.7));
-  border-bottom: 1px solid rgba(92, 75, 196, 0.4);
+  background: linear-gradient(180deg, rgba(11, 11, 14, 0.95), rgba(11, 11, 14, 0.7));
+  border-bottom: 1px solid rgba(120, 112, 100, 0.4);
   z-index: 5;
 }
 
@@ -162,7 +162,7 @@ select {
   grid-template-columns: repeat(5, 1fr);
   gap: 4px;
   padding: 6px 8px calc(var(--safe-bottom) + 8px);
-  background: linear-gradient(0deg, #0d0822, #1a1246);
+  background: linear-gradient(0deg, #0b0b0e, #141418);
   border-top: 2px solid var(--panel-edge);
   z-index: 5;
 }
@@ -310,13 +310,13 @@ h3 {
 }
 
 .panel.dark {
-  background: linear-gradient(180deg, #221a58, var(--panel-dark));
-  border-color: #3d3196;
+  background: linear-gradient(180deg, #1a1a1f, var(--panel-dark));
+  border-color: #2e2c29;
 }
 
 .panel.gold {
   border-color: var(--gold);
-  background: linear-gradient(180deg, #4a3a8f, #2f2470);
+  background: linear-gradient(180deg, #2a2620, #1c1a17);
 }
 
 .section-title {
@@ -328,7 +328,7 @@ h3 {
 
 .divider {
   height: 1px;
-  background: rgba(207, 196, 240, 0.15);
+  background: rgba(214, 201, 173, 0.15);
   margin: 10px 0;
 }
 
@@ -530,7 +530,7 @@ h3 {
   padding: 0 5px;
   border-radius: 999px;
   background: var(--danger);
-  border: 2px solid #1a1246;
+  border: 2px solid #141418;
   color: #fff;
   font-family: var(--font-display);
   font-size: 10px;
@@ -913,8 +913,8 @@ h3 {
   align-items: center;
   gap: 10px;
   padding: calc(var(--safe-top) + 10px) 12px 10px;
-  background: linear-gradient(180deg, #0f0a26, rgba(15, 10, 38, 0.6));
-  border-bottom: 1px solid rgba(92, 75, 196, 0.4);
+  background: linear-gradient(180deg, #0b0b0e, rgba(11, 11, 14, 0.6));
+  border-bottom: 1px solid rgba(120, 112, 100, 0.4);
 }
 
 .modal-backdrop {
@@ -1099,7 +1099,7 @@ textarea.field {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #cfc4f0;
+  background: #b9b2a3;
   transition: transform 0.2s;
 }
 
@@ -1189,7 +1189,7 @@ input[type='range'] {
 
 @media (min-width: 560px) {
   body {
-    background: radial-gradient(circle at 50% 0%, #2a1b6b, #07041a 70%);
+    background: radial-gradient(circle at 50% 0%, #1e1214, #07041a 70%);
   }
 }
 
@@ -1247,4 +1247,180 @@ canvas.pixel {
   font-size: 7px;
   letter-spacing: 1px;
   vertical-align: 1px;
+}
+
+/* ==========================================================================================
+ * Dark theme (matches the cards, units and arenas): charcoal and steel instead of purple, muted
+ * gold as the accent, blood red for danger, Cinzel for display type, angular forged panels.
+ * Kept at the end of the file so it wins over the original playful styles above.
+ * ========================================================================================== */
+:root {
+  --bg-0: #0b0b0e;
+  --bg-1: #121216;
+  --bg-2: #1d1d22;
+  --panel: #18181c;
+  --panel-2: #222227;
+  --panel-edge: #3d3a35;
+  --panel-dark: #121215;
+  --gold: #e0bd6a;
+  --gold-deep: #8f7130;
+  --ember: #e07a3d;
+  --sky: #8fb2d4;
+  --sky-deep: #3e5a75;
+  --mint: #7fc48a;
+  --mint-deep: #2f5c38;
+  --danger: #e0434b;
+  --danger-deep: #8a1a1c;
+  --text: #ece2cc;
+  --text-dim: #b9b2a3;
+  --text-faint: #857e72;
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-l: 10px;
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+}
+
+.app {
+  background:
+    radial-gradient(120% 55% at 50% -12%, rgba(138, 26, 28, 0.35) 0%, transparent 60%),
+    radial-gradient(80% 50% at 100% 100%, rgba(143, 113, 48, 0.12) 0%, transparent 60%),
+    var(--bg-1);
+}
+
+.topbar {
+  background: linear-gradient(180deg, rgba(11, 11, 14, 0.97), rgba(11, 11, 14, 0.8));
+  border-bottom: 1px solid rgba(224, 189, 106, 0.18);
+}
+
+.tabbar {
+  background: linear-gradient(0deg, #0b0b0e, #16161a);
+  border-top: 1px solid rgba(224, 189, 106, 0.3);
+}
+
+.tab {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.tab.active {
+  background: linear-gradient(180deg, rgba(224, 189, 106, 0.16), rgba(224, 189, 106, 0.02));
+}
+
+h1,
+h2,
+h3,
+.display,
+.section-title h2,
+.section-title h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.panel {
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--panel-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.panel.dark {
+  background: linear-gradient(180deg, #19191d, #111114);
+  border-color: #2e2c29;
+}
+
+.panel.gold {
+  border-color: rgba(224, 189, 106, 0.7);
+  background: linear-gradient(180deg, #24211c, #17150f);
+  box-shadow: inset 0 1px 0 rgba(224, 189, 106, 0.15), 0 0 18px rgba(224, 189, 106, 0.08), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Buttons: forged plates with bevelled edges instead of glossy candy */
+.btn {
+  --c1: #3e5a75;
+  --c2: #26394b;
+  --edge: #121c26;
+  border-radius: 6px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 3px 0 var(--edge), 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.btn:active:not(:disabled) {
+  box-shadow: 0 1px 0 var(--edge), 0 3px 8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.btn.gold {
+  --c1: #e8c97a;
+  --c2: #a8842f;
+  --edge: #4e3b12;
+  color: #1c1408;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.35);
+}
+.btn.green {
+  --c1: #4f7d57;
+  --c2: #2f5236;
+  --edge: #142417;
+}
+.btn.red {
+  --c1: #b3232b;
+  --c2: #6e1216;
+  --edge: #2e0709;
+}
+.btn.purple {
+  --c1: #4d5055;
+  --c2: #2e3034;
+  --edge: #121315;
+}
+.btn.ghost {
+  --c1: rgba(255, 255, 255, 0.07);
+  --c2: rgba(255, 255, 255, 0.03);
+  --edge: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 0 var(--edge), inset 0 0 0 1px rgba(224, 189, 106, 0.22);
+}
+.btn.big {
+  border-radius: 8px;
+}
+.btn.small {
+  border-radius: 5px;
+}
+
+.chip {
+  border-radius: 4px;
+}
+
+.segmented {
+  border-radius: 8px;
+}
+
+.segmented button.on {
+  background: linear-gradient(180deg, #e8c97a, #a8842f);
+  color: #1c1408;
+}
+
+.field {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(224, 189, 106, 0.25);
+}
+
+.modal {
+  background: linear-gradient(180deg, #1d1d22, #121215);
+  border-color: rgba(224, 189, 106, 0.35);
+}
+
+.overlay {
+  background: var(--bg-1);
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #ece2cc;
+  -webkit-text-stroke: 0;
+  text-shadow: 0 0 18px rgba(179, 35, 43, 0.6), 0 3px 0 #000;
+}
+
+.bar > i {
+  border-radius: 2px;
 }

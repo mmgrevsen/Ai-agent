@@ -15,7 +15,7 @@ import { idleAccrued, idleCapHours } from '../../core/systems/idle';
 import { cardUnlockedAtStage, PET_UNLOCKS } from '../../core/systems/progression';
 import { BUILDINGS } from '../../core/content/buildings';
 import { formatDuration, formatNumber } from '../../core/util';
-import { drawWorldBackground } from '../art/scenery';
+import { drawDarkBackdrop } from '../art/darkScenery';
 import { stageRepsRequired, trainingSummary } from '../../core/systems/training';
 import { drawFigure } from '../art/cardPortraits';
 import { heroPortraitKey } from '../art/heroLook';
@@ -67,7 +67,7 @@ export function HomeScreen() {
           animate
           className="world-banner-canvas"
           draw={(ctx, t) => {
-            drawWorldBackground(ctx, w.index, 492, 150, 118, t, t * 6);
+            drawDarkBackdrop(ctx, w.index, 492, 150, 118, t);
             drawFigure(ctx, `boss:${w.boss.id}`, 292, 2, 111, 148);
             drawFigure(ctx, heroPortraitKey(game), 12, 2, 111, 148);
           }}
@@ -141,7 +141,7 @@ export function HomeScreen() {
         {bossDef && <p className="small dim" style={{ margin: '8px 0 0' }}>{bossDef.hint}</p>}
         <div className="small" style={{ marginTop: 8 }}>
           <span className="chip red">
-            <Icon name="flame" size={14} /> Claim with {stageRepsRequired(game, selected)} push-ups
+            <Icon name="flame" size={14} /> Claim with {stageRepsRequired(game, selected)} reps
           </span>
         </div>
         <div className="row" style={{ marginTop: 12 }}>
@@ -206,7 +206,7 @@ export function HomeScreen() {
           {sword && (
             <button className="list-item tile nudge" onClick={() => store.setTab('hero')}>
               <span className="nudge-icon gold"><Icon name="swords" size={18} /></span>
-              <span className="grow">New sword in the Armory: {getItem(sword.defId).name} ({formatNumber(sword.pushupDamageWith)} damage per push-up)</span>
+              <span className="grow">New sword in the Armory: {getItem(sword.defId).name} ({formatNumber(sword.pushupDamageWith)} damage per rep)</span>
               <span className="chip gold">Buy</span>
             </button>
           )}
@@ -234,7 +234,7 @@ export function HomeScreen() {
           <div className="grow">
             <div className="display">Training</div>
             <div className="small dim">
-              {formatNumber(training.total.all)} push-ups · {formatNumber(Math.round(training.total.kcal))} kcal · today {training.today.reps}/{training.goals.day}
+              {formatNumber(training.total.all)} reps · {formatNumber(Math.round(training.total.kcal))} kcal · today {training.today.reps}/{training.goals.day}
             </div>
           </div>
           <Icon name="back" className="flip" size={20} />

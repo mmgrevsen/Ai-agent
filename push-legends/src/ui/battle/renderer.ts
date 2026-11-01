@@ -5,7 +5,8 @@ import type { DamageType } from '../../core/content/types';
 import { BOSS_BY_ID } from '../../core/content/worlds';
 import { formatNumber } from '../../core/util';
 import { circle, glow, line, rgba, rr, type Ctx } from '../art/draw';
-import { drawBattleProps, drawWorldBackground } from '../art/scenery';
+import { drawBattleProps } from '../art/scenery';
+import { drawDarkBackdrop } from '../art/darkScenery';
 import { drawSprite, spriteHeight, type SpriteKey } from '../art/darkSprites';
 import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } from './placement';
 
@@ -311,7 +312,7 @@ export class BattleRenderer implements PlacementView {
       ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
       this.shake *= 0.86;
     }
-    drawWorldBackground(ctx, battle.setup.world, this.w, this.h, this.groundY, t, 0);
+    drawDarkBackdrop(ctx, battle.setup.world, this.w, this.h, this.groundY, t);
     drawBattleProps(ctx, battle.setup.world, this.sx(BALANCE.combat.heroX) - 6, this.sx(BALANCE.combat.enemySpawnX) + 4, this.groundY + 4, t);
 
     // Telegraph zones (boss attacks) drawn on the ground under units.
