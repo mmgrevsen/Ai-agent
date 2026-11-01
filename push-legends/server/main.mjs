@@ -2,14 +2,17 @@
 /**
  * Push Legends friend server. Zero dependencies: Node 18+ only.
  *
- *   node server/main.mjs [--port 8787] [--data ./friends-data.json]
+ *   node server/main.mjs [--port 8787] [--data ./friends-data.json] [--static ./dist]
+ *
+ * With --static (or STATIC_DIR) it also serves the built game, so one address is both the game and
+ * its friend server: open that address on the phone and log in there (no server address to type).
  *
  * Everyone who should be friends connects their game to the same server address
  * (Settings in the game: Friends -> Online friends). See FRIENDS_SERVER.md.
  */
 import { createServer } from 'node:http';
-import { existsSync, readFileSync, renameSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync, renameSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { emptyState, FriendService } from './core.mjs';
 
 const arg = (/** @type {string} */ name, /** @type {string} */ fallback) => {
@@ -19,6 +22,26 @@ const arg = (/** @type {string} */ name, /** @type {string} */ fallback) => {
 const PORT = Number(arg('port', process.env.PORT ?? '8787'));
 const HOST = arg('host', process.env.HOST ?? '0.0.0.0');
 const DATA = resolve(arg('data', process.env.FRIENDS_DATA ?? 'friends-data.json'));
+const STATIC_ARG = arg('static', process.env.STATIC_DIR ?? '');
+const STATIC = STATIC_ARG ? resolve(STATIC_ARG) : '';
+const MIME = /** @type {Record<string, string>} */ ({
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
+  '.task': 'application/octet-stream',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.txt': 'text/plain; charset=utf-8',
+});
 const MAX_BODY = 32 * 1024;
 /** Cloud saves are bigger than every other request. */
 const MAX_SAVE_BODY = 1024 * 1024;
@@ -48,7 +71,32 @@ function save() {
 }
 setInterval(save, 1000).unref();
 
+/** Serves a file of the built game (GET/HEAD outside /v1). Unknown paths fall back to index.html. */
+function serveStatic(/** @type {import('node:http').IncomingMessage} */ req, /** @type {import('node:http').ServerResponse} */ res) {
+  const pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
+  let file = normalize(join(STATIC, pathname));
+  // Never leave the static folder (.. and absolute tricks)
+  if (file !== STATIC && !file.startsWith(STATIC + sep)) {
+    res.writeHead(403).end('Forbidden');
+    return;
+  }
+  if (!existsSync(file) || !statSync(file).isFile()) file = join(STATIC, 'index.html');
+  if (!existsSync(file)) {
+    res.writeHead(404).end('Game files not found. Build the game first (npm run build).');
+    return;
+  }
+  const ext = extname(file);
+  const cache = file.includes(`${sep}assets${sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache';
+  res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'application/octet-stream', 'Cache-Control': cache });
+  if (req.method === 'HEAD') res.end();
+  else res.end(readFileSync(file));
+}
+
 const server = createServer((req, res) => {
+  if (STATIC && (req.method === 'GET' || req.method === 'HEAD') && !(req.url ?? '').startsWith('/v1/')) {
+    serveStatic(req, res);
+    return;
+  }
   // The game runs from file://, localhost and app WebViews, so any origin may call the API.
   // Auth is a bearer token (no cookies), which keeps this safe.
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -98,7 +146,7 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Push Legends friend server on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}  (data: ${DATA})`);
+  console.log(`Push Legends friend server on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}  (data: ${DATA})${STATIC ? `  serving the game from ${STATIC}` : ''}`);
 });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {

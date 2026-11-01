@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { authenticate, chooseSave, DEFAULT_SERVER, playOffline, type SaveChoice } from '../../app/friends';
+import { useEffect, useState, type FormEvent } from 'react';
+import { authenticate, chooseSave, DEFAULT_SERVER, detectOwnServer, playOffline, type SaveChoice } from '../../app/friends';
 import { useGame } from '../../app/store';
 import { sound } from '../../platform/audio';
 import { drawLineup } from '../art/cardPortraits';
@@ -21,6 +21,21 @@ export function LoginScreen() {
   const [error, setError] = useState('');
   const [unreachable, setUnreachable] = useState(false);
   const [choice, setChoice] = useState<SaveChoice | null>(null);
+  const [own, setOwn] = useState(false);
+
+  // Opened from a friend server (one link for game and server): use it, no address to type
+  useEffect(() => {
+    let live = true;
+    void detectOwnServer().then((base) => {
+      if (live && base) {
+        setServer(base);
+        setOwn(true);
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,7 +115,9 @@ export function LoginScreen() {
               {busy ? 'One moment...' : mode === 'login' ? 'Log in' : 'Create account'}
             </button>
             <div className="spread xsmall faint">
-              {editServer ? (
+              {own && !editServer ? (
+                <span>Connected to this game server</span>
+              ) : editServer ? (
                 <input className="field grow" value={server} onChange={(e) => setServer(e.target.value)} aria-label="Server address" placeholder="Server address, e.g. 192.168.1.20:8787" />
               ) : (
                 <span>Server: {server}</span>

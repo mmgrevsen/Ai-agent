@@ -61,7 +61,9 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; m
 export function normalizeServerUrl(input: string): string | null {
   let s = input.trim();
   if (!s) return null;
-  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  // On an https page a typed address defaults to https (browsers block plain http from https pages)
+  const secure = typeof location !== 'undefined' && location.protocol === 'https:' && !/^(localhost|127\.|\[::1\])/i.test(s);
+  if (!/^https?:\/\//i.test(s)) s = `${secure ? 'https' : 'http'}://${s}`;
   try {
     const u = new URL(s);
     return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, '')}`;

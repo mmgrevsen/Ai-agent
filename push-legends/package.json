@@ -16,7 +16,8 @@
     "predev": "node scripts/prepare-assets.mjs",
     "prebuild": "node scripts/prepare-assets.mjs",
     "build:mac": "vite build --mode single && node scripts/make-single-file.mjs",
-    "friends-server": "node server/main.mjs"
+    "friends-server": "node server/main.mjs",
+    "serve": "npm run build && node server/main.mjs --static dist"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",

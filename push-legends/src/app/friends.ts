@@ -62,6 +62,30 @@ function showcase(): FriendShowcase {
 /** Default address on the login screen (a build can set VITE_FRIEND_SERVER). */
 export const DEFAULT_SERVER: string = (import.meta.env.VITE_FRIEND_SERVER as string | undefined) ?? 'localhost:8787';
 
+/**
+ * When the game is opened from a friend server (`node server/main.mjs --static dist`, or a hosted
+ * copy), that server is the one to use: returns its address, or null if this page is not served by one.
+ */
+export async function detectOwnServer(): Promise<string | null> {
+  if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return null;
+  const base = location.origin;
+  const r = await new FriendsApi(base, '').health();
+  return r.ok && r.data.service === 'push-legends-friends' ? base : null;
+}
+
+/** Plain-language reason a server could not be reached, including the https/http mix-up. */
+export function unreachableHelp(address: string): string {
+  const secure = typeof location !== 'undefined' && location.protocol === 'https:';
+  const base = normalizeServerUrl(address) ?? '';
+  if (secure && base.startsWith('http://') && !/^http:\/\/(localhost|127\.|\[::1\])/i.test(base)) {
+    return 'This page is secure (https), so the browser blocks a plain http server. Use an https server address, or open the game from the server itself.';
+  }
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(base) && typeof location !== 'undefined' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    return '"localhost" means this phone itself. Enter the address of the computer or hosted server that runs the friend server.';
+  }
+  return '';
+}
+
 /** A save on the server and one on this device that both have progress: the player picks. */
 export interface SaveChoice {
   cloud: { savedAt: number; stage: number; heroLevel: number; name: string };
@@ -119,7 +143,7 @@ export async function authenticate(mode: 'login' | 'signup', address: string, us
   }
   const anon = new FriendsApi(base, '');
   const health = await anon.health();
-  if (!health.ok) return { ok: false, message: health.message, unreachable: true };
+  if (!health.ok) return { ok: false, message: `${unreachableHelp(address) || health.message}`, unreachable: true };
   if (health.data.service !== 'push-legends-friends') return { ok: false, message: 'That address is not a Push Legends server.' };
   const g = store.state;
   const name = g.profile.name && g.profile.name !== 'Hero' ? g.profile.name : username;

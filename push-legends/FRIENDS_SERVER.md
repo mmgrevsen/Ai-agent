@@ -96,3 +96,27 @@ Verified global leaderboards still need the server-authoritative design in BACKE
 | DELETE | `/v1/challenges/:id` | Mark a received duel as picked up |
 
 Tests: `tests/friendsServer.test.mjs` (service logic and a real HTTP round trip with restart).
+
+## One link for the phone: game + login + friends from the same address
+
+The server can also serve the built game (`--static dist`). Open that one address on the phone and
+log in: the game finds its own server, there is no address to type, and everything is same-origin.
+
+```bash
+npm run serve            # builds the game, then serves it and the friend API on http://localhost:8787
+```
+
+The phone needs an **https** address (browsers only allow the camera on https, and an https page may
+not talk to a plain http server). Two ways to get one:
+
+1. **Hosted (recommended, always on):** the repository root has a `render.yaml`. On render.com choose
+   *New → Blueprint*, pick this repository and deploy. You get `https://push-legends-xxxx.onrender.com`,
+   with a 1 GB disk that keeps accounts and saves. (A Dockerfile is in `push-legends/` for any other
+   Docker host, e.g. Fly.io or a VPS: mount a volume at `/data`.)
+2. **From your own computer, temporarily:** run `npm run serve` and start a tunnel, for example
+   `cloudflared tunnel --url http://localhost:8787` (or `ngrok http 8787`). The tunnel prints an
+   https address that reaches your computer while it is running.
+
+The game on GitHub (raw.githack.com) or as `PushLegends.html` has no server of its own: there the
+login screen says so and offers "Play offline for now". Progress made offline joins the account at
+the next login.

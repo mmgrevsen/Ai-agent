@@ -27,3 +27,29 @@ Godt at vide
   Et hurtigt tryk sender dem ud fra porten. AUTO-knappen gælder kun den kamp, du er i.
 - Har du hentet filen flere gange, hedder de nye "PushLegends-1.html" osv. Slet de gamle.
   Versionen står nederst i Settings og i pause-menuen ("build ...").
+
+
+--------------------------------------------------------------------------------
+LOGIN OG VENNER PAA TELEFONEN (et link til alt)
+--------------------------------------------------------------------------------
+Login og venner kraever en server. Den kan nu ogsaa udlevere selve spillet, saa du kun skal aabne
+EN adresse paa telefonen og logge ind - du skal ikke skrive en serveradresse.
+
+Du skal bruge en https-adresse (kameraet virker kun paa https).
+
+A) Hosting (anbefalet, kører altid):
+   1. Gaa til render.com og opret en konto.
+   2. New -> Blueprint -> vaelg dit GitHub-repo "Ai-agent" -> Deploy.
+   3. Efter nogle minutter faar du en adresse som https://push-legends-xxxx.onrender.com .
+      Aabn den paa telefonen, opret konto, og send adressen til dine venner.
+   (Render tager penge for en server med disk. Alternativt kan filen push-legends/Dockerfile bruges
+   paa andre Docker-hosts.)
+
+B) Midlertidigt fra din egen Mac:
+   1. I mappen push-legends: npm run serve
+   2. I et nyt vindue: npx cloudflared tunnel --url http://localhost:8787
+      (eller ngrok http 8787). Den skriver en https-adresse - aabn den paa telefonen.
+   Det virker kun, mens din Mac er taendt og kommandoerne koerer.
+
+PushLegends.html og linket via GitHub har ingen server: der kan du kun spille offline
+("Play offline for now"), og dine fremskridt foelger med til din konto ved naeste login.
