@@ -128,7 +128,7 @@ const stopServer = () => {
   await page.getByRole('button', { name: /^Battle$/ }).first().click({ force: true });
   await page.waitForTimeout(500);
   await shot('16-prebattle');
-  await page.getByRole('tab', { name: 'Full push-ups' }).click({ force: true });
+  await page.locator('.exercise-opt', { hasText: 'Push-ups' }).first().click({ force: true });
   await page.getByRole('button', { name: /Fight!/ }).click({ force: true });
   await page.waitForTimeout(800);
   await shot('17-camera-intro');
