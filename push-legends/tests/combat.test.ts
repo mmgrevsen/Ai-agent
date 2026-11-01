@@ -43,7 +43,7 @@ describe('combat engine', () => {
     const setup = campaignSetup(s, 0, 'normal');
     expect(setup.repsRequired).toBeGreaterThanOrEqual(3);
     const b = new Battle(setup);
-    while (b.time < setup.timeLimit + 300) b.step(0.1);
+    while (b.time < setup.timeLimit + 300 && !b.isOver) b.step(0.1);
     // Waves beaten long ago, time limit long passed: still waiting, no victory and no timeout
     expect(b.isOver).toBe(false);
     expect(b.awaitingReps).toBe(true);
@@ -57,7 +57,7 @@ describe('combat engine', () => {
     const s = createInitialState(NOW, 1);
     s.settings.autoDeploy = true;
     const b = new Battle(campaignSetup(s, 0, 'normal'));
-    while (!b.awaitingReps && b.time < 600) b.step(0.1);
+    while (!b.awaitingReps && !b.isOver && b.time < 600) b.step(0.1);
     expect(b.awaitingReps).toBe(true);
     b.retreat();
     const r = b.result();

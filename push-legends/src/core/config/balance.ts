@@ -91,6 +91,10 @@ export const BALANCE = {
     stageGrowth: 1.05,
     /** Extra step multiplier applied at each new world. */
     worldStep: 1.06,
+    /** The first stages ramp up: stage index i < easeStages gets × (easeStart + i × easeStep). */
+    easeStages: 6,
+    easeStart: 0.55,
+    easeStep: 0.075,
     story: { power: 0.65, rewards: 0.6 },
     normal: { power: 1, rewards: 1 },
     heroic: { power: 1.45, rewards: 1.8 },

@@ -16,7 +16,8 @@ export function difficultyMultiplier(index: number, difficulty: Difficulty = 'no
     BALANCE.difficulty.baseEnemyPower *
     Math.pow(BALANCE.difficulty.stageGrowth, index) *
     Math.pow(BALANCE.difficulty.worldStep, world) *
-    BALANCE.difficulty[difficulty].power
+    BALANCE.difficulty[difficulty].power *
+    (index < BALANCE.difficulty.easeStages ? BALANCE.difficulty.easeStart + BALANCE.difficulty.easeStep * index : 1)
   );
 }
 
