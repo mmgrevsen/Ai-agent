@@ -106,9 +106,9 @@ const stopServer = () => {
   await page.getByRole('button', { name: /^Upgrade$/ }).click().catch(() => {});
   await page.waitForTimeout(300);
   // Close the sheet if it is still open (e.g. not enough gold): tap the dimmed area above it
-  if (await page.locator('.modal-backdrop').count()) {
-    await page.mouse.click(195, 400);
-    await page.waitForTimeout(400);
+  for (let i = 0; i < 5 && (await page.locator('.modal-backdrop').count()); i++) {
+    await page.locator('.modal-backdrop').click({ position: { x: 195, y: 300 }, force: true }).catch(() => {});
+    await page.waitForTimeout(500);
   }
   // modes + social + settings
   await page.getByRole('navigation').getByRole('button', { name: /Battle/ }).click({ force: true });
