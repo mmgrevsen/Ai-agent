@@ -625,8 +625,8 @@ svg.flip,
 .plot-collect {
   pointer-events: auto;
   font-family: var(--font-display);
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 10px;
+  border: 1px solid rgba(224, 189, 106, 0.6);
+  border-radius: 4px;
   padding: 2px 8px 3px;
   line-height: 1.1;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.25);
@@ -638,12 +638,13 @@ svg.flip,
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(36, 26, 92, 0.88);
+  background: rgba(14, 13, 12, 0.88);
   color: var(--text);
 }
 
 .plot-tag.locked {
-  background: rgba(60, 56, 80, 0.8);
+  background: rgba(20, 19, 18, 0.75);
+  border-color: rgba(255, 255, 255, 0.18);
   color: var(--text-dim);
 }
 

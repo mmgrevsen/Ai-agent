@@ -197,29 +197,29 @@ export class BaseScene {
     const { minX, maxX, minZ, maxZ } = MAP;
     // Meadow outside, lush lawn inside the walls
     // Built with the Kit so the meadow gets the same procedural colour patches and grain
-    const grass = new K().add(new THREE.PlaneGeometry(500, 500, 40, 40), '#5f8a42', 0, -0.2, 0, -Math.PI / 2).build(false);
+    const grass = new K().add(new THREE.PlaneGeometry(500, 500, 40, 40), '#3e4a2e', 0, -0.2, 0, -Math.PI / 2).build(false);
     this.world.add(grass);
 
     const ground = new K();
-    ground.box(maxX - minX, 0.2, maxZ - minZ, 0, -0.2, 0, '#76a650');
+    ground.box(maxX - minX, 0.2, maxZ - minZ, 0, -0.2, 0, '#475536');
     // Cobblestone roads
     for (const [x0, z0, x1, z1] of ROADS) {
-      ground.box(x1 - x0 + 0.5, 0.06, z1 - z0 + 0.5, (x0 + x1) / 2, -0.02, (z0 + z1) / 2, '#a99b86');
+      ground.box(x1 - x0 + 0.5, 0.06, z1 - z0 + 0.5, (x0 + x1) / 2, -0.02, (z0 + z1) / 2, '#5a524a');
       const step = 0.62;
       for (let x = x0 + step / 2; x < x1; x += step) {
         for (let z = z0 + step / 2; z < z1; z += step) {
           const ox = (Math.floor((z - z0) / step) % 2) * step * 0.5;
           if (x + ox > x1) continue;
-          ground.box(step - 0.1, 0.07, step - 0.1, x + ox, 0.0, z, shadeHex('#d6c9b3', (rand() - 0.5) * 0.14), rand() * 0.3);
+          ground.box(step - 0.1, 0.07, step - 0.1, x + ox, 0.0, z, shadeHex('#7a7268', (rand() - 0.5) * 0.14), rand() * 0.3);
         }
       }
     }
     // Road over the bridge and out of the gate
-    ground.box(5.2, 0.05, 30, 0, -0.15, maxZ + 18, '#cdb894');
+    ground.box(5.2, 0.05, 30, 0, -0.15, maxZ + 18, '#6a5e4c');
     for (let i = 0; i < 30; i++) {
       const a = rand() * Math.PI * 2;
       const r = 34 + rand() * 50;
-      ground.add(new THREE.CircleGeometry(2 + rand() * 4, 8), '#66ad48', Math.cos(a) * r, -0.18, Math.sin(a) * r, -Math.PI / 2, 0, rand() * 3);
+      ground.add(new THREE.CircleGeometry(2 + rand() * 4, 8), '#3f5530', Math.cos(a) * r, -0.18, Math.sin(a) * r, -Math.PI / 2, 0, rand() * 3);
     }
     const groundMesh = ground.build(false, BUILD_MAT);
     groundMesh.receiveShadow = true;
