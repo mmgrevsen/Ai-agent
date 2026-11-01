@@ -27,7 +27,7 @@ const stopServer = () => {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
-  const shot = (n) => page.screenshot({ path: `${OUT}/${n}.png` });
+  const shot = (n) => page.screenshot({ path: `${OUT}/${n}.png`, timeout: 120000 });
   await page.goto(URL);
   await page.waitForTimeout(1200);
   // Login screen first: create an account
