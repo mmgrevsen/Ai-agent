@@ -83,7 +83,7 @@ export const BALANCE = {
 
   difficulty: {
     /** Baseline multiplier on all enemy health and damage. */
-    baseEnemyPower: 3.4,
+    baseEnemyPower: 3.8,
     /** Global multipliers for boss and mini-boss health and damage (relative to their data values). */
     bossHpMult: 0.8,
     bossDamageMult: 0.65,
@@ -127,6 +127,17 @@ export const BALANCE = {
     /** Gold price of one fragment in the shop, per rarity, scaled by world. */
     shopFragmentGold: { common: 12, rare: 30, epic: 80, legendary: 260, mythic: 400 },
     shopFragmentGlory: { common: 2, rare: 5, epic: 12, legendary: 40, mythic: 60 },
+    /**
+     * Rank milestones: reaching each level gives the card a rank and a permanent extra bonus to
+     * health and damage on top of the per-level growth (shown on the card).
+     */
+    ranks: [
+      { level: 5, name: 'Veteran' },
+      { level: 10, name: 'Elite' },
+      { level: 15, name: 'Champion' },
+      { level: 20, name: 'Legend' },
+    ],
+    rankBonus: 0.06,
     deckSize: 8,
     normalizedPvpLevel: 10,
   },

@@ -1,3 +1,4 @@
+import { statMultiplier } from './cards';
 import { BALANCE } from '../config/balance';
 import { BUILDING_EFFECTS } from '../content/buildings';
 import { getItem, type ItemEffect, type StatKey } from '../content/equipment';
@@ -96,7 +97,7 @@ export function powerRating(state: GameState): number {
   let cardPower = 0;
   for (const id of state.deck) {
     const lvl = state.cards[id]?.level ?? 1;
-    cardPower += 100 * Math.pow(BALANCE.cards.statGrowth, lvl - 1);
+    cardPower += 100 * statMultiplier(lvl);
   }
   const avgCard = state.deck.length ? cardPower / state.deck.length : 0;
   return Math.round(avgCard * 8 * hero.armyDamage * hero.armyHp + hero.hp * 0.3 + hero.damage * 4);

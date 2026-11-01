@@ -1,3 +1,5 @@
+import { BALANCE } from '../core/config/balance';
+import { formatNumber } from '../core/util';
 import { useSyncExternalStore } from 'react';
 import type { Difficulty } from '../core/config/balance';
 import type { BuildingId } from '../core/content/buildings';
@@ -12,7 +14,7 @@ import { SaveManager } from '../core/state/save';
 import type { GameState, Settings } from '../core/state/types';
 import { blitzSetup, campaignSetup, challengeSetup, endlessSetup, weeklySetup } from '../core/systems/battleSetup';
 import { collectMine, skipBuildingUpgrade, startBuildingUpgrade } from '../core/systems/buildings';
-import { suggestDeck, swapDeckCard, toggleDeckCard, upgradeCard, setDeck } from '../core/systems/cards';
+import { suggestDeck, swapDeckCard, toggleDeckCard, upgradeCard, setDeck, cardRank, upgradeAllAffordable } from '../core/systems/cards';
 import { buyChest, openPendingChest, type ChestPurchase, type ChestResult } from '../core/systems/chests';
 import { abandonDungeon, enterNode, finalizeDungeonBattle, pickShrineCard, startDungeon, type DungeonRoomSummary, type RoomOutcome } from '../core/systems/dungeon';
 import { equipItem, unequipSlot, upgradeItem } from '../core/systems/equipment';
@@ -320,9 +322,26 @@ export class GameStore {
     if (ok) {
       sound.play('upgrade');
       haptic('success');
-      this.toast(`${getCard(id).name} reached level ${this.game.cards[id]!.level}!`, 'good');
+      const lvl = this.game.cards[id]!.level;
+      const rank = cardRank(lvl);
+      const rankedUp = BALANCE.cards.ranks.some((r) => r.level === lvl);
+      this.toast(rankedUp ? `${getCard(id).name} is now ${rank.name}! +${Math.round(BALANCE.cards.rankBonus * 100)}% health and damage` : `${getCard(id).name} reached level ${lvl}!`, 'good');
       this.completeTutorial('upgradeHint');
     } else sound.play('error');
+  }
+
+  /** Spends gold and fragments on every affordable card upgrade (cheapest first, deck first). */
+  upgradeAll(): void {
+    let r = { levels: 0, gold: 0, rankUps: [] as string[] };
+    this.update((s) => {
+      r = upgradeAllAffordable(s);
+      if (r.levels) applyQuestEvent(s, { type: 'cardUpgraded', amount: r.levels });
+    });
+    if (!r.levels) return sound.play('error');
+    sound.play('upgrade');
+    haptic('success');
+    this.toast(`${r.levels} upgrade${r.levels === 1 ? '' : 's'} for ${formatNumber(r.gold)} gold${r.rankUps.length ? ` · rank up: ${r.rankUps.map((id) => getCard(id).name).join(', ')}` : ''}`, 'good');
+    this.completeTutorial('upgradeHint');
   }
 
   toggleDeck(id: string): void {

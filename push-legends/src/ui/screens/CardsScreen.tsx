@@ -3,7 +3,7 @@ import { store, useGame } from '../../app/store';
 import { BALANCE } from '../../core/config/balance';
 import { CARDS, getCard } from '../../core/content/cards';
 import { RARITIES, type CardDef, type UnitRole } from '../../core/content/types';
-import { averageDeckCost, cardStats, checkCardUpgrade, discoverableCards, fragmentsForUpgrade } from '../../core/systems/cards';
+import { averageDeckCost, cardRank, cardStats, checkCardUpgrade, discoverableCards, fragmentsForUpgrade } from '../../core/systems/cards';
 import { chestOdds, chestPrice, CHEST_NAMES } from '../../core/systems/chests';
 import { dailyOffers, gloryPrice } from '../../core/systems/shop';
 import { decodeDeck, encodeDeck } from '../../core/social/codes';
@@ -30,6 +30,7 @@ export function CardsScreen() {
     if (sort === 'name') return a.name.localeCompare(b.name);
     return RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity);
   };
+  const upgradable = owned.filter((c) => checkCardUpgrade(game, c.id).ok).length;
   const collection = owned.filter((c) => !game.deck.includes(c.id) && (role === 'all' || c.role === role)).sort(sorter);
 
   const tile = (id: string) => {
@@ -73,6 +74,11 @@ export function CardsScreen() {
             </div>
             <div className="deck-grid">{game.deck.map(tile)}</div>
             <div className="row" style={{ marginTop: 12 }}>
+              {upgradable > 0 && (
+                <button className="btn small gold grow" onClick={() => store.upgradeAll()}>
+                  <Icon name="up" size={16} /> Upgrade all ({upgradable})
+                </button>
+              )}
               <button className="btn small purple grow" onClick={() => store.autoDeck()}>
                 <Icon name="auto" size={16} /> Auto-build
               </button>
@@ -325,6 +331,7 @@ export function CardModal({ id }: { id: string }) {
   const next = cardStats(def, Math.min(BALANCE.cards.maxLevel, level + 1));
   const inDeck = game.deck.includes(id);
   const maxed = level >= BALANCE.cards.maxLevel;
+  const rank = cardRank(level);
   const unlockText = def.unlock.kind === 'stage' ? `Clear stage ${def.unlock.world + 1}-${def.unlock.stage}, or find fragments in chests once you reach World ${def.unlock.world + 1}.` : 'Starter card.';
   return (
     <ModalShell label={def.name} onClose={() => store.closeModal()}>
@@ -347,6 +354,7 @@ export function CardModal({ id }: { id: string }) {
             {p && (
               <div className="small">
                 Level <b className="display">{level}</b> / {BALANCE.cards.maxLevel}
+                {rank.name && <span className="chip gold" style={{ marginLeft: 6 }}>{rank.name}</span>}
               </div>
             )}
           </div>
@@ -420,6 +428,22 @@ export function CardModal({ id }: { id: string }) {
             ))}
           </div>
         </div>
+        {p && (
+          <div className="rank-track" aria-label="Rank milestones">
+            {BALANCE.cards.ranks.map((r) => (
+              <div key={r.level} className={`rank-step ${level >= r.level ? 'done' : ''} ${rank.next?.level === r.level ? 'next' : ''}`}>
+                <span className="rank-gem" />
+                <span className="xsmall">{r.name}</span>
+                <span className="xsmall faint">Lv {r.level}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {p && rank.next && (
+          <div className="xsmall dim center" style={{ marginTop: -6 }}>
+            {rank.next.level - level === 1 ? 'Next upgrade' : `${rank.next.level - level} levels to`} <b>{rank.next.name}</b>: +{Math.round(BALANCE.cards.rankBonus * 100)}% health and damage on top of the level gain.
+          </div>
+        )}
         {p ? (
           <>
             {!maxed && (
@@ -440,7 +464,7 @@ export function CardModal({ id }: { id: string }) {
               </button>
               {!maxed && (
                 <button className="btn gold grow" disabled={!check.ok} onClick={() => store.upgradeCard(id)}>
-                  <Icon name="up" size={18} /> {formatNumber(check.gold)}
+                  <Icon name="up" size={18} /> {rank.next?.level === level + 1 ? 'Rank up' : `+${Math.round((next.hp / cur.hp - 1) * 100)}%`} · {formatNumber(check.gold)}
                 </button>
               )}
             </div>

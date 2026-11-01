@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { store } from '../../app/store';
 import { getCard } from '../../core/content/cards';
+import { cardRank } from '../../core/systems/cards';
 import type { BuildingId } from '../../core/content/buildings';
 import type { Reward } from '../../core/content/quests';
 import type { Rarity } from '../../core/content/types';
@@ -199,7 +200,12 @@ export function CardTile({ cardId, level, fragments, need, inDeck, locked, canUp
         <span className="card-rarity-icon">{RARITY_SYMBOL[def.rarity]}</span>
         <div className="card-inner">
           <CardArt cardId={cardId} width={width - 6} />
-          {level !== undefined && !locked && <div className="card-level">Lv {level}</div>}
+          {level !== undefined && !locked && (
+            <div className="card-level">
+              Lv {level}
+              {cardRank(level).rank > 0 && <span className="card-rank" aria-label={cardRank(level).name ?? ''}>{'◆'.repeat(cardRank(level).rank)}</span>}
+            </div>
+          )}
           {locked && (
             <div className="card-level row center">
               <Icon name="lock" size={11} /> Locked

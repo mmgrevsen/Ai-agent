@@ -10,8 +10,15 @@ export interface CardStats {
   dps: number;
 }
 
+/** Rank reached at a level: 0 = none, 1 = Veteran (Lv 5) ... 4 = Legend (Lv 20). */
+export function cardRank(level: number): { rank: number; name: string | null; next: { level: number; name: string } | null } {
+  const ranks = BALANCE.cards.ranks;
+  const rank = ranks.filter((r) => level >= r.level).length;
+  return { rank, name: rank ? ranks[rank - 1]!.name : null, next: ranks[rank] ?? null };
+}
+
 export function statMultiplier(level: number): number {
-  return Math.pow(BALANCE.cards.statGrowth, Math.max(0, level - 1));
+  return Math.pow(BALANCE.cards.statGrowth, Math.max(0, level - 1)) * (1 + BALANCE.cards.rankBonus * cardRank(level).rank);
 }
 
 export function cardStats(def: CardDef, level: number): CardStats {
@@ -56,6 +63,30 @@ export function upgradeCard(state: GameState, cardId: string): boolean {
   state.resources.gold -= check.gold;
   if (progress.level >= BALANCE.cards.maxLevel) convertSurplusFragments(state, cardId);
   return true;
+}
+
+/**
+ * Upgrades as many cards as gold and fragments allow, cheapest first (deck cards before the rest).
+ * Returns how many levels were gained and the gold spent.
+ */
+export function upgradeAllAffordable(state: GameState): { levels: number; gold: number; rankUps: string[] } {
+  let levels = 0;
+  let gold = 0;
+  const rankUps: string[] = [];
+  for (;;) {
+    const options = Object.keys(state.cards)
+      .map((id) => ({ id, check: checkCardUpgrade(state, id), deck: state.deck.includes(id) }))
+      .filter((o) => o.check.ok)
+      .sort((a, b) => Number(b.deck) - Number(a.deck) || a.check.gold - b.check.gold);
+    const pick = options[0];
+    if (!pick) break;
+    const before = cardRank(state.cards[pick.id]!.level).rank;
+    gold += pick.check.gold;
+    upgradeCard(state, pick.id);
+    levels++;
+    if (cardRank(state.cards[pick.id]!.level).rank > before) rankUps.push(pick.id);
+  }
+  return { levels, gold, rankUps };
 }
 
 /**

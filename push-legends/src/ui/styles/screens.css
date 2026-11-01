@@ -817,3 +817,40 @@ svg.flip,
 .day-bar.on i {
   box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 3px var(--gold);
 }
+
+/* Card rank milestones (Veteran, Elite, Champion, Legend) */
+.rank-track {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rank-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.5;
+}
+
+.rank-step.done,
+.rank-step.next {
+  opacity: 1;
+}
+
+.rank-gem {
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  border: 1.5px solid #8f7130;
+  background: #1d1d22;
+}
+
+.rank-step.done .rank-gem {
+  background: linear-gradient(135deg, #e0bd6a, #8f7130);
+  box-shadow: 0 0 6px rgba(224, 189, 106, 0.6);
+}
+
+.rank-step.next .rank-gem {
+  border-color: #e0bd6a;
+}

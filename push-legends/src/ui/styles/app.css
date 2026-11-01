@@ -1240,3 +1240,11 @@ canvas.pixel {
   top: -4px;
   right: -4px;
 }
+
+.card-rank {
+  margin-left: 3px;
+  color: #e0bd6a;
+  font-size: 7px;
+  letter-spacing: 1px;
+  vertical-align: 1px;
+}
