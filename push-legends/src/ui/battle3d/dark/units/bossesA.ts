@@ -317,14 +317,14 @@ function rimeclaw(p: Palette): Rig {
   const { rig, frame, k, gb } = bossRig('biped');
 
   // Frozen gown: wide torn hem, an overskirt split at the front, icicles at the belt
-  put(k, xf(tornLatheGeo([[0.86, 0], [0.76, 0.14], [0.56, 0.7], [0.4, 1.3], [0.28, 1.78], [0.24, 2.0]], 22, 0.28, 7), 0, 0, -0.08, 0, 0, 0, 1, 1, 1.25), GOWN);
-  put(k, tornLatheGeo([[0.8, 0.3], [0.66, 0.75], [0.46, 1.35], [0.33, 1.82], [0.28, 2.0]], 22, 0.5, 13), GOWN_HI);
+  put(k, xf(tornLatheGeo([[0.74, 0], [0.66, 0.14], [0.5, 0.7], [0.4, 1.3], [0.28, 1.78], [0.24, 2.0]], 22, 0.28, 7), 0, 0, -0.08, 0, 0, 0, 1, 1, 1.25), GOWN);
+  put(k, tornLatheGeo([[0.66, 0.3], [0.56, 0.75], [0.42, 1.35], [0.33, 1.82], [0.28, 2.0]], 22, 0.5, 13), GOWN_HI);
   // A shard-frost seam down the front, splitting towards the hem
   const seam = (pts: V[]) => gb.add(segLine(pts, 0.011, 0.004, 4));
-  const gx = (y: number) => 0.24 + (0.98 - 0.24) * Math.pow(1 - y / 2, 1.4);
+  const gx = (y: number) => 0.24 + (0.74 - 0.24) * Math.pow(1 - y / 2, 1.4);
   seam([[0, 1.95, 0.29], [0.03, 1.5, gx(1.5) - 0.02], [-0.04, 1.1, gx(1.1) + 0.02], [0.02, 0.7, gx(0.7) + 0.05]]);
-  seam([[0.02, 0.7, gx(0.7) + 0.05], [0.22, 0.35, gx(0.35) + 0.06], [0.32, 0.12, 0.88]]);
-  seam([[0.02, 0.7, gx(0.7) + 0.05], [-0.18, 0.4, gx(0.4) + 0.05], [-0.34, 0.15, 0.86]]);
+  seam([[0.02, 0.7, gx(0.7) + 0.05], [0.22, 0.35, gx(0.35) + 0.06], [0.28, 0.12, 0.7]]);
+  seam([[0.02, 0.7, gx(0.7) + 0.05], [-0.18, 0.4, gx(0.4) + 0.05], [-0.3, 0.15, 0.68]]);
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2 + 0.3;
     put(k, spikeAB([Math.sin(a) * 0.3, 1.98, Math.cos(a) * 0.3], [Math.sin(a) * 0.36, 1.66 - (i % 3) * 0.1, Math.cos(a) * 0.36], 0.035, 4), ICE_HI);
@@ -423,7 +423,7 @@ function rimeclaw(p: Palette): Rig {
   // Long torn train of the gown
   const cp = pivot(frame, 0, 2.55, -0.2);
   const ck = new K();
-  ck.add(ragGeo(1.2, 2.6, { folds: 4, depth: 0.08, flare: 0.6, tatter: 0.35, seed: 41, curl: 1.25 }), GOWN_HI, 0, 0, 0);
+  ck.add(ragGeo(0.85, 2.5, { folds: 4, depth: 0.08, flare: 0.5, tatter: 0.4, seed: 41, curl: 1.0 }), GOWN_HI, 0, 0, 0);
   rig.cape = cp;
   attach(rig, cp, ck);
 
@@ -508,10 +508,10 @@ function magmaroth(p: Palette): Rig {
   put(hk, xf(lumpGeo(0.3, 80, 0.15, 1), 0, -0.05, -0.25, 0, 0, 0, 1.3, 0.8, 1.1), OBS_DK);
   put(hk, xf(lumpGeo(0.26, 81, 0.12, 1), 0, 0.08, 0.02, 0, 0, 0, 1.05, 0.85, 1.0), OBS);
   for (const s of [-1, 1]) put(hk, xf(lumpGeo(0.13, 82 + s, 0.15, 0), s * 0.13, 0.17, 0.2, 0.3, s * 0.3, s * 0.35, 1.3, 0.5, 0.8), OBS_HI);
-  eyes(hg, 0.12, 0.25, 0.1, 0.1, 0.022, 0.3, 0.35);
+  eyes(hg, 0.13, 0.25, 0.1, 0.085, 0.018, 0.3, 0.35);
   for (const s of [-1, 1]) hk.add(new THREE.BoxGeometry(0.12, 0.035, 0.03), SHADOW, s * 0.1, 0.12, 0.235, 0, s * 0.35, -s * 0.3);
   // Open jaws with a burning throat
-  hg.add(new THREE.SphereGeometry(0.1, 8, 6), 0, -0.07, 0.2, 0, 0, 0, 1.4, 0.5, 0.8);
+  hg.add(new THREE.SphereGeometry(0.07, 8, 6), 0, -0.08, 0.2, 0, 0, 0, 1.3, 0.4, 0.7);
   put(hk, xf(lumpGeo(0.2, 85, 0.12, 0), 0, -0.17, 0.12, 0.25, 0, 0, 1.2, 0.5, 1.0), OBS_HI);
   for (let i = 0; i < 6; i++) {
     const x = (i - 2.5) * 0.06;
@@ -638,8 +638,8 @@ function hollowKing(p: Palette): Rig {
   const { rig, frame, k, gb } = bossRig('biped', 'cast');
 
   // Rotting royal robes: layered, torn and trailing on the ground
-  put(k, tornLatheGeo([[0.74, 0], [0.64, 0.3], [0.46, 1.0], [0.35, 1.6], [0.3, 1.92]], 20, 0.3, 4), ROBE);
-  put(k, tornLatheGeo([[0.6, 0.45], [0.5, 0.9], [0.38, 1.45], [0.32, 1.9]], 20, 0.4, 9), ROBE_DK);
+  put(k, tornLatheGeo([[0.62, 0], [0.56, 0.3], [0.44, 1.0], [0.35, 1.6], [0.3, 1.92]], 20, 0.3, 4), ROBE);
+  put(k, tornLatheGeo([[0.52, 0.45], [0.46, 0.9], [0.37, 1.45], [0.32, 1.9]], 20, 0.4, 9), ROBE_DK);
   // Front panel with gold trim, a belt with a skull buckle
   rag(k, 0.34, 1.75, [0, 1.88, 0.38], 0, ROBE_HI, 17, 0.2, 0.25);
   for (const s of [-1, 1]) tube(k, [[s * 0.17, 1.86, 0.39], [s * 0.2, 1.2, 0.5], [s * 0.22, 0.4, 0.62]], 0.012, 0.01, GOLD, 3, 6);
@@ -748,24 +748,23 @@ function hollowKing(p: Palette): Rig {
       for (const y of [-0.05, 0.08, 1.35]) sk.add(new THREE.TorusGeometry(0.045, 0.014, 3, 8), GOLD, 0, y, 0, Math.PI / 2, 0, 0);
       sk.ball(0.09, 0, 1.55, 0, BONE, 1, 1.05, 1.1);
       for (const e of [-1, 1]) sk.ball(0.025, e * 0.035, 1.56, 0.08, SHADOW);
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2;
-        tube(sk, [[Math.sin(a) * 0.05, 1.6, Math.cos(a) * 0.05], [Math.sin(a) * 0.22, 1.8, Math.cos(a) * 0.22], [Math.sin(a) * 0.17, 2.05, Math.cos(a) * 0.17], [Math.sin(a + 0.5) * 0.03, 2.2, Math.cos(a + 0.5) * 0.03]], 0.022, 0.008, i % 2 ? GOLD : PLATE_HI, 4, 8);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.4;
+        tube(sk, [[Math.sin(a) * 0.05, 1.6, Math.cos(a) * 0.05], [Math.sin(a) * 0.2, 1.72, Math.cos(a) * 0.2], [Math.sin(a) * 0.24, 2.0, Math.cos(a) * 0.24], [Math.sin(a) * 0.3, 2.3, Math.cos(a) * 0.3]], 0.024, 0.004, i % 2 ? GOLD : PLATE_HI, 4, 8);
       }
       put(sk, spikeAB([0, 1.0, 0], [0, -1.35, 0], 0.03, 4), PLATE_HI);
       attach(rig, sg, sk, sgl, GLOW, 5);
       const gem = addGlow(sg, new THREE.OctahedronGeometry(0.1, 0), GLOW, 0, 1.87, 0, 4);
       gem.scale.set(1, 1.5, 1);
       rig.spinners.push(gem);
-      halo(sg, GLOW, 0.24, 0, 1.87, 0, 0.08);
     } else rig.armL = ap;
   }
 
   // Long tattered royal cape
   const cp = pivot(frame, 0, 2.6, -0.24);
   const ck = new K();
-  ck.add(ragGeo(1.25, 2.5, { folds: 4, depth: 0.07, flare: 0.45, tatter: 0.35, seed: 61, curl: 0.3 }), ROBE_DK, 0, 0, 0);
-  ck.add(new THREE.BoxGeometry(1.2, 0.06, 0.06), GOLD, 0, -0.02, 0.03);
+  ck.add(ragGeo(0.95, 2.45, { folds: 4, depth: 0.07, flare: 0.4, tatter: 0.4, seed: 61, curl: 0.45 }), ROBE_DK, 0, 0, 0);
+  ck.add(new THREE.BoxGeometry(0.9, 0.06, 0.06), GOLD, 0, -0.02, 0.03);
   rig.cape = cp;
   attach(rig, cp, ck);
 
@@ -854,7 +853,6 @@ function nyxara(p: Palette): Rig {
   addGlow(frame, new THREE.CircleGeometry(0.15, 20), GLOW, 0, EY, ez + 0.1, 3.5);
   addGlow(frame, new THREE.TorusGeometry(0.17, 0.012, 4, 20), GLOW, 0, EY, ez + 0.095, 2);
   k.add(new THREE.BoxGeometry(0.05, 0.25, 0.02), SHADOW, 0, EY, ez + 0.115);
-  k.ball(0.024, 0, EY + 0.06, ez + 0.13, '#ffffff', 1, 1, 0.4);
   // Crystal lids and lashes of shards around the eye
   for (const s of [-1, 1]) {
     k.add(new THREE.TorusGeometry(0.3, 0.05, 4, 14, Math.PI), CRYS_HI, 0, EY + s * 0.02, ez + 0.05, 0, 0, s > 0 ? 0 : Math.PI, 1.05, 0.72, 1);
