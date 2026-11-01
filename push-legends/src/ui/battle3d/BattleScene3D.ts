@@ -1467,7 +1467,10 @@ export class BattleScene3D implements PlacementView {
         this.camera.lookAt(this.debugLane, 2.2, fz);
         this.camera.updateMatrixWorld();
       } else this.placeCamera(this.fit.d * zoom, -toX(this.debugFocus) + 6 * zoom);
-    } else this.placeCamera(this.fit.d * (1 - zp), this.fit.tz - zp * 18);
+    } else {
+      this.placeCamera(this.fit.d * (1 - zp), this.fit.tz - zp * 18);
+      this.introSweep();
+    }
     if (this.shake > 0.2 && !this.reducedMotion) {
       this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.08;
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.08;
@@ -1475,6 +1478,38 @@ export class BattleScene3D implements PlacementView {
     }
     this.pipeline.render();
     this.drawOverlay(overlay, battle, dt);
+  }
+
+  /**
+   * Opening shot: the battle starts low behind the hero gate looking up the courtyard at the castle,
+   * then glides up into the play camera (skipped with reduced motion).
+   */
+  private introSweep(): void {
+    const dur = 2.8;
+    if (this.reducedMotion || this.time >= dur) {
+      if (this.camera.userData.baseFov && this.camera.fov !== this.camera.userData.baseFov) {
+        this.camera.fov = this.camera.userData.baseFov;
+        this.camera.updateProjectionMatrix();
+      }
+      return;
+    }
+    const k = Math.min(1, this.time / dur);
+    const e = k * k * (3 - 2 * k);
+    const tz = this.fit.tz;
+    const endPos = this.camera.position.clone();
+    const endLook = new THREE.Vector3(0, 0, tz);
+    // The hero's gate is at z = -toX(heroX); the enemy castle lies far along -z
+    const heroZ = -toX(BALANCE.combat.heroX);
+    // Just in front of the hero, above the troops, looking level up the courtyard at the castle
+    const startPos = new THREE.Vector3(3, 13, heroZ + 4);
+    const startLook = new THREE.Vector3(0, 6, -toX(BALANCE.combat.enemySpawnX) - 10);
+    this.camera.position.copy(startPos.lerp(endPos, e));
+    this.camera.lookAt(startLook.lerp(endLook, e));
+    // A wide lens for the opening (the portrait play camera is narrow), easing back to normal
+    const base = this.camera.userData.baseFov ?? (this.camera.userData.baseFov = this.camera.fov);
+    this.camera.fov = base + (72 - base) * (1 - e);
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
   }
 
   private fit = { d: 60, tz: 0 };
