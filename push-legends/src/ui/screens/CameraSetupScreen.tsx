@@ -4,7 +4,7 @@ import { Calibrator } from '../../core/exercise/calibration';
 import { EXERCISES, exerciseInfo } from '../../core/exercise/catalog';
 import { feedbackText } from '../../core/exercise/repCounter';
 import { cameraSupported } from '../../platform/pose';
-import { drawSkeleton, useExerciseTracker } from '../battle/useExercise';
+import { drawSkeleton, syncOverlay, useExerciseTracker } from '../battle/useExercise';
 import { Bar, OverlayHeader, Segmented, Switch } from '../components/common';
 import { Icon } from '../components/Icon';
 import { sound } from '../../platform/audio';
@@ -51,7 +51,10 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
     const loop = () => {
       const c = skeletonRef.current;
       const ctx = c?.getContext('2d');
-      if (c && ctx) drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, s.cameraFacing === 'user');
+      if (c && ctx) {
+        syncOverlay(c, tracker.videoRef.current);
+        drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, s.cameraFacing === 'user');
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

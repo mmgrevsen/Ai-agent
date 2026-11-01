@@ -7,9 +7,12 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const wasmSrc = join(root, 'node_modules/@mediapipe/tasks-vision/wasm');
 const wasmDst = join(root, 'public/mediapipe');
-const modelDst = join(root, 'public/models/pose_landmarker_lite.task');
-const MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
+// Full model (better shoulders and torso, used first) and lite model (fallback)
+const MODELS = ['full', 'lite'].map((size) => ({
+  size,
+  dst: join(root, `public/models/pose_landmarker_${size}.task`),
+  url: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_${size}/float16/latest/pose_landmarker_${size}.task`,
+}));
 
 mkdirSync(wasmDst, { recursive: true });
 for (const file of readdirSync(wasmSrc)) {
@@ -19,15 +22,16 @@ for (const file of readdirSync(wasmSrc)) {
 }
 console.log('[prepare-assets] MediaPipe WASM copied to public/mediapipe');
 
-if (!existsSync(modelDst)) {
+for (const m of MODELS) {
+  if (existsSync(m.dst)) continue;
   try {
-    const res = await fetch(MODEL_URL);
+    const res = await fetch(m.url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    mkdirSync(dirname(modelDst), { recursive: true });
-    writeFileSync(modelDst, Buffer.from(await res.arrayBuffer()));
-    console.log('[prepare-assets] Pose model downloaded');
+    mkdirSync(dirname(m.dst), { recursive: true });
+    writeFileSync(m.dst, Buffer.from(await res.arrayBuffer()));
+    console.log(`[prepare-assets] Pose model (${m.size}) downloaded`);
   } catch (err) {
     // The app falls back to loading the model from the CDN at runtime.
-    console.warn(`[prepare-assets] Could not download pose model (${err.message}); runtime CDN fallback will be used.`);
+    console.warn(`[prepare-assets] Could not download the ${m.size} pose model (${err.message}); runtime CDN fallback will be used.`);
   }
 }

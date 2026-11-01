@@ -31,6 +31,11 @@ sit-up ×0.5, pull-up ×1.8 of a push-up. Choose the exercise before a battle or
 
 ### Camera system
 
+- **Model and picture:** the full MediaPipe pose model (lite as fallback) at up to 1280×720 with
+  slightly lower detection thresholds, so shoulders and chest are held while lying flat. The overlay
+  canvas takes the video's real aspect ratio (phones deliver portrait video) with the same
+  `object-fit`, so the drawn skeleton sits exactly on the body; the chest (shoulders-hips quad) and
+  shoulders are drawn larger, green when the model is sure and amber when it is guessing.
 - **Smoothing:** a One Euro filter on every landmark (`core/exercise/filter.ts`) steadies the
   skeleton and the angles without lagging fast movement; tested to keep counting under heavy noise.
 - **Automatic view:** `cameraPlacement: 'auto'` (default) decides side or front view per frame from

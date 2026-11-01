@@ -634,3 +634,8 @@ button.cam-thumb {
   font-weight: 700;
   text-align: center;
 }
+
+.cam-thumb.big .cam-video,
+.cam-thumb.big .cam-skeleton {
+  object-fit: contain;
+}

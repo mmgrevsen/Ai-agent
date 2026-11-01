@@ -42,8 +42,8 @@ export class LandmarkSmoother {
 
   /** minCutoff in Hz (lower = smoother when still); beta = how fast it follows quick movement. */
   constructor(
-    private readonly minCutoff = 1.5,
-    private readonly beta = 8,
+    private readonly minCutoff = 2.5,
+    private readonly beta = 20,
   ) {}
 
   reset(): void {

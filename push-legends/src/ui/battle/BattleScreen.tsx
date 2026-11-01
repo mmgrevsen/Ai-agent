@@ -16,7 +16,7 @@ import { Icon } from '../components/Icon';
 import type { BattleScene3D as BattleScene3DType } from '../battle3d/BattleScene3D';
 import type { PlacementPreview, PlacementView } from './placement';
 import { BattleRenderer } from './renderer';
-import { drawSkeleton, useExerciseTracker } from './useExercise';
+import { drawSkeleton, syncOverlay, useExerciseTracker } from './useExercise';
 import '../styles/battle.css';
 
 function webglOk(): boolean {
@@ -237,7 +237,10 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     const draw = () => {
       const c = skeletonRef.current;
       const ctx = c?.getContext('2d');
-      if (c && ctx) drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, settings.cameraFacing === 'user');
+      if (c && ctx) {
+        syncOverlay(c, tracker.videoRef.current);
+        drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, settings.cameraFacing === 'user');
+      }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -461,7 +464,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
                   <span className="cam-big-text">{out ? feedbackText(exerciseKind ?? 'full', out.feedback) : 'Starting camera...'}</span>
                 </span>
               )}
-              <canvas ref={skeletonRef} width={120} height={90} className="cam-skeleton" />
+              <canvas ref={skeletonRef} width={360} height={270} className="cam-skeleton" />
               <span className="cam-dot" aria-label={`Tracking ${out?.measurement.quality ?? 'starting'}`} />
             </button>
           ) : (

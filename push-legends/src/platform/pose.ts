@@ -11,8 +11,10 @@ const MP_VERSION = '1.0.1';
 const LOCAL_WASM = './mediapipe';
 const CDN_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
 const CDN_WASM_2 = `https://unpkg.com/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
-const LOCAL_MODEL = './models/pose_landmarker_lite.task';
-const CDN_MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
+/** The full model tracks shoulders and torso much better than lite; lite is the fallback. */
+const MODEL_SIZES = ['full', 'lite'] as const;
+const localModel = (size: string) => `./models/pose_landmarker_${size}.task`;
+const cdnModel = (size: string) => `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_${size}/float16/latest/pose_landmarker_${size}.task`;
 
 type Landmarker = {
   detectForVideo(video: HTMLVideoElement, ts: number): { landmarks: Landmark[][] };
@@ -26,16 +28,18 @@ async function loadLandmarker(): Promise<Landmarker> {
   // A page opened straight from disk (file://, e.g. the single-file Mac build) cannot fetch bundled
   // assets, so it goes to the CDN directly. Otherwise bundled assets are tried first (offline apps).
   const fromDisk = typeof location !== 'undefined' && location.protocol === 'file:';
-  const sources: [string, string][] = fromDisk
-    ? [
-        [CDN_WASM, CDN_MODEL],
-        [CDN_WASM_2, CDN_MODEL],
-      ]
-    : [
-        [LOCAL_WASM, LOCAL_MODEL],
-        [CDN_WASM, CDN_MODEL],
-        [CDN_WASM_2, CDN_MODEL],
-      ];
+  const sources: [string, string][] = MODEL_SIZES.flatMap((size): [string, string][] =>
+    fromDisk
+      ? [
+          [CDN_WASM, cdnModel(size)],
+          [CDN_WASM_2, cdnModel(size)],
+        ]
+      : [
+          [LOCAL_WASM, localModel(size)],
+          [CDN_WASM, cdnModel(size)],
+          [CDN_WASM_2, cdnModel(size)],
+        ],
+  );
   let lastError: unknown;
   for (const [wasm, model] of sources) {
     for (const delegate of ['GPU', 'CPU'] as const) {
@@ -45,9 +49,10 @@ async function loadLandmarker(): Promise<Landmarker> {
           baseOptions: { modelAssetPath: model, delegate },
           runningMode: 'VIDEO',
           numPoses: 1,
-          minPoseDetectionConfidence: 0.5,
-          minPosePresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
+          // A little lower than the default so the body is kept while lying flat in a push-up
+          minPoseDetectionConfidence: 0.4,
+          minPosePresenceConfidence: 0.4,
+          minTrackingConfidence: 0.4,
         });
         return landmarker as unknown as Landmarker;
       } catch (err) {
@@ -103,7 +108,7 @@ export class PoseCamera {
     this.set('requesting');
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+        video: { facingMode: this.facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
         audio: false,
       });
     } catch (err) {
