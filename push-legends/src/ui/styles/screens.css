@@ -854,3 +854,29 @@ svg.flip,
 .rank-step.next .rank-gem {
   border-color: #e0bd6a;
 }
+
+/* Exercise picker (pre-battle) */
+.exercise-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.exercise-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.exercise-opt.on {
+  border-color: var(--gold);
+  background: rgba(224, 189, 106, 0.14);
+}

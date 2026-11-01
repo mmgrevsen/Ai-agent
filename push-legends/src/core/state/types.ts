@@ -5,7 +5,7 @@ import type { ChestKind, Reward } from '../content/quests';
 
 export const SAVE_VERSION = 1;
 
-export type ExerciseMode = 'full' | 'knee';
+export type ExerciseMode = 'full' | 'knee' | 'situp' | 'pullup';
 export type CameraPlacement = 'side' | 'front';
 
 export interface CardProgress {
@@ -85,6 +85,8 @@ export interface DungeonRun {
 export interface GameStats {
   verifiedFullReps: number;
   verifiedKneeReps: number;
+  verifiedSitups: number;
+  verifiedPullups: number;
   simulatedReps: number;
   enemiesDefeated: number;
   battlesPlayed: number;
@@ -107,6 +109,8 @@ export interface RepDay {
   day: string;
   full: number;
   knee: number;
+  situp: number;
+  pullup: number;
   /** Most push-ups in one battle that day. */
   best: number;
   /** Battles with at least one push-up that day. */

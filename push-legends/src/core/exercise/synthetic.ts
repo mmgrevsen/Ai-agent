@@ -178,3 +178,98 @@ export function repSequence(o: RepSequenceOptions): PoseFrame[] {
   }
   return frames;
 }
+
+type P = { x: number; y: number };
+
+function landmarks(points: Record<string, P>, right: Record<string, P> | null, v: number, noise: number, rng: Rng): Landmark[] {
+  const lm: Landmark[] = Array.from({ length: POSE_LANDMARK_COUNT }, () => ({ x: 0.5, y: 0.5, visibility: 0.1 }));
+  const put = (i: number, p: P, visibility: number) => {
+    lm[i] = { x: p.x + rng.range(-noise, noise), y: p.y + rng.range(-noise, noise), z: 0, visibility };
+  };
+  const far = right ?? Object.fromEntries(Object.entries(points).map(([k, p]) => [k, { x: p.x + 0.01, y: p.y - 0.01 }]));
+  const vr = right ? v : v * 0.6;
+  put(LM.leftShoulder, points.shoulder!, v);
+  put(LM.leftElbow, points.elbow!, v);
+  put(LM.leftWrist, points.wrist!, v);
+  put(LM.leftHip, points.hip!, v);
+  put(LM.leftKnee, points.knee!, v);
+  put(LM.leftAnkle, points.ankle!, v);
+  put(LM.rightShoulder, far.shoulder!, vr);
+  put(LM.rightElbow, far.elbow!, vr);
+  put(LM.rightWrist, far.wrist!, vr);
+  put(LM.rightHip, far.hip!, vr);
+  put(LM.rightKnee, far.knee!, vr);
+  put(LM.rightAnkle, far.ankle!, vr);
+  put(LM.nose, points.nose!, v);
+  return lm;
+}
+
+const along = (from: P, deg: number, len: number): P => ({ x: from.x + Math.cos((deg * Math.PI) / 180) * len, y: from.y - Math.sin((deg * Math.PI) / 180) * len });
+
+/** Side view of a sit-up: lying on the back with bent knees; `trunkAngle` = shoulder-hip-knee angle. */
+export function syntheticSitup(trunkAngle: number, o: { noise?: number; visibility?: number; rng?: Rng } = {}): Landmark[] {
+  const hip = { x: 0.5, y: 0.82 };
+  const thighDeg = 50; // thigh rises towards the knees (+x)
+  const knee = along(hip, thighDeg, THIGH);
+  const ankle = { x: knee.x + 0.12, y: 0.84 };
+  const shoulder = along(hip, thighDeg + trunkAngle, TORSO);
+  const trunkDeg = thighDeg + trunkAngle;
+  const elbow = along(shoulder, trunkDeg - 140, UPPER_ARM * 0.8);
+  const wrist = along(elbow, trunkDeg - 60, FOREARM * 0.8);
+  const nose = along(shoulder, trunkDeg, 0.07);
+  return landmarks({ shoulder, elbow, wrist, hip, knee, ankle, nose }, null, o.visibility ?? 0.95, o.noise ?? 0, o.rng ?? new Rng(1));
+}
+
+/** Front view of a pull-up: hands on the bar, `elbowAngle` 180 = dead hang, ~60 = chin at the bar. */
+export function syntheticPullup(elbowAngle: number, o: { noise?: number; visibility?: number; rng?: Rng } = {}): Landmark[] {
+  const barY = 0.12;
+  const theta = (elbowAngle * Math.PI) / 180;
+  const d = Math.sqrt(UPPER_ARM ** 2 + FOREARM ** 2 - 2 * UPPER_ARM * FOREARM * Math.cos(theta));
+  const side = (sx: number) => {
+    const wrist = { x: 0.5 + sx * 0.16, y: barY };
+    const shoulder = { x: 0.5 + sx * 0.09, y: barY + Math.sqrt(Math.max(0.0001, d * d - 0.07 ** 2)) };
+    // (d is the wrist-shoulder distance for the requested elbow angle)
+    // Elbow: intersection of the forearm circle (around the wrist) and the upper-arm circle (around
+    // the shoulder), on the outer side
+    const dd = Math.hypot(shoulder.x - wrist.x, shoulder.y - wrist.y);
+    const a = (FOREARM ** 2 - UPPER_ARM ** 2 + dd * dd) / (2 * dd);
+    const hgt = Math.sqrt(Math.max(0, FOREARM ** 2 - a * a));
+    const ux = (shoulder.x - wrist.x) / dd;
+    const uy = (shoulder.y - wrist.y) / dd;
+    const px = wrist.x + a * ux;
+    const py = wrist.y + a * uy;
+    const e1 = { x: px - uy * hgt, y: py + ux * hgt };
+    const e2 = { x: px + uy * hgt, y: py - ux * hgt };
+    const elbow = (e1.x - 0.5) * sx > (e2.x - 0.5) * sx ? e1 : e2;
+    const hip = { x: 0.5 + sx * 0.07, y: shoulder.y + TORSO };
+    const knee = { x: hip.x, y: hip.y + THIGH };
+    const ankle = { x: knee.x, y: knee.y + SHIN };
+    return { wrist, shoulder, elbow, hip, knee, ankle };
+  };
+  const l = side(-1);
+  const r = side(1);
+  const nose = { x: 0.5, y: l.shoulder.y - 0.07 };
+  return landmarks({ ...l, nose }, { ...r, nose }, o.visibility ?? 0.95, o.noise ?? 0, o.rng ?? new Rng(1));
+}
+
+/** Rep sequence for sit-ups or pull-ups (hold at the start, then smooth cycles). */
+export function exerciseSequence(kind: 'situp' | 'pullup', o: { reps: number; top?: number; bottom?: number; repMs?: number; fps?: number; noise?: number; seed?: number }): PoseFrame[] {
+  const fps = o.fps ?? 30;
+  const dt = 1000 / fps;
+  const repMs = o.repMs ?? 1800;
+  const top = o.top ?? (kind === 'situp' ? 140 : 172);
+  const bottom = o.bottom ?? (kind === 'situp' ? 55 : 60);
+  const rng = new Rng(o.seed ?? 11);
+  const pose = (a: number) => (kind === 'situp' ? syntheticSitup(a, { noise: o.noise ?? 0.0015, rng }) : syntheticPullup(a, { noise: o.noise ?? 0.0015, rng }));
+  const frames: PoseFrame[] = [];
+  let t = 0;
+  for (let ms = 0; ms < 600; ms += dt) frames.push({ t: (t += dt), landmarks: pose(top) });
+  for (let r = 0; r < o.reps; r++) {
+    for (let ms = 0; ms < repMs; ms += dt) {
+      const a = top - (top - bottom) * (0.5 - 0.5 * Math.cos((ms / repMs) * 2 * Math.PI));
+      frames.push({ t: (t += dt), landmarks: pose(a) });
+    }
+    for (let ms = 0; ms < 200; ms += dt) frames.push({ t: (t += dt), landmarks: pose(top) });
+  }
+  return frames;
+}

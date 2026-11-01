@@ -19,7 +19,7 @@ export function TrainingScreen() {
       <OverlayHeader title="Training" onBack={() => store.popOverlay()} />
       <div className="content stack-m">
         <div className="stat-grid">
-          <StatTile label="Push-ups in total" value={formatNumber(t.total.all)} sub={t.total.knee ? `${formatNumber(t.total.full)} full · ${formatNumber(t.total.knee)} knee` : undefined} />
+          <StatTile label="Reps in total" value={formatNumber(t.total.all)} sub={[`${formatNumber(t.total.full)} push-ups`, t.total.knee && `${formatNumber(t.total.knee)} knee`, t.total.situp && `${formatNumber(t.total.situp)} sit-ups`, t.total.pullup && `${formatNumber(t.total.pullup)} pull-ups`].filter(Boolean).join(' · ')} />
           <StatTile label="Calories burned" value={`${formatNumber(Math.round(t.total.kcal))} kcal`} sub="estimate" />
           <StatTile label="Today" value={formatNumber(t.today.reps)} sub={`${Math.round(t.today.kcal)} kcal`} />
           <StatTile label="Last 7 days" value={formatNumber(t.week.reps)} sub={`${t.week.activeDays} active day${t.week.activeDays === 1 ? '' : 's'}`} />
@@ -38,9 +38,9 @@ export function TrainingScreen() {
           </div>
           {t.nextRank ? (
             <>
-              <Bar value={t.bestBattle - t.rank.best} max={t.nextRank.best - t.rank.best} tone="red" tall label={`${t.bestBattle} / ${t.nextRank.best} push-ups in one battle`} />
+              <Bar value={t.bestBattle - t.rank.best} max={t.nextRank.best - t.rank.best} tone="red" tall label={`${t.bestBattle} / ${t.nextRank.best} reps in one battle`} />
               <span className="xsmall dim">
-                Do {t.nextRank.best} push-ups in one battle to become <b>{t.nextRank.name}</b>.
+                Do {t.nextRank.best} reps in one battle to become <b>{t.nextRank.name}</b>.
               </span>
             </>
           ) : (
@@ -50,7 +50,7 @@ export function TrainingScreen() {
 
         <div className="panel stack-m">
           <div className="spread">
-            <h3 style={{ margin: 0 }}>Push-ups per day</h3>
+            <h3 style={{ margin: 0 }}>Reps per day</h3>
             <span className="xsmall faint">last 14 days</span>
           </div>
           <DayChart days={t.days} />
@@ -60,8 +60,8 @@ export function TrainingScreen() {
           <h3 style={{ margin: 0 }}>
             <Icon name="up" size={16} /> Do more and more
           </h3>
-          <Goal label="Next battle" value={`${t.goals.battle} push-ups`} text={t.bestBattle ? `Your best is ${t.bestBattle}. Beat it by ${t.goals.battle - t.bestBattle} - small steps add up.` : 'Do your first push-ups in a battle to set a record.'} />
-          <Goal label="Daily goal" value={`${t.goals.day} push-ups`} text="About 10% above your recent daily average. Spread them over a few battles." progress={{ value: t.today.reps, max: t.goals.day }} />
+          <Goal label="Next battle" value={`${t.goals.battle} reps`} text={t.bestBattle ? `Your best is ${t.bestBattle}. Beat it by ${t.goals.battle - t.bestBattle} - small steps add up.` : 'Do your first reps in a battle to set a record.'} />
+          <Goal label="Daily goal" value={`${t.goals.day} reps`} text="About 10% above your recent daily average. Spread them over a few battles." progress={{ value: t.today.reps, max: t.goals.day }} />
           {t.nextMilestone && <Goal label="Next milestone" value={`${formatNumber(t.nextMilestone)} in total`} text={`${formatNumber(t.nextMilestone - t.total.all)} to go.`} progress={{ value: t.total.all, max: t.nextMilestone }} />}
           {t.trendPct !== null && (
             <div className={`notice small ${t.trendPct >= 0 ? 'info' : ''}`}>
@@ -73,15 +73,15 @@ export function TrainingScreen() {
 
         <div className="panel stack-m">
           <h3 style={{ margin: 0 }}>Records</h3>
-          <Row label="Best day" value={t.bestDay ? `${t.bestDay.reps} push-ups (${t.bestDay.day})` : '-'} />
+          <Row label="Best day" value={t.bestDay ? `${t.bestDay.reps} reps (${t.bestDay.day})` : '-'} />
           <Row label="Streak" value={`${t.streak} day${t.streak === 1 ? '' : 's'}`} />
-          <Row label="Days with push-ups" value={String(t.activeDays)} />
+          <Row label="Days with training" value={String(t.activeDays)} />
           <Row label="Calories this week" value={`${Math.round(t.week.kcal)} kcal`} />
         </div>
 
         <WeightSetting />
         <p className="xsmall faint">
-          Only push-ups counted by the camera appear here. Calories are an estimate (about {Math.round(BALANCE.exercise.kcalPerKgPerRep * game.settings.bodyWeightKg * 100) / 100} kcal per push-up at your weight; knee push-ups count less). Rest when something hurts.
+          Only reps counted by the camera appear here (a pull-up counts 3 towards records and goals). Calories are an estimate (about {Math.round(BALANCE.exercise.kcalPerKgPerRep * game.settings.bodyWeightKg * 100) / 100} kcal per push-up at your weight; knee push-ups and sit-ups count less, pull-ups more). Rest when something hurts.
         </p>
       </div>
     </div>
@@ -130,7 +130,7 @@ function DayChart({ days }: { days: TrainingSummary['days'] }) {
       <div className="xsmall dim" aria-live="polite">
         {sel.day === days[days.length - 1]!.day ? 'Today' : sel.day}: <b>{sel.reps}</b> push-ups{sel.best ? `, best battle ${sel.best}` : ''}
       </div>
-      <div className="day-chart" role="list" aria-label="Push-ups per day, last 14 days">
+      <div className="day-chart" role="list" aria-label="Reps per day, last 14 days">
         {days.map((d, i) => (
           <button key={d.day} role="listitem" className={`day-bar ${i === pick ? 'on' : ''} ${i === days.length - 1 ? 'today' : ''}`} onClick={() => setPick(i)} aria-label={`${d.day}: ${d.reps} push-ups`}>
             <i style={{ height: `${d.reps ? Math.max(4, (d.reps / max) * 100) : 0}%` }} />

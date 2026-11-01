@@ -68,6 +68,8 @@ export function createInitialState(now: number, seed = Math.floor(Math.random() 
     stats: {
       verifiedFullReps: 0,
       verifiedKneeReps: 0,
+      verifiedSitups: 0,
+      verifiedPullups: 0,
       simulatedReps: 0,
       enemiesDefeated: 0,
       battlesPlayed: 0,

@@ -27,24 +27,34 @@ export function stageRepsRequired(state: GameState, stageIdx: number): number {
 }
 
 /** Estimated kilocalories for verified push-ups at the given body weight. */
-export function repCalories(full: number, knee: number, bodyWeightKg: number): number {
-  return (full + knee * EX.kneeCalorieFactor) * EX.kcalPerKgPerRep * bodyWeightKg;
+export function repCalories(full: number, knee: number, bodyWeightKg: number, situp = 0, pullup = 0): number {
+  return (full + knee * EX.kneeCalorieFactor + situp * EX.situpCalorieFactor + pullup * EX.pullupCalorieFactor) * EX.kcalPerKgPerRep * bodyWeightKg;
 }
 
+/** Reps of one day or battle, with pull-ups weighted like the stage requirement counts them. */
+export function weightedReps(d: { full: number; knee: number; situp?: number; pullup?: number }): number {
+  return d.full + d.knee + (d.situp ?? 0) + (d.pullup ?? 0) * EX.pullupStageCount;
+}
+
+const dayReps = (d: RepDay) => d.full + d.knee + d.situp + d.pullup;
+const dayKcal = (d: RepDay, kg: number) => repCalories(d.full, d.knee, kg, d.situp, d.pullup);
+
 /** Adds one battle's verified push-ups to the log and records. */
-export function recordBattleReps(state: GameState, now: number, full: number, knee: number): void {
-  const reps = full + knee;
+export function recordBattleReps(state: GameState, now: number, full: number, knee: number, situp = 0, pullup = 0): void {
+  const reps = weightedReps({ full, knee, situp, pullup });
   if (reps <= 0) return;
   const s = state.stats;
   const today = dayKey(now);
   let day = s.repLog[s.repLog.length - 1];
   if (!day || day.day !== today) {
-    day = { day: today, full: 0, knee: 0, best: 0, sets: 0 };
+    day = { day: today, full: 0, knee: 0, situp: 0, pullup: 0, best: 0, sets: 0 };
     s.repLog.push(day);
     if (s.repLog.length > 366) s.repLog.splice(0, s.repLog.length - 366);
   }
   day.full += full;
   day.knee += knee;
+  day.situp += situp;
+  day.pullup += pullup;
   day.sets += 1;
   day.best = Math.max(day.best, reps);
   s.bestBattleReps = Math.max(s.bestBattleReps, reps);
@@ -64,7 +74,7 @@ export const RANKS: readonly { name: string; best: number }[] = [
 const MILESTONES = [25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000];
 
 export interface TrainingSummary {
-  total: { full: number; knee: number; all: number; kcal: number };
+  total: { full: number; knee: number; situp: number; pullup: number; all: number; kcal: number };
   today: { reps: number; kcal: number; best: number };
   week: { reps: number; kcal: number; activeDays: number };
   /** The last 14 days, oldest first (days without push-ups are zero). */
@@ -90,7 +100,7 @@ export function trainingSummary(state: GameState, now: number): TrainingSummary 
   for (let i = 13; i >= 0; i--) {
     const key = dayKey(now - i * DAY_MS);
     const d = byDay.get(key);
-    days.push({ day: key, reps: d ? d.full + d.knee : 0, best: d?.best ?? 0 });
+    days.push({ day: key, reps: d ? dayReps(d) : 0, best: d?.best ?? 0 });
   }
   const last7 = s.repLog.filter((d) => d.day >= dayKey(now - 6 * DAY_MS));
   const prev7 = s.repLog.filter((d) => d.day >= dayKey(now - 13 * DAY_MS) && d.day < dayKey(now - 6 * DAY_MS));
@@ -98,13 +108,13 @@ export function trainingSummary(state: GameState, now: number): TrainingSummary 
   const trendPct = last7.length && prev7.length && avgBest(prev7) > 0 ? Math.round((avgBest(last7) / avgBest(prev7) - 1) * 100) : null;
 
   const todayDay = byDay.get(dayKey(now));
-  const weekFull = last7.reduce((a, d) => a + d.full, 0);
-  const weekKnee = last7.reduce((a, d) => a + d.knee, 0);
+  const weekReps = last7.reduce((a, d) => a + dayReps(d), 0);
+  const weekKcal = last7.reduce((a, d) => a + dayKcal(d, kg), 0);
   let bestDay: TrainingSummary['bestDay'] = null;
-  for (const d of s.repLog) if (!bestDay || d.full + d.knee > bestDay.reps) bestDay = { day: d.day, reps: d.full + d.knee };
+  for (const d of s.repLog) if (!bestDay || dayReps(d) > bestDay.reps) bestDay = { day: d.day, reps: dayReps(d) };
 
   let streak = 0;
-  const active = new Set(s.repLog.filter((d) => d.full + d.knee > 0).map((d) => d.day));
+  const active = new Set(s.repLog.filter((d) => dayReps(d) > 0).map((d) => d.day));
   for (const d of s.exerciseDays) active.add(d);
   let i = active.has(dayKey(now)) ? 0 : 1;
   while (active.has(dayKey(now - i * DAY_MS))) {
@@ -112,13 +122,13 @@ export function trainingSummary(state: GameState, now: number): TrainingSummary 
     i++;
   }
 
-  const all = s.verifiedFullReps + s.verifiedKneeReps;
+  const all = s.verifiedFullReps + s.verifiedKneeReps + s.verifiedSitups + s.verifiedPullups;
   const rankIdx = RANKS.reduce((best, r, idx) => (s.bestBattleReps >= r.best ? idx : best), 0);
-  const weekAvg = last7.length ? (weekFull + weekKnee) / 7 : 0;
+  const weekAvg = last7.length ? weekReps / 7 : 0;
   return {
-    total: { full: s.verifiedFullReps, knee: s.verifiedKneeReps, all, kcal: repCalories(s.verifiedFullReps, s.verifiedKneeReps, kg) },
-    today: { reps: todayDay ? todayDay.full + todayDay.knee : 0, kcal: todayDay ? repCalories(todayDay.full, todayDay.knee, kg) : 0, best: todayDay?.best ?? 0 },
-    week: { reps: weekFull + weekKnee, kcal: repCalories(weekFull, weekKnee, kg), activeDays: last7.length },
+    total: { full: s.verifiedFullReps, knee: s.verifiedKneeReps, situp: s.verifiedSitups, pullup: s.verifiedPullups, all, kcal: repCalories(s.verifiedFullReps, s.verifiedKneeReps, kg, s.verifiedSitups, s.verifiedPullups) },
+    today: { reps: todayDay ? dayReps(todayDay) : 0, kcal: todayDay ? dayKcal(todayDay, kg) : 0, best: todayDay?.best ?? 0 },
+    week: { reps: weekReps, kcal: weekKcal, activeDays: last7.length },
     days,
     bestBattle: s.bestBattleReps,
     bestDay,

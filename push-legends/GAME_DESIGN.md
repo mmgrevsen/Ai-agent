@@ -19,6 +19,16 @@ exercise, and losing or retreating never costs anything.
   unclaimed. Starting a stage with the camera off opens camera setup first (it can be skipped; the
   pre-battle screen and the seal panel explain that the stage then cannot be claimed).
 
+### Exercises: push-ups, knee push-ups, sit-ups, pull-ups
+
+All four are counted by the same camera state machine (`core/exercise/repCounter.ts`), following
+one angle per exercise: the elbow for push-ups and pull-ups, the shoulder-hip-knee angle for
+sit-ups (lying back ~125°+, sat up ≤ 75°). Pull-ups: dead hang ≥ 145°, chin at the bar ≤ 85°. Half
+movements, too-fast reps and unreliable tracking are rejected as for push-ups. Strength relative to
+a full push-up (strike damage, valor, War Cry, rep gold/XP): knee 0.5, sit-up 0.6, **pull-up 3**.
+Towards a stage requirement every rep counts 1 and **a pull-up counts 3**. Calories: knee ×0.6,
+sit-up ×0.5, pull-up ×1.8 of a push-up. Choose the exercise before a battle or in camera setup.
+
 ### Training log
 
 `TrainingScreen` (Home → Training, and from the result screen): total push-ups (full/knee), calorie

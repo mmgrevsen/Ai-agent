@@ -242,7 +242,7 @@ export function sanitizeState(raw: unknown, now: number, repaired: string[] = []
   base.tutorial = tutorial;
   const calibration: GameState['settings']['calibration'] = {};
   const savedCal = isObj(data.settings) && isObj(data.settings.calibration) ? data.settings.calibration : {};
-  for (const mode of ['full', 'knee'] as const) {
+  for (const mode of ['full', 'knee', 'situp', 'pullup'] as const) {
     const c = savedCal[mode];
     if (isObj(c) && typeof c.topAngle === 'number' && typeof c.bottomAngle === 'number' && Number.isFinite(c.topAngle) && Number.isFinite(c.bottomAngle)) {
       calibration[mode] = { topAngle: c.topAngle, bottomAngle: c.bottomAngle, calibratedAt: nonNeg(c.calibratedAt) };
@@ -254,7 +254,7 @@ export function sanitizeState(raw: unknown, now: number, repaired: string[] = []
   const log = isObj(data.stats) && Array.isArray(data.stats.repLog) ? data.stats.repLog : [];
   base.stats.repLog = log
     .filter((d): d is Obj => isObj(d) && typeof d.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.day))
-    .map((d) => ({ day: d.day as string, full: intIn(d.full, 0, 1e6, 0), knee: intIn(d.knee, 0, 1e6, 0), best: intIn(d.best, 0, 1e5, 0), sets: intIn(d.sets, 0, 1e5, 0) }))
+    .map((d) => ({ day: d.day as string, full: intIn(d.full, 0, 1e6, 0), knee: intIn(d.knee, 0, 1e6, 0), situp: intIn(d.situp, 0, 1e6, 0), pullup: intIn(d.pullup, 0, 1e6, 0), best: intIn(d.best, 0, 1e5, 0), sets: intIn(d.sets, 0, 1e5, 0) }))
     .slice(-366);
   base.stats.bestBattleReps = intIn(base.stats.bestBattleReps, 0, 1e5, 0);
   base.settings.bodyWeightKg = Math.min(250, Math.max(30, nonNeg(base.settings.bodyWeightKg, 75) || 75));

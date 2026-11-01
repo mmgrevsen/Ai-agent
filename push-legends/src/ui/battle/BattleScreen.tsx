@@ -6,7 +6,8 @@ import { Battle } from '../../core/combat/engine';
 import type { BattleSetup } from '../../core/combat/types';
 import { BATTLE_MODIFIERS } from '../../core/combat/types';
 import { heroHasGoldSword } from '../art/heroLook';
-import { FEEDBACK_TEXT } from '../../core/exercise/repCounter';
+import { exerciseInfo } from '../../core/exercise/catalog';
+import { feedbackText } from '../../core/exercise/repCounter';
 import { formatNumber } from '../../core/util';
 import { sound } from '../../platform/audio';
 import { haptic } from '../../platform/haptics';
@@ -349,15 +350,16 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   const repsDone = battle.repsDone;
   const repsNeeded = setup.repsRequired;
   const sealed = battle.awaitingReps;
-  const perRep = Math.round(battle.pushupDamage * (exerciseKind === 'knee' ? BALANCE.exercise.kneeRepMultiplier : 1));
+  const perRep = Math.round(battle.pushupDamage * (exerciseKind ? exerciseInfo(exerciseKind).power : 1));
+  const repWord = exerciseKind ? exerciseInfo(exerciseKind).plural : 'reps';
 
   let tip: string | null = null;
   if (firstBattle) {
     if (!game.tutorial.tipDeploy) tip = 'Drag a card onto the field to place troops where you want - or tap it to send them from the gate. Valor (red) refills over time.';
     else if (battle.special >= 1 && !game.tutorial.tipSpecial) tip = 'Your Legend Strike is charged - tap the golden button!';
-    else if (battle.time < 25) tip = 'Your army fights on its own. With the camera on, every push-up is a sword strike! Buy better swords in the Armory to hit harder.';
+    else if (battle.time < 25) tip = 'Your army fights on its own. With the camera on, every rep is a sword strike! Buy better swords in the Armory to hit harder.';
   } else if (casting && battle.special >= 1 && !game.tutorial.tipInterrupt) tip = 'The boss is winding up! Legend Strike now to INTERRUPT it.';
-  else if (useCam && !battle.autoDeploy && battle.time < 12) tip = 'Doing push-ups? Turn AUTO on and your army deploys cards by itself.';
+  else if (useCam && !battle.autoDeploy && battle.time < 12) tip = 'Training? Turn AUTO on and your army deploys cards by itself.';
 
   return (
     <div className="battle">
@@ -422,12 +424,12 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
           <div className="seal-panel pop-in" role="status">
             <div className="seal-title">Victory sealed</div>
             <p className="small" style={{ margin: 0 }}>
-              Every wave is beaten. Do <b>{repsNeeded - repsDone}</b> more push-up{repsNeeded - repsDone === 1 ? '' : 's'} to claim the stage.
+              Every wave is beaten. Do <b>{repsNeeded - repsDone}</b> more rep{repsNeeded - repsDone === 1 ? '' : 's'} to claim the stage{exerciseKind === 'pullup' ? ` (each pull-up counts ${BALANCE.exercise.pullupStageCount})` : ''}.
             </p>
-            <Bar value={repsDone} max={repsNeeded} tone="red" tall label={`${repsDone} / ${repsNeeded} push-ups`} />
+            <Bar value={repsDone} max={repsNeeded} tone="red" tall label={`${repsDone} / ${repsNeeded} reps`} />
             {!useCam && !settings.devTools && (
               <>
-                <p className="xsmall dim" style={{ margin: 0 }}>The camera is off, so push-ups cannot be counted here. Retreat (you keep everything you earned), turn the camera on and play the stage again.</p>
+                <p className="xsmall dim" style={{ margin: 0 }}>The camera is off, so reps cannot be counted here. Retreat (you keep everything you earned), turn the camera on and play the stage again.</p>
                 <button className="btn ghost small block" onClick={() => battle.retreat()}>
                   Retreat and keep rewards
                 </button>
@@ -457,9 +459,9 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
               <span className="display" key={repFlash}>
                 <span className={repFlash ? 'rep-pop' : ''}>{repsDone}</span>
                 {repsNeeded > 0 && <span className={repsDone >= repsNeeded ? 'small good-text' : 'small dim'}>/{repsNeeded}</span>}{' '}
-                <span className="small dim">push-ups {exerciseKind === 'knee' ? '(knee)' : ''}</span>
+                <span className="small dim">{exerciseKind === 'pullup' ? `reps (1 pull-up = ${BALANCE.exercise.pullupStageCount})` : repWord}</span>
               </span>
-              <span className="small gold-text" title="Damage per push-up (better swords hit harder)">
+              <span className="small gold-text" title="Damage per rep (better swords hit harder)">
                 <Icon name="swords" size={14} /> {formatNumber(perRep)}/rep
                 {battle.bankedStrikes > 0 && <span className="dim"> · {Math.ceil(battle.bankedStrikes)} saved</span>}
               </span>
@@ -469,7 +471,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
               {useCam
                 ? tracker.status === 'running'
                   ? out
-                    ? FEEDBACK_TEXT[out.feedback]
+                    ? feedbackText(exerciseKind ?? 'full', out.feedback)
                     : 'Starting tracking...'
                   : tracker.status === 'loading'
                     ? 'Loading pose model...'
@@ -477,7 +479,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
                       ? 'Waiting for camera permission...'
                       : tracker.error || 'Camera unavailable - playing without it.'
                 : exerciseKind
-                  ? 'Turn on the camera in Settings to power up with push-ups.'
+                  ? 'Turn on the camera in Settings to power up with reps.'
                   : battle.autoDeploy
                     ? 'Auto-deploy is playing your cards. Tap AUTO to take over.'
                     : 'Drag cards onto the field to place troops.'}

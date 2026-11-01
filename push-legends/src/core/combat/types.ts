@@ -1,3 +1,4 @@
+import type { ExerciseKind } from '../exercise/tracking';
 import type { Difficulty } from '../config/balance';
 import type { ItemEffect } from '../content/equipment';
 import type { PetActive } from '../content/pets';
@@ -75,7 +76,7 @@ export interface BattleSetup {
   modifiers: BattleModifierId[];
   restBuff: number;
   autoDeploy: boolean;
-  exerciseMode: 'full' | 'knee' | null;
+  exerciseMode: ExerciseKind | null;
   /**
    * Push-ups needed in this battle to claim it (campaign stages; 0 = none). When every wave is
    * beaten before that, the battle waits for the push-ups instead of ending (no time limit).
@@ -175,7 +176,7 @@ export type BattleEvent =
   | { type: 'bossSpawn'; bossId: string; name: string; title: string; tier: 1 | 2 }
   | { type: 'special'; x0: number; x1: number; hits: number }
   | { type: 'warCry' }
-  | { type: 'rep'; kind: 'full' | 'knee'; verified: boolean; valor: number }
+  | { type: 'rep'; kind: ExerciseKind; verified: boolean; valor: number }
   | { type: 'pushStrike'; x: number; flying: boolean; amount: number }
   | { type: 'splash'; x: number; radius: number; damageType: DamageType }
   | { type: 'chain'; points: { x: number; flying: boolean }[] }
@@ -219,7 +220,7 @@ export interface BattleResult {
   goldEarned: number;
   xpEarned: number;
   duration: number;
-  reps: { full: number; knee: number; simulated: number; repUnits: number };
+  reps: { full: number; knee: number; situp: number; pullup: number; simulated: number; repUnits: number };
   /** Damage dealt by push-up strikes. */
   repDamage: number;
   specialsUsed: number;

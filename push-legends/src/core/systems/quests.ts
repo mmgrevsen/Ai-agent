@@ -110,7 +110,7 @@ export function achievementMetric(state: GameState, metric: AchievementMetric): 
     case 'bossesDefeated':
       return s.bossesDefeated;
     case 'verifiedReps':
-      return s.verifiedFullReps + s.verifiedKneeReps;
+      return s.verifiedFullReps + s.verifiedKneeReps + s.verifiedSitups + s.verifiedPullups;
     case 'exerciseDays':
       return s.exerciseDays.length;
     case 'cardsOwned':

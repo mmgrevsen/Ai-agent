@@ -20,7 +20,7 @@ const median = (xs: number[]) => {
 export class Calibrator {
   phase: CalibrationPhase = 'top';
   progress = 0;
-  message = 'Hold the top of a push-up with straight arms';
+  message = 'Hold the start position';
   private samples: number[] = [];
   private holdStart: number | null = null;
   private result: Partial<CalibrationResult> = {};
@@ -34,21 +34,22 @@ export class Calibrator {
   process(frame: PoseFrame): CalibrationPhase {
     if (this.phase === 'done' || this.phase === 'failed') return this.phase;
     const m = measure(frame.landmarks, this.kind, this.placement);
-    if (m.confidence < 0.5 || m.elbowAngle === null) {
+    if (m.confidence < 0.5 || m.angle === null) {
       this.holdStart = null;
       this.samples = [];
       this.progress = 0;
-      this.message = 'Make sure your arms, shoulders and hips are visible';
+      this.message = this.kind === 'situp' ? 'Make sure your shoulders, hips and knees are visible' : 'Make sure your arms, shoulders and hips are visible';
       return this.phase;
     }
-    const a = m.elbowAngle;
-    const inPose = this.phase === 'top' ? a >= 135 : a <= 120;
+    const a = m.angle;
+    const su = this.kind === 'situp';
+    const inPose = this.phase === 'top' ? a >= (su ? 110 : 135) : a <= (su ? 90 : 120);
     const stable = this.samples.length < 3 || Math.abs(a - median(this.samples)) < 12;
     if (!inPose || !stable) {
       this.holdStart = null;
       this.samples = [];
       this.progress = 0;
-      this.message = this.phase === 'top' ? 'Hold the top of a push-up with straight arms' : 'Lower down and hold the bottom position';
+      this.message = this.topBottomText();
       return this.phase;
     }
     if (this.holdStart === null) this.holdStart = frame.t;
@@ -62,15 +63,21 @@ export class Calibrator {
         this.samples = [];
         this.holdStart = null;
         this.progress = 0;
-        this.message = 'Now lower down and hold the bottom position';
+        this.message = this.topBottomText();
       } else {
         this.result.bottomAngle = median(this.samples);
-        const ok = this.result.topAngle! - this.result.bottomAngle >= 35;
+        const ok = this.result.topAngle! - this.result.bottomAngle >= (this.kind === 'situp' ? 25 : 35);
         this.phase = ok ? 'done' : 'failed';
         this.message = ok ? 'Calibration complete!' : 'Range of motion was too small - try going a bit lower';
       }
     }
     return this.phase;
+  }
+
+  private topBottomText(): string {
+    const k = this.kind;
+    if (this.phase === 'top') return k === 'situp' ? 'Lie back with your knees bent and hold' : k === 'pullup' ? 'Hang from the bar with straight arms and hold' : 'Hold the top of a push-up with straight arms';
+    return k === 'situp' ? 'Now sit up and hold' : k === 'pullup' ? 'Now pull up and hold with your chin at the bar' : 'Now lower down and hold the bottom position';
   }
 
   getResult(): CalibrationResult | null {

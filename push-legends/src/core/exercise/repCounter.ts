@@ -1,5 +1,5 @@
 import type { Landmark, PoseFrame } from './pose';
-import { measure, type ExerciseKind, type Guidance, type Measurement, type Placement } from './tracking';
+import { isPushUp, measure, type ExerciseKind, type Guidance, type Measurement, type Placement } from './tracking';
 
 export type RepState = 'NOT_READY' | 'READY' | 'DESCENDING' | 'BOTTOM' | 'ASCENDING' | 'COOLDOWN' | 'PAUSED';
 
@@ -41,14 +41,17 @@ export interface RepCounterConfig {
 }
 
 export function defaultRepConfig(kind: ExerciseKind, placement: Placement): RepCounterConfig {
+  // Sit-ups follow the trunk-to-thigh angle (lying back ~125+, sat up <= 75); pull-ups the elbow
+  // (hanging with straight arms >= 145, chin at the bar <= 85)
+  const angles = kind === 'situp' ? { top: 120, bottom: 75, rom: 35, ms: 600 } : kind === 'pullup' ? { top: 145, bottom: 85, rom: 45, ms: 700 } : { top: 150, bottom: kind === 'full' ? 100 : 105, rom: 40, ms: 450 };
   return {
     kind,
     placement,
-    topAngle: 150,
-    bottomAngle: kind === 'full' ? 100 : 105,
+    topAngle: angles.top,
+    bottomAngle: angles.bottom,
     hysteresis: 8,
-    minRangeOfMotion: 40,
-    minRepMs: 450,
+    minRangeOfMotion: angles.rom,
+    minRepMs: angles.ms,
     maxRepMs: 10_000,
     cooldownMs: 150,
     minConfidence: 0.5,
@@ -64,8 +67,9 @@ export function defaultRepConfig(kind: ExerciseKind, placement: Placement): RepC
 
 /** Applies a calibration (measured top/bottom elbow angles) to a config. */
 export function calibratedConfig(base: RepCounterConfig, topAngle: number, bottomAngle: number): RepCounterConfig {
-  const top = Math.max(130, Math.min(170, topAngle - 12));
-  const bottom = Math.max(70, Math.min(120, bottomAngle + 15));
+  const su = base.kind === 'situp';
+  const top = Math.max(su ? 100 : 130, Math.min(170, topAngle - 12));
+  const bottom = Math.max(su ? 45 : 70, Math.min(su ? 100 : 120, bottomAngle + 15));
   if (top - bottom < 30) return base;
   return { ...base, topAngle: top, bottomAngle: bottom, minRangeOfMotion: Math.max(30, Math.min(60, (topAngle - bottomAngle) * 0.6)) };
 }
@@ -154,7 +158,7 @@ export class RepCounter {
     this.lastT = frame.t;
     this.lastKey = key;
 
-    const reliable = m.confidence >= c.minConfidence && m.elbowAngle !== null && m.guidance !== 'move_into_frame' && m.guidance !== 'no_person';
+    const reliable = m.confidence >= c.minConfidence && m.angle !== null && m.guidance !== 'move_into_frame' && m.guidance !== 'no_person';
     if (!reliable) {
       if (this.isMidRep()) this.repLowConfFrames++;
       if (frame.t - this.lastGoodT > c.lostTimeoutMs && this.state !== 'NOT_READY' && this.state !== 'PAUSED') {
@@ -167,7 +171,7 @@ export class RepCounter {
     }
     this.lastGoodT = frame.t;
 
-    const raw = m.elbowAngle!;
+    const raw = m.angle!;
     this.smoothed = this.smoothed === null ? raw : this.smoothed + (raw - this.smoothed) * c.smoothing;
     const a = this.smoothed;
     const formOk = this.formOk(m);
@@ -286,6 +290,11 @@ export class RepCounter {
 
   private formOk(m: Measurement): { body: boolean; knees: boolean; tilt: boolean } {
     const c = this.config;
+    if (!isPushUp(c.kind)) {
+      // Pull-ups hang upright (torso steep); sit-ups have no body-line rule
+      const tilt = c.kind !== 'pullup' || c.placement !== 'side' || m.torsoTilt === null || m.torsoTilt >= 45;
+      return { body: true, knees: true, tilt };
+    }
     const body = m.bodyLine === null || m.bodyLine >= c.minBodyLine;
     const knees = c.kind !== 'full' || m.kneeAngle === null || m.kneeAngle >= c.minKneeAngleFull;
     const tilt = c.placement !== 'side' || m.torsoTilt === null || m.torsoTilt <= c.maxTorsoTilt;
@@ -310,6 +319,37 @@ function frameKey(lm: Landmark[] | null): string {
   const pick = [11, 13, 15, 23];
   return pick.map((i) => (lm[i] ? `${lm[i]!.x.toFixed(5)},${lm[i]!.y.toFixed(5)}` : '-')).join('|');
 }
+
+/** Feedback wording for an exercise (push-up phrases are replaced for sit-ups and pull-ups). */
+export function feedbackText(kind: ExerciseKind, f: RepFeedback): string {
+  if (kind === 'situp') return SITUP_TEXT[f] ?? FEEDBACK_TEXT[f];
+  if (kind === 'pullup') return PULLUP_TEXT[f] ?? FEEDBACK_TEXT[f];
+  return FEEDBACK_TEXT[f];
+}
+
+const SITUP_TEXT: Partial<Record<RepFeedback, string>> = {
+  move_into_frame: 'Move so your shoulders, hips and knees are in the frame',
+  show_legs: 'Make sure your knees are visible',
+  turn_sideways: 'Lie sideways to the camera',
+  get_into_position: 'Lie back with your knees bent',
+  ready: 'Ready! Sit up',
+  go_lower: 'Sit all the way up',
+  push_up: 'Now lie back down',
+  too_shallow: 'Almost! Sit up a bit further for it to count',
+  too_slow: 'Take a breather, then start lying back',
+  not_horizontal: 'Lie down sideways to the camera',
+};
+
+const PULLUP_TEXT: Partial<Record<RepFeedback, string>> = {
+  move_into_frame: 'Move back so your arms, head and hips are in the frame',
+  get_into_position: 'Hang from the bar with straight arms',
+  ready: 'Ready! Pull up',
+  go_lower: 'Pull higher - chin to the bar',
+  push_up: 'Now lower down with control',
+  too_shallow: 'Almost! Pull a bit higher for it to count',
+  too_slow: 'Take a breather, then start from a dead hang',
+  not_horizontal: 'Hang straight below the bar',
+};
 
 export const FEEDBACK_TEXT: Record<RepFeedback, string> = {
   no_person: 'Step into view of the camera',

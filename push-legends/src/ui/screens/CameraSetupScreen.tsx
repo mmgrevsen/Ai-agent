@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { store, useGame, type BattleContext } from '../../app/store';
 import { Calibrator } from '../../core/exercise/calibration';
-import { FEEDBACK_TEXT } from '../../core/exercise/repCounter';
+import { EXERCISES, exerciseInfo } from '../../core/exercise/catalog';
+import { feedbackText } from '../../core/exercise/repCounter';
 import { cameraSupported } from '../../platform/pose';
 import { drawSkeleton, useExerciseTracker } from '../battle/useExercise';
 import { Bar, OverlayHeader, Segmented } from '../components/common';
@@ -71,7 +72,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
 
   return (
     <div className="overlay">
-      <OverlayHeader title="Push-up camera" onBack={() => store.popOverlay()} />
+      <OverlayHeader title="Exercise camera" onBack={() => store.popOverlay()} />
       <div className="content stack-m">
         {step === 'intro' && (
           <>
@@ -82,10 +83,10 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
               </div>
               {then?.type === 'campaign' && (
                 <div className="notice small">
-                  <b>Stages are won with push-ups.</b> Beat the waves, then do the stage's push-ups (knee push-ups count too) to claim it. The camera counts them.
+                  <b>Stages are won with reps.</b> Beat the waves, then do the stage's reps - push-ups, sit-ups or pull-ups - to claim it. The camera counts them.
                 </div>
               )}
-              <p className="small">Push Legends counts real push-ups by watching your body position with your front camera. Every good rep makes your hero swing their sword at the nearest enemy - buy better swords with gold to hit harder. Reps also add valor and build War Cries.</p>
+              <p className="small">Push Legends counts real push-ups, sit-ups and pull-ups by watching your body position with your phone camera. Every good rep makes your hero swing their sword at the nearest enemy - buy better swords with gold to hit harder. Reps also add valor and build War Cries.</p>
               <div className="notice info small">
                 <b>Your privacy:</b> everything runs on this device. Video is never uploaded, recorded or saved. Only body-point positions of the current frame are used, then thrown away.
               </div>
@@ -113,22 +114,21 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
             <div className="panel stack-m">
               <h2>Set up your phone</h2>
               <ol className="small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-                <li>Place the phone on the floor about 1.5–2 m away, leaning against something stable.</li>
-                <li>
-                  <b>Side view works best:</b> the camera should see you from the side - head, arms, hips and feet.
-                </li>
+                {exerciseInfo(s.exerciseMode).setup.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
                 <li>Use good lighting and keep the background simple.</li>
-                <li>Only push up on a safe, non-slippery surface. Stop if anything hurts.</li>
+                <li>Only train on a safe surface (and a sturdy bar). Stop if anything hurts.</li>
               </ol>
               <span className="small dim">Exercise type</span>
-              <Segmented
-                value={s.exerciseMode}
-                onChange={(v) => store.updateSettings({ exerciseMode: v })}
-                options={[
-                  { value: 'full', label: 'Full push-ups' },
-                  { value: 'knee', label: 'Knee push-ups' },
-                ]}
-              />
+              <div className="exercise-pick">
+                {EXERCISES.map((e) => (
+                  <button key={e.id} className={`exercise-opt ${s.exerciseMode === e.id ? 'on' : ''}`} onClick={() => store.updateSettings({ exerciseMode: e.id })} aria-pressed={s.exerciseMode === e.id}>
+                    <b>{e.name}</b>
+                    <span className="xsmall">×{e.power} damage</span>
+                  </button>
+                ))}
+              </div>
               <span className="small dim">Phone placement</span>
               <Segmented
                 value={s.cameraPlacement}
@@ -159,7 +159,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
                       <span className="xsmall faint">{tracker.fps} fps</span>
                     </div>
                     <Bar value={confidence} max={1} tone={q === 'good' ? 'green' : q === 'fair' ? '' : 'red'} />
-                    <div style={{ marginTop: 4 }}>{step === 'calibrate' && cal ? cal.message : out ? FEEDBACK_TEXT[out.feedback] : ''}</div>
+                    <div style={{ marginTop: 4 }}>{step === 'calibrate' && cal ? cal.message : out ? feedbackText(s.exerciseMode, out.feedback) : ''}</div>
                   </>
                 ) : (
                   <div>
@@ -177,7 +177,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
             {step === 'preview' && (
               <>
                 <p className="small dim" style={{ margin: 0 }}>
-                  Try a few {s.exerciseMode === 'knee' ? 'knee ' : ''}push-ups - the counter shows each rep that would count. Go all the way down and back up.
+                  Try a few {exerciseInfo(s.exerciseMode).plural} - the counter shows each rep that would count. Use the full range of motion.
                 </p>
                 <button
                   className="btn purple block"

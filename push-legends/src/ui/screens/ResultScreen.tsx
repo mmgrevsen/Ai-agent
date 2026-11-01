@@ -42,7 +42,7 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
   };
 
   const isChallenge = context.type === 'challenge';
-  const verifiedReps = result.reps.full + result.reps.knee;
+  const verifiedReps = result.reps.full + result.reps.knee + result.reps.situp + result.reps.pullup;
   const unclaimed = result.mode === 'campaign' && result.outcome === 'retreat' && result.wavesCleared >= result.totalWaves;
   const isBlitzLike = result.mode === 'blitz' || isChallenge;
   const nextStage = context.type === 'campaign' && won && summary.firstClear;
@@ -70,15 +70,15 @@ export function ResultScreen({ summary, result, context, dungeon }: { summary: B
         {(verifiedReps > 0 || unclaimed) && (
           <div className="panel">
             <div className="spread">
-              <h3 style={{ margin: 0 }}>Push-ups</h3>
+              <h3 style={{ margin: 0 }}>Reps</h3>
               <span className="display" style={{ fontSize: 22 }}>{verifiedReps}</span>
             </div>
             {verifiedReps > 0 && (
               <div className="xsmall dim">
-                About {Math.round(repCalories(result.reps.full, result.reps.knee, game.settings.bodyWeightKg))} kcal · {formatNumber(game.stats.verifiedFullReps + game.stats.verifiedKneeReps)} in total
+                About {Math.round(repCalories(result.reps.full, result.reps.knee, game.settings.bodyWeightKg, result.reps.situp, result.reps.pullup))} kcal · {formatNumber(game.stats.verifiedFullReps + game.stats.verifiedKneeReps + game.stats.verifiedSitups + game.stats.verifiedPullups)} reps in total
               </div>
             )}
-            {summary.repRecord && <div className="notice info small" style={{ marginTop: 8 }}>New personal best: {verifiedReps} push-ups in one battle!</div>}
+            {summary.repRecord && <div className="notice info small" style={{ marginTop: 8 }}>New personal best in one battle!</div>}
             {unclaimed && <div className="notice small" style={{ marginTop: 8 }}>All waves were beaten, but the stage needs its push-ups to be claimed. Play it again with the camera on.</div>}
             <button className="btn ghost small block" style={{ marginTop: 8 }} onClick={() => store.pushOverlay({ kind: 'training' })}>
               Training log

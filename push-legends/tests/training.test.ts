@@ -65,7 +65,7 @@ describe('push-up training', () => {
     junk.stats.repLog.push({ day: 'bad', full: 5 }, 'nonsense');
     junk.settings.bodyWeightKg = -4;
     const clean = sanitizeState(junk, NOW);
-    expect(clean.stats.repLog).toEqual([{ day: s.stats.repLog[0]!.day, full: 9, knee: 1, best: 10, sets: 1 }]);
+    expect(clean.stats.repLog).toEqual([{ day: s.stats.repLog[0]!.day, full: 9, knee: 1, situp: 0, pullup: 0, best: 10, sets: 1 }]);
     expect(clean.settings.bodyWeightKg).toBe(75);
   });
 });

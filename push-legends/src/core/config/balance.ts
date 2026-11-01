@@ -9,6 +9,12 @@ export const BALANCE = {
     fullRepMultiplier: 1.0,
     /** Reward multiplier for a verified knee push-up. */
     kneeRepMultiplier: 0.5,
+    /** Sit-ups: lighter than a push-up. */
+    situpRepMultiplier: 0.6,
+    /** Pull-ups are far harder: each one strikes (and rewards) like three push-ups. */
+    pullupRepMultiplier: 3,
+    /** A pull-up counts as this many reps towards a stage's requirement. */
+    pullupStageCount: 3,
     /** Battle valor (deploy energy) granted per rep, before multipliers. */
     valorPerRep: 1.5,
     /**
@@ -45,6 +51,8 @@ export const BALANCE = {
      */
     kcalPerKgPerRep: 0.0055,
     kneeCalorieFactor: 0.6,
+    situpCalorieFactor: 0.5,
+    pullupCalorieFactor: 1.8,
   },
 
   combat: {

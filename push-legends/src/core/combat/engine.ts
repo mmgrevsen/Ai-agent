@@ -1,3 +1,5 @@
+import { repRewardMultiplier } from '../exercise/rewards';
+import type { ExerciseKind } from '../exercise/tracking';
 import { BALANCE } from '../config/balance';
 import type { DamageType, EnemyRole } from '../content/types';
 import { BOSS_BY_ID, ENEMY_ROLE_STATS, getWorld } from '../content/worlds';
@@ -51,7 +53,7 @@ export class Battle {
   interrupts = 0;
   warCries = 0;
   cardsDeployed = 0;
-  reps = { full: 0, knee: 0, simulated: 0, repUnits: 0 };
+  reps = { full: 0, knee: 0, situp: 0, pullup: 0, simulated: 0, repUnits: 0 };
   /** Total damage dealt by push-up strikes this battle. */
   repDamage = 0;
   bankedStrikes = 0;
@@ -109,7 +111,7 @@ export class Battle {
 
   /** Push-ups that count towards `setup.repsRequired` (simulated reps only exist in developer mode). */
   get repsDone(): number {
-    return this.reps.full + this.reps.knee + this.reps.simulated;
+    return this.reps.full + this.reps.knee + this.reps.situp + this.reps.simulated + this.reps.pullup * EX.pullupStageCount;
   }
 
   /** Every wave is beaten but the stage still needs push-ups before it is claimed. */
@@ -257,9 +259,9 @@ export class Battle {
    * (developer mode) produce the same combat effect but are tracked separately and never count
    * as verified exercise.
    */
-  registerRep(kind: 'full' | 'knee', verified: boolean): void {
+  registerRep(kind: ExerciseKind, verified: boolean): void {
     if (this.outcome) return;
-    const mult = kind === 'full' ? EX.fullRepMultiplier : EX.kneeRepMultiplier;
+    const mult = repRewardMultiplier(kind);
     const power = this.setup.hero.repPower;
     const rally = this.setup.modifiers.includes('rally') ? 2 : 0;
     const gained = (EX.valorPerRep + rally) * mult * power;
@@ -276,8 +278,7 @@ export class Battle {
       if (eff.kind === 'repShield') this.grantShield(this.hero, this.hero.maxHp * eff.hpFraction * mult, 8);
     }
     if (!verified) this.reps.simulated++;
-    else if (kind === 'full') this.reps.full++;
-    else this.reps.knee++;
+    else this.reps[kind]++;
     if (verified) this.reps.repUnits += mult;
     this.events.push({ type: 'rep', kind, verified, valor: gained });
     this.checkEnd();

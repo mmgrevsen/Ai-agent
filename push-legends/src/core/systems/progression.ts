@@ -14,7 +14,7 @@ import { addItem } from './equipment';
 import { computeHeroStats } from './hero';
 import { addPet } from './pets';
 import { applyQuestEvent, streakBonus } from './quests';
-import { recordBattleReps } from './training';
+import { recordBattleReps, weightedReps } from './training';
 import { addHeroXpRaw, grantReward } from './rewards';
 import { academyFragmentBonus } from './battleSetup';
 
@@ -120,7 +120,8 @@ export function finalizeBattle(state: GameState, result: BattleResult, now: numb
   const summary = emptySummary(result);
   const s = state.stats;
   const won = result.outcome === 'victory';
-  const verifiedReps = result.reps.full + result.reps.knee;
+  const verifiedReps = result.reps.full + result.reps.knee + result.reps.situp + result.reps.pullup;
+  const weighted = weightedReps(result.reps);
 
   // --- Stats & quests ---------------------------------------------------------------------
   s.battlesPlayed++;
@@ -132,6 +133,8 @@ export function finalizeBattle(state: GameState, result: BattleResult, now: numb
   s.simulatedReps += result.reps.simulated;
   s.verifiedFullReps += result.reps.full;
   s.verifiedKneeReps += result.reps.knee;
+  s.verifiedSitups += result.reps.situp;
+  s.verifiedPullups += result.reps.pullup;
   const bossKills = result.bossDefeated ? result.bossIds.length : 0;
   s.bossesDefeated += bossKills;
 
@@ -162,8 +165,8 @@ export function finalizeBattle(state: GameState, result: BattleResult, now: numb
     if (s.repsToday.day !== today) s.repsToday = { day: today, count: 0 };
     s.repsToday.count += verifiedReps;
     if (!s.exerciseDays.includes(today)) s.exerciseDays.push(today);
-    summary.repRecord = verifiedReps > s.bestBattleReps;
-    recordBattleReps(state, now, result.reps.full, result.reps.knee);
+    summary.repRecord = weighted > s.bestBattleReps;
+    recordBattleReps(state, now, result.reps.full, result.reps.knee, result.reps.situp, result.reps.pullup);
     applyQuestEvent(state, { type: 'verifiedRep', amount: verifiedReps });
   }
 
@@ -300,8 +303,9 @@ function progressLines(result: BattleResult): string[] {
   }
   lines.push(`Enemies defeated: ${result.enemiesDefeated}${result.elitesDefeated ? ` (${result.elitesDefeated} elite)` : ''}`);
   if (result.interrupts) lines.push(`Boss attacks interrupted: ${result.interrupts}`);
-  const reps = result.reps.full + result.reps.knee;
-  if (reps) lines.push(`Verified push-ups: ${result.reps.full} full, ${result.reps.knee} knee`);
+  const r = result.reps;
+  const parts = [r.full && `${r.full} push-ups`, r.knee && `${r.knee} knee push-ups`, r.situp && `${r.situp} sit-ups`, r.pullup && `${r.pullup} pull-ups`].filter(Boolean);
+  if (parts.length) lines.push(`Verified reps: ${parts.join(', ')}`);
   if (result.repDamage > 0) lines.push(`Push-up strike damage: ${Math.round(result.repDamage).toLocaleString('en-US')}`);
   if (result.reps.simulated) lines.push(`Simulated reps (developer mode): ${result.reps.simulated}`);
   return lines;

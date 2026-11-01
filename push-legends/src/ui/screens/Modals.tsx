@@ -1,3 +1,5 @@
+import { EXERCISES, exerciseInfo } from '../../core/exercise/catalog';
+import type { ExerciseMode } from '../../core/state/types';
 import { useState } from 'react';
 import { store, useGame, type BattleContext, type Modal } from '../../app/store';
 import type { Difficulty } from '../../core/config/balance';
@@ -69,8 +71,8 @@ function PreBattleModal({ context }: { context: BattleContext }) {
   const s = game.settings;
   const [difficulty, setDifficulty] = useState<Difficulty>(context.type === 'campaign' ? context.difficulty : 'normal');
   const cleared = context.type === 'campaign' && context.stageIdx <= game.progress.highestCleared;
-  const mode: 'full' | 'knee' | 'off' = s.useCamera ? s.exerciseMode : 'off';
-  const setMode = (m: 'full' | 'knee' | 'off') => {
+  const mode: ExerciseMode | 'off' = s.useCamera ? s.exerciseMode : 'off';
+  const setMode = (m: ExerciseMode | 'off') => {
     if (m === 'off') store.updateSettings({ useCamera: false });
     else store.updateSettings({ useCamera: true, exerciseMode: m });
   };
@@ -103,29 +105,30 @@ function PreBattleModal({ context }: { context: BattleContext }) {
         )}
         {repsNeeded > 0 && (
           <div className={`notice small ${mode === 'off' ? '' : 'info'}`}>
-            <b>Claim with {repsNeeded} push-ups.</b> Beat the waves and do {repsNeeded} push-ups during the battle (knee push-ups count) to win the stage.
-            {mode === 'off' && ' Without the camera the push-ups cannot be counted, so the stage cannot be claimed (you still keep the gold you earn).'}
+            <b>Claim with {repsNeeded} reps.</b> Beat the waves and do {repsNeeded} reps during the battle (push-ups, sit-ups or pull-ups; a pull-up counts {BALANCE.exercise.pullupStageCount}) to win the stage.
+            {mode === 'off' && ' Without the camera the reps cannot be counted, so the stage cannot be claimed (you still keep the gold you earn).'}
           </div>
         )}
         {context.type === 'challenge' && <div className="notice info small">Fair mode: every card is set to level {BALANCE.cards.normalizedPvpLevel} and your hero uses baseline stats. 90 seconds - defeat as many enemies as you can.</div>}
 
         <div className="col">
           <span className="small dim">Exercise mode</span>
-          <Segmented
-            value={mode}
-            onChange={setMode}
-            options={[
-              { value: 'full', label: 'Full push-ups' },
-              { value: 'knee', label: 'Knee push-ups' },
-              { value: 'off', label: 'No camera' },
-            ]}
-          />
+          <div className="exercise-pick">
+            {EXERCISES.map((e) => (
+              <button key={e.id} className={`exercise-opt ${mode === e.id ? 'on' : ''}`} onClick={() => setMode(e.id)} aria-pressed={mode === e.id}>
+                <b>{e.name}</b>
+                <span className="xsmall">×{e.power} damage</span>
+              </button>
+            ))}
+            <button className={`exercise-opt ${mode === 'off' ? 'on' : ''}`} onClick={() => setMode('off')} aria-pressed={mode === 'off'}>
+              <b>No camera</b>
+              <span className="xsmall">no reps</span>
+            </button>
+          </div>
           <span className="xsmall faint">
-            {mode === 'full'
-              ? `Each verified push-up is a sword strike for ${formatNumber(pushupDamage(computeHeroStats(game)))} damage (+${BALANCE.exercise.valorPerRep} valor, builds War Cry). Better swords hit harder.`
-              : mode === 'knee'
-                ? `Knee push-ups give ${Math.round(BALANCE.exercise.kneeRepMultiplier * 100)}% of the full push-up effect and rewards.`
-                : context.type === 'campaign'
+            {mode !== 'off'
+              ? `Each verified rep is a sword strike for ${formatNumber(Math.round(pushupDamage(computeHeroStats(game)) * exerciseInfo(mode).power))} damage (+valor, builds War Cry). Better swords hit harder.`
+              : context.type === 'campaign'
                   ? 'Without exercise your army still fights and earns gold, but campaign stages need push-ups to be claimed.'
                   : 'Play without exercise - your army fights and progresses on its own.'}
           </span>

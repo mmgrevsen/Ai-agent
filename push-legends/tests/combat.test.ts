@@ -212,7 +212,7 @@ describe('combat engine', () => {
   it('simulated (developer) reps are tracked separately from verified reps', () => {
     const b = new Battle(setupWith([wave({ kind: 'enemy', role: 'normal', elite: false })]));
     b.registerRep('full', false);
-    expect(b.reps).toEqual({ full: 0, knee: 0, simulated: 1, repUnits: 0 });
+    expect(b.reps).toEqual({ full: 0, knee: 0, situp: 0, pullup: 0, simulated: 1, repUnits: 0 });
   });
 
   it('melee units cannot hit flying enemies, archers can and prioritise them', () => {
