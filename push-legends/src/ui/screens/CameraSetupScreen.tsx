@@ -5,7 +5,7 @@ import { EXERCISES, exerciseInfo } from '../../core/exercise/catalog';
 import { feedbackText } from '../../core/exercise/repCounter';
 import { cameraSupported } from '../../platform/pose';
 import { drawSkeleton, useExerciseTracker } from '../battle/useExercise';
-import { Bar, OverlayHeader, Segmented } from '../components/common';
+import { Bar, OverlayHeader, Segmented, Switch } from '../components/common';
 import { Icon } from '../components/Icon';
 import { sound } from '../../platform/audio';
 
@@ -25,6 +25,8 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
     enabled: live,
     kind: s.exerciseMode,
     placement: s.cameraPlacement,
+    facing: s.cameraFacing,
+    voice: s.voiceCoach,
     calibration: s.calibration[s.exerciseMode],
     onRep: () => sound.play('rep'),
     onFrame: (frame) => {
@@ -49,7 +51,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
     const loop = () => {
       const c = skeletonRef.current;
       const ctx = c?.getContext('2d');
-      if (c && ctx) drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, true);
+      if (c && ctx) drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, s.cameraFacing === 'user');
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -133,11 +135,25 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
               <Segmented
                 value={s.cameraPlacement}
                 onChange={(v) => store.updateSettings({ cameraPlacement: v })}
-                options={[
+options={[
+                  { value: 'auto', label: 'Auto' },
                   { value: 'side', label: 'Side view' },
                   { value: 'front', label: 'In front' },
                 ]}
               />
+              <span className="small dim">Camera</span>
+              <Segmented
+                value={s.cameraFacing}
+                onChange={(v) => store.updateSettings({ cameraFacing: v })}
+                options={[
+                  { value: 'user', label: 'Front (selfie)' },
+                  { value: 'environment', label: 'Back camera' },
+                ]}
+              />
+              <label className="spread small" style={{ alignItems: 'center' }}>
+                <span>Voice coach (counts your reps out loud)</span>
+                <Switch on={s.voiceCoach} onChange={(v) => store.updateSettings({ voiceCoach: v })} label="Voice coach" />
+              </label>
             </div>
             <button className="btn gold big block" onClick={() => setStep('preview')}>
               Start camera
@@ -148,7 +164,7 @@ export function CameraSetupScreen({ then }: { then: BattleContext | null }) {
         {live && (
           <>
             <div className="cam-preview">
-              <video ref={tracker.videoRef} playsInline muted />
+              <video ref={tracker.videoRef} playsInline muted className={s.cameraFacing === 'user' ? 'mirror' : ''} />
               <canvas ref={skeletonRef} width={480} height={360} />
               {step === 'preview' && <span className="big-count">{tracker.count}</span>}
               <div className="cam-hud">

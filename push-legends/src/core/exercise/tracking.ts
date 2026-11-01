@@ -3,7 +3,21 @@ import { angleDeg, LEFT, RIGHT, tiltFromHorizontal, vis, type Landmark, type Sid
 /** full / knee push-ups, sit-ups (trunk-thigh angle) and pull-ups (elbow angle while hanging). */
 export type ExerciseKind = 'full' | 'knee' | 'situp' | 'pullup';
 export const isPushUp = (k: ExerciseKind) => k === 'full' || k === 'knee';
-export type Placement = 'side' | 'front';
+export type Placement = 'side' | 'front' | 'auto';
+
+/**
+ * Tells side and front views apart from the body itself: seen from the front the shoulders are wide
+ * apart compared with the torso, seen from the side they overlap.
+ */
+export function detectPlacement(lm: Landmark[]): 'side' | 'front' {
+  const ls = lm[LEFT.shoulder];
+  const rs = lm[RIGHT.shoulder];
+  const lh = lm[LEFT.hip];
+  if (!ls || !rs || !lh || vis(ls) < 0.3 || vis(rs) < 0.3) return 'side';
+  const width = Math.hypot(ls.x - rs.x, ls.y - rs.y);
+  const torso = Math.hypot(ls.x - lh.x, ls.y - lh.y);
+  return torso > 1e-3 && width / torso > 0.45 ? 'front' : 'side';
+}
 
 /** Guidance codes. The UI maps these to friendly, non-accusatory messages. */
 export type Guidance =
@@ -36,6 +50,8 @@ export interface Measurement {
   /** Torso tilt from horizontal in degrees (only meaningful in side placement). */
   torsoTilt: number | null;
   side: 'left' | 'right' | 'both' | null;
+  /** Camera view used for this frame (resolved when the setting is 'auto'). */
+  placement: 'side' | 'front';
 }
 
 const inFrame = (l: Landmark | undefined) => !!l && l.x > -0.05 && l.x < 1.05 && l.y > -0.05 && l.y < 1.05;
@@ -52,9 +68,11 @@ function sideScore(lm: Landmark[], s: Side, kind: ExerciseKind): number {
 }
 
 /** Extracts the measurements the rep counter needs from one frame of landmarks. */
-export function measure(lm: Landmark[] | null, kind: ExerciseKind, placement: Placement): Measurement {
-  const empty: Measurement = { confidence: 0, quality: 'lost', guidance: 'no_person', elbowAngle: null, angle: null, bodyLine: null, kneeAngle: null, torsoTilt: null, side: null };
+export function measure(lm: Landmark[] | null, kind: ExerciseKind, placementSetting: Placement): Measurement {
+  let placement: 'side' | 'front' = placementSetting === 'front' ? 'front' : 'side';
+  const empty: Measurement = { confidence: 0, quality: 'lost', guidance: 'no_person', elbowAngle: null, angle: null, bodyLine: null, kneeAngle: null, torsoTilt: null, side: null, placement: placement === 'front' ? 'front' : 'side' };
   if (!lm || lm.length < 29) return empty;
+  if (placementSetting === 'auto') placement = detectPlacement(lm);
 
   const ls = sideScore(lm, LEFT, kind);
   const rs = sideScore(lm, RIGHT, kind);
@@ -91,5 +109,5 @@ export function measure(lm: Landmark[] | null, kind: ExerciseKind, placement: Pl
   if (guidance === 'ok' && quality === 'poor') guidance = 'low_light_or_blur';
   if (guidance === 'ok' && isPushUp(kind) && placement === 'side' && torsoTilt > 60) guidance = 'get_into_position';
 
-  return { confidence, quality, guidance, elbowAngle, angle, bodyLine, kneeAngle, torsoTilt, side: useBoth ? 'both' : best === LEFT ? 'left' : 'right' };
+  return { confidence, quality, guidance, elbowAngle, angle, bodyLine, kneeAngle, torsoTilt, side: useBoth ? 'both' : best === LEFT ? 'left' : 'right', placement };
 }

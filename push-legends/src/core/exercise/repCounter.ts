@@ -292,12 +292,12 @@ export class RepCounter {
     const c = this.config;
     if (!isPushUp(c.kind)) {
       // Pull-ups hang upright (torso steep); sit-ups have no body-line rule
-      const tilt = c.kind !== 'pullup' || c.placement !== 'side' || m.torsoTilt === null || m.torsoTilt >= 45;
+      const tilt = c.kind !== 'pullup' || m.placement !== 'side' || m.torsoTilt === null || m.torsoTilt >= 45;
       return { body: true, knees: true, tilt };
     }
     const body = m.bodyLine === null || m.bodyLine >= c.minBodyLine;
     const knees = c.kind !== 'full' || m.kneeAngle === null || m.kneeAngle >= c.minKneeAngleFull;
-    const tilt = c.placement !== 'side' || m.torsoTilt === null || m.torsoTilt <= c.maxTorsoTilt;
+    const tilt = m.placement !== 'side' || m.torsoTilt === null || m.torsoTilt <= c.maxTorsoTilt;
     return { body, knees, tilt };
   }
 

@@ -82,6 +82,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   const [speed, setSpeed] = useState(1);
   const [ending, setEnding] = useState(false);
   const [repFlash, setRepFlash] = useState(0);
+  const [bigCam, setBigCam] = useState(false);
   const pausedRef = useRef(false);
   const speedRef = useRef(1);
   pausedRef.current = paused || ending;
@@ -107,6 +108,8 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     enabled: useCam,
     kind: exerciseKind ?? 'full',
     placement: settings.cameraPlacement,
+    facing: settings.cameraFacing,
+    voice: settings.voiceCoach,
     calibration: exerciseKind ? settings.calibration[exerciseKind] : undefined,
     onRep: (rep) => {
       if (pausedRef.current) return;
@@ -234,7 +237,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
     const draw = () => {
       const c = skeletonRef.current;
       const ctx = c?.getContext('2d');
-      if (c && ctx) drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, true);
+      if (c && ctx) drawSkeleton(ctx, tracker.landmarksRef.current, c.width, c.height, settings.cameraFacing === 'user');
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -443,11 +446,24 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
       <div className="battle-controls">
         <div className="exercise-strip">
           {useCam ? (
-            <div className={`cam-thumb q-${out?.measurement.quality ?? 'lost'}`}>
-              <video ref={tracker.videoRef} playsInline muted className="cam-video" />
+            <button
+              className={`cam-thumb q-${out?.measurement.quality ?? 'lost'} ${bigCam ? 'big' : ''}`}
+              onClick={() => setBigCam((b) => !b)}
+              aria-label={bigCam ? 'Shrink camera view' : 'Enlarge camera view'}
+            >
+              <video ref={tracker.videoRef} playsInline muted className={`cam-video ${settings.cameraFacing === 'user' ? 'mirror' : ''}`} />
+              {bigCam && (
+                <span className="cam-big-hud">
+                  <span className="cam-big-count">{repsDone}</span>
+                  <span className="cam-depth" aria-label="Rep depth">
+                    <i style={{ height: `${Math.round((out?.depth ?? 0) * 100)}%` }} />
+                  </span>
+                  <span className="cam-big-text">{out ? feedbackText(exerciseKind ?? 'full', out.feedback) : 'Starting camera...'}</span>
+                </span>
+              )}
               <canvas ref={skeletonRef} width={120} height={90} className="cam-skeleton" />
               <span className="cam-dot" aria-label={`Tracking ${out?.measurement.quality ?? 'starting'}`} />
-            </div>
+            </button>
           ) : (
             <div className="cam-thumb off">
               <Icon name="camera" size={22} />

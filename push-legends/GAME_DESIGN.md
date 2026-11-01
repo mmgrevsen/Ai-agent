@@ -29,6 +29,18 @@ a full push-up (strike damage, valor, War Cry, rep gold/XP): knee 0.5, sit-up 0.
 Towards a stage requirement every rep counts 1 and **a pull-up counts 3**. Calories: knee ×0.6,
 sit-up ×0.5, pull-up ×1.8 of a push-up. Choose the exercise before a battle or in camera setup.
 
+### Camera system
+
+- **Smoothing:** a One Euro filter on every landmark (`core/exercise/filter.ts`) steadies the
+  skeleton and the angles without lagging fast movement; tested to keep counting under heavy noise.
+- **Automatic view:** `cameraPlacement: 'auto'` (default) decides side or front view per frame from
+  the shoulder width relative to the torso; side/front can still be forced.
+- **Front or back camera** (`cameraFacing`); the preview is mirrored only for the selfie camera.
+- **Big camera view** in battle: tap the thumbnail for a large preview with skeleton, rep count, a
+  live depth gauge and the coaching line.
+- **Voice coach** (`voiceCoach`, default on): counts reps out loud and gives at most one short cue
+  every 4 s ("Lower", "Slower", "Straight body") using on-device speech.
+
 ### Training log
 
 `TrainingScreen` (Home → Training, and from the result screen): total push-ups (full/knee), calorie

@@ -98,10 +98,26 @@ export function SettingsScreen() {
               value={s.cameraPlacement}
               onChange={(v) => set({ cameraPlacement: v })}
               options={[
-                { value: 'side', label: 'Side view (best)' },
+                { value: 'auto', label: 'Auto' },
+                { value: 'side', label: 'Side view' },
                 { value: 'front', label: 'In front' },
               ]}
             />
+          </div>
+          <div className="col" style={{ padding: '8px 0' }}>
+            <span className="small">Camera</span>
+            <Segmented
+              value={s.cameraFacing}
+              onChange={(v) => set({ cameraFacing: v })}
+              options={[
+                { value: 'user', label: 'Front (selfie)' },
+                { value: 'environment', label: 'Back camera' },
+              ]}
+            />
+          </div>
+          <div className="spread" style={{ padding: '8px 0' }}>
+            <span className="small">Voice coach (counts reps out loud)</span>
+            <Switch on={s.voiceCoach} onChange={(v) => set({ voiceCoach: v })} label="Voice coach" />
           </div>
           <Row label="Show skeleton overlay">
             <Switch on={s.showSkeleton} onChange={(v) => set({ showSkeleton: v })} label="Show skeleton" />

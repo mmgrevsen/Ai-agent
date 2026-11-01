@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { SKELETON_EDGES, type Landmark, type PoseFrame } from '../../core/exercise/pose';
 import { calibratedConfig, defaultRepConfig, RepCounter, type FrameOutput, type RepEvent } from '../../core/exercise/repCounter';
 import type { Calibration, CameraPlacement, ExerciseMode } from '../../core/state/types';
+import { LandmarkSmoother } from '../../core/exercise/filter';
 import { PoseCamera, type CameraStatus } from '../../platform/pose';
+import { voiceCoach } from '../../platform/voice';
 
 export interface ExerciseTracker {
   status: CameraStatus;
@@ -23,6 +25,9 @@ export function useExerciseTracker(opts: {
   kind: ExerciseMode;
   placement: CameraPlacement;
   calibration: Calibration | undefined;
+  facing?: 'user' | 'environment';
+  /** Speak the rep count and coaching cues. */
+  voice?: boolean;
   onRep: (rep: RepEvent) => void;
   onFrame?: (frame: PoseFrame) => void;
 }): ExerciseTracker {
@@ -43,16 +48,21 @@ export function useExerciseTracker(opts: {
     const base = defaultRepConfig(opts.kind, opts.placement);
     const cfg = opts.calibration ? calibratedConfig(base, opts.calibration.topAngle, opts.calibration.bottomAngle) : base;
     const counter = new RepCounter(cfg);
+    const smoother = new LandmarkSmoother();
+    const coach = opts.voice ? voiceCoach() : null;
     let lastUi = 0;
     const camera = new PoseCamera(
-      (frame) => {
+      (raw) => {
+        // Smoothed landmarks: steadier skeleton, angles and form checks
+        const frame = smoother.apply(raw);
         landmarksRef.current = frame.landmarks;
         onFrameRef.current?.(frame);
         const out = counter.process(frame);
         if (out.rep) {
           setCount(counter.count);
           onRepRef.current(out.rep);
-        }
+          coach?.count(counter.count);
+        } else if (out.rejected) coach?.cue(out.rejected);
         // Throttle React updates to ~12 per second.
         if (out.rep || out.rejected || frame.t - lastUi > 80) {
           lastUi = frame.t;
@@ -64,13 +74,15 @@ export function useExerciseTracker(opts: {
         setStatus(s);
         setError(err ?? '');
       },
+      opts.facing ?? 'user',
     );
     void camera.start(videoRef.current);
     return () => {
       camera.stop();
+      coach?.stop();
       landmarksRef.current = null;
     };
-  }, [opts.enabled, opts.kind, opts.placement, opts.calibration?.topAngle, opts.calibration?.bottomAngle]);
+  }, [opts.enabled, opts.kind, opts.placement, opts.facing, opts.voice, opts.calibration?.topAngle, opts.calibration?.bottomAngle]);
 
   return { status, error, output, count, fps, videoRef, landmarksRef };
 }

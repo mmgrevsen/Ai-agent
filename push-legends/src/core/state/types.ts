@@ -6,7 +6,8 @@ import type { ChestKind, Reward } from '../content/quests';
 export const SAVE_VERSION = 1;
 
 export type ExerciseMode = 'full' | 'knee' | 'situp' | 'pullup';
-export type CameraPlacement = 'side' | 'front';
+export type CameraPlacement = 'side' | 'front' | 'auto';
+export type CameraFacing = 'user' | 'environment';
 
 export interface CardProgress {
   level: number;
@@ -139,6 +140,10 @@ export interface Settings {
   exerciseMode: ExerciseMode;
   useCamera: boolean;
   cameraPlacement: CameraPlacement;
+  /** Front (selfie) or back camera. */
+  cameraFacing: CameraFacing;
+  /** Spoken rep count and coaching cues. */
+  voiceCoach: boolean;
   showSkeleton: boolean;
   calibration: Partial<Record<ExerciseMode, Calibration>>;
   autoDeploy: boolean;

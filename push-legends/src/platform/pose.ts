@@ -87,6 +87,7 @@ export class PoseCamera {
   constructor(
     private readonly onFrame: (frame: PoseFrame) => void,
     private readonly onStatus: (status: CameraStatus, error?: string) => void,
+    private readonly facing: 'user' | 'environment' = 'user',
   ) {}
 
   private set(status: CameraStatus, error = ''): void {
@@ -102,7 +103,7 @@ export class PoseCamera {
     this.set('requesting');
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+        video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
         audio: false,
       });
     } catch (err) {

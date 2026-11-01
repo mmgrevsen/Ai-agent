@@ -512,7 +512,7 @@ svg.flip,
   object-fit: cover;
 }
 
-.cam-preview video {
+.cam-preview video.mirror {
   transform: scaleX(-1);
 }
 
