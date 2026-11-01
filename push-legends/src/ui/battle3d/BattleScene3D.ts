@@ -14,7 +14,7 @@ import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } fr
 import { buildBattlefield, FLY_Y, toX, toZ, XS, type Battlefield } from './battlefield3d';
 import { PAL } from '../art/darkArt';
 import { bossUnit, buildHero, CARD_UNITS, enemyUnit } from './dark/units';
-import type { Rig } from './rig';
+import { teamRim, type Rig } from './rig';
 
 /**
  * 3D battle presentation (three.js). Reads the deterministic Battle state each frame and turns its
@@ -62,6 +62,12 @@ interface UnitView {
   lastDust: number;
   /** Displayed lane position: melee fighters step across to meet their opponent face to face. */
   dispZ: number;
+  /** Displayed x: eased towards the engine position, which only moves at the 20 Hz simulation rate. */
+  dispX: number;
+  /** Smoothed speed (the raw one is zero on frames without a simulation step). */
+  spd: number;
+  /** Scene time the unit appeared (its name tag shows for a few seconds). */
+  born: number;
   /** Current heading (smoothed), turned towards the opponent while fighting. */
   yaw: number;
   /** Attacks seen so far; picks the next swing (chop, slash, thrust). */
@@ -475,7 +481,8 @@ export class BattleScene3D implements PlacementView {
   // --- Mapping helpers ---------------------------------------------------------------------------
 
   private unitPos(u: Unit, out = new THREE.Vector3()): THREE.Vector3 {
-    return out.set(toX(u.x), u.flying ? FLY_Y : 0, this.views.get(u.id)?.dispZ ?? toZ(u.lane));
+    const v = this.views.get(u.id);
+    return out.set(v ? v.dispX : toX(u.x), u.flying ? FLY_Y : 0, v?.dispZ ?? toZ(u.lane));
   }
 
   private topOf(u: Unit, out = new THREE.Vector3()): THREE.Vector3 {
@@ -845,6 +852,7 @@ export class BattleScene3D implements PlacementView {
       if (u.elite) this.addEliteMark(rig);
     }
     rig.root.scale.setScalar(scale);
+    teamRim(rig.material, u.side === 'ally' ? '#ffd68a' : '#ff3b30', u.kind === 'boss' ? 0.55 : 0.4);
     rig.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.castShadow = true;
@@ -867,6 +875,9 @@ export class BattleScene3D implements PlacementView {
       seed: (u.id * 0.61803) % 1,
       lastDust: 0,
       dispZ: toZ(u.lane),
+      dispX: toX(u.x),
+      spd: 0,
+      born: this.time,
       yaw: facing,
       attacks: 0,
       lastSeenAttack: u.lastAttackAt,
@@ -937,7 +948,8 @@ export class BattleScene3D implements PlacementView {
     const inFight = engaged || strikeK >= 0 || recoverK >= 0;
 
     // Movement
-    const speed = Math.abs(u.x - v.lastX) / Math.max(1e-4, dt);
+    v.spd += (Math.abs(u.x - v.lastX) / Math.max(1e-4, dt) - v.spd) * Math.min(1, dt * 5);
+    const speed = v.spd;
     v.lastX = u.x;
     const moving = !stunned && !casting && !inFight && speed > 0.15 && u.kind !== 'hero';
 
@@ -948,6 +960,9 @@ export class BattleScene3D implements PlacementView {
       wantZ = (fv ? fv.dispZ : toZ(foe.lane)) + (v.seed - 0.5) * 3.2;
     }
     v.dispZ += (Math.max(-4.8, Math.min(4.8, wantZ)) - v.dispZ) * Math.min(1, dt * 2.2);
+    // Smooth the 20 Hz simulation steps into continuous motion (snap on big jumps such as leaps)
+    const tx = toX(u.x);
+    v.dispX = Math.abs(tx - v.dispX) > 6 ? tx : v.dispX + (tx - v.dispX) * Math.min(1, dt * 16);
 
     // Face the opponent while fighting or closing in
     let wantYaw = v.facing;
@@ -1509,6 +1524,7 @@ export class BattleScene3D implements PlacementView {
     const t = this.time;
     ctx.clearRect(0, 0, this.w, this.h);
     // Health bars and stun stars
+    const labelled: { name: string; x: number; y: number }[] = [];
     for (const u of battle.units) {
       if (u.dead || u.kind === 'boss') continue;
       const top = this.topOf(u);
@@ -1523,6 +1539,31 @@ export class BattleScene3D implements PlacementView {
         }
       }
       const isHero = u.kind === 'hero';
+      // Side marker over every head (gold = yours, red = enemy) and a name tag after deploying
+      const view = this.views.get(u.id);
+      ctx.fillStyle = u.side === 'ally' ? '#e0bd6a' : '#ff4a4a';
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - 3);
+      ctx.lineTo(s.x - 4, s.y - 9);
+      ctx.lineTo(s.x + 4, s.y - 9);
+      ctx.closePath();
+      ctx.fill();
+      const age = view ? t - view.born : 99;
+      // One tag per squad: skip a name already drawn close by
+      const near = labelled.some((l) => l.name === u.name && Math.abs(l.x - s.x) < 70 && Math.abs(l.y - s.y) < 50);
+      if (u.side === 'ally' && (age < 4 || isHero) && !near) {
+        labelled.push({ name: u.name, x: s.x, y: s.y });
+        ctx.globalAlpha = isHero ? 0.9 : Math.min(1, (4 - age) * 1.5);
+        ctx.font = '700 10px Cinzel, Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+        const label = isHero ? 'Hero' : u.name.replace(/^The /, '');
+        ctx.strokeText(label, s.x, s.y - 12);
+        ctx.fillStyle = '#f1e6cf';
+        ctx.fillText(label, s.x, s.y - 12);
+        ctx.globalAlpha = 1;
+      }
       if (!isHero && u.hp >= u.maxHp && u.shield <= 0) continue;
       const w = isHero ? 46 : u.elite ? 34 : 26;
       const h = isHero ? 6 : 4;

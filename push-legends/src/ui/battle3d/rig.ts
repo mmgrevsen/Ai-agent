@@ -48,6 +48,31 @@ export function rigMaterial(): THREE.MeshStandardMaterial {
   return m;
 }
 
+/**
+ * Makes a unit readable on a dark battlefield: a soft rim of light along its silhouette in the
+ * side's colour (gold for the player's army, red for enemies) and a floor on how dark it can get.
+ */
+export function teamRim(material: THREE.MeshStandardMaterial, hex: string, strength = 0.35, lift = 0.07): void {
+  const prev = material.onBeforeCompile;
+  const rim = { value: new THREE.Color(hex).multiplyScalar(strength) };
+  material.onBeforeCompile = (shader, renderer) => {
+    prev.call(material, shader, renderer);
+    shader.uniforms.uTeamRim = rim;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('void main() {', 'uniform vec3 uTeamRim;\nvoid main() {')
+      .replace(
+        '#include <opaque_fragment>',
+        `{
+          float fr = smoothstep(0.55, 1.0, 1.0 - abs(dot(normal, normalize(vViewPosition))));
+          outgoingLight += uTeamRim * fr + diffuseColor.rgb * ${lift.toFixed(3)};
+        }
+        #include <opaque_fragment>`,
+      );
+  };
+  const key = material.customProgramCacheKey.bind(material);
+  material.customProgramCacheKey = () => `${key()}|rim${lift}`;
+}
+
 export function newRig(kind: Rig['kind'], attack: Rig['attack']): Rig {
   const root = new THREE.Group();
   const body = new THREE.Group();
