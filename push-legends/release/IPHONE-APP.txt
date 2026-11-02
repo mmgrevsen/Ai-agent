@@ -1,0 +1,26 @@
+PUSH LEGENDS SOM IPHONE-APP (.ipa)
+==================================
+
+Hvor faar jeg filen?
+1. Gaa til github.com/mmgrevsen/Ai-agent -> fanen "Actions".
+2. Vaelg "Push Legends iOS (.ipa)" og den nyeste groenne koersel.
+3. Nederst under "Artifacts": hent "PushLegends-ipa" (en zip med PushLegends.ipa).
+   (Byggeriet starter automatisk, hver gang spillet aendres. Du kan ogsaa trykke "Run workflow".)
+
+Hvordan kommer den paa iPhonen?
+Filen er ikke signeret af Apple (det kraever en betalt udviklerkonto, 99 USD/aar), saa den
+installeres med et "sideload"-program, der signerer den med dit eget Apple-ID:
+
+  Sideloadly (Mac eller Windows, gratis): sideloadly.io
+    1. Installer Sideloadly og tilslut iPhonen med kabel.
+    2. Traek PushLegends.ipa ind, skriv dit Apple-ID, tryk Start.
+    3. Paa iPhonen: Indstillinger -> Generelt -> VPN og enhedsadministration -> stol paa dit Apple-ID.
+    4. Indstillinger -> Anonymitet og sikkerhed -> Udviklertilstand -> Til (genstart).
+  Med et gratis Apple-ID skal appen installeres igen hver 7. dag.
+
+  Alternativ: AltStore (altstore.io) goer det samme og kan forny appen automatisk.
+
+Med en betalt Apple-udviklerkonto kan appen i stedet signeres rigtigt og deles via TestFlight.
+
+Bemaerk: login og venner kraever en server (se SADAN-AABNER-DU-SPILLET.txt). Uden server spiller
+appen offline, og kameraet virker direkte i appen.

@@ -1,0 +1,56 @@
+# Builds Push Legends as an iPhone app (.ipa) on a GitHub-hosted Mac.
+# The .ipa is unsigned: install it with Sideloadly or AltStore, which sign it with your own
+# Apple ID (see push-legends/release/IPHONE-APP.txt). Download it from the run's "Artifacts".
+name: Push Legends iOS (.ipa)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/affectionate-bardeen-km28ik]
+    paths:
+      - 'push-legends/**'
+      - '.github/workflows/push-legends-ios.yml'
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: push-legends
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: push-legends/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the game (downloads the pose models into the app)
+        run: npm run build
+
+      - name: Copy the game into the iOS project
+        run: npx cap sync ios
+
+      - name: Build the iOS app (unsigned)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+
+      - name: Package .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry PushLegends.ipa Payload
+          ls -lh PushLegends.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PushLegends-ipa
+          path: push-legends/PushLegends.ipa
+          retention-days: 90
