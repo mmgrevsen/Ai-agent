@@ -45,7 +45,7 @@ const TYPE_COLOR: Record<DamageType, string> = {
 };
 
 const PIXEL_HEIGHT = 256;
-const UNIT_SCALE = 3.5;
+const UNIT_SCALE = 4.1;
 
 /** The battle model for a card (the same model its card portrait is rendered from). */
 function cardUnit(cardId: string): Rig {
@@ -55,6 +55,8 @@ function cardUnit(cardId: string): Rig {
 interface UnitView {
   rig: Rig;
   blob: THREE.Mesh;
+  /** Glowing ring on the ground in the side's colour, readable from across the room. */
+  ring: THREE.Mesh;
   scale: number;
   baseY: number;
   facing: number;
@@ -160,6 +162,7 @@ export class BattleScene3D implements PlacementView {
   private readonly pipeline: Pipeline;
   private readonly blobGeo = new THREE.CircleGeometry(1, 20);
   private readonly blobMat: THREE.MeshBasicMaterial;
+  private readonly ringMats: { ally: THREE.MeshBasicMaterial; enemy: THREE.MeshBasicMaterial };
   private readonly camera = new THREE.PerspectiveCamera(27, 1, 0.5, 600);
   private readonly field: Battlefield;
   private readonly views = new Map<number, UnitView>();
@@ -314,6 +317,24 @@ export class BattleScene3D implements PlacementView {
     bx.fillRect(0, 0, 64, 64);
     this.blobMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), transparent: true, opacity: 0.55, depthWrite: false });
     this.blobMat.userData.shared = true;
+    // Team rings: a bright annulus under every unit (gold = yours, red = enemy)
+    const rc = document.createElement('canvas');
+    rc.width = rc.height = 128;
+    const rx = rc.getContext('2d')!;
+    const rg = rx.createRadialGradient(64, 64, 44, 64, 64, 62);
+    rg.addColorStop(0, 'rgba(255,255,255,0)');
+    rg.addColorStop(0.3, 'rgba(255,255,255,1)');
+    rg.addColorStop(0.55, 'rgba(255,255,255,0.6)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    rx.fillStyle = rg;
+    rx.fillRect(0, 0, 128, 128);
+    const ringTex = new THREE.CanvasTexture(rc);
+    const ringMat = (hex: string) => {
+      const m = new THREE.MeshBasicMaterial({ map: ringTex, color: new THREE.Color(hex).multiplyScalar(hex === '#ffc65a' ? 0.85 : 1.4), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+      m.userData.shared = true;
+      return m;
+    };
+    this.ringMats = { ally: ringMat('#ffc65a'), enemy: ringMat('#ff2020') };
 
     this.pipeline = createPipeline(this.renderer, this.scene, this.camera, {
       msaa: !opts.pixel,
@@ -852,7 +873,7 @@ export class BattleScene3D implements PlacementView {
       if (u.elite) this.addEliteMark(rig);
     }
     rig.root.scale.setScalar(scale);
-    teamRim(rig.material, u.side === 'ally' ? '#ffd68a' : '#ff3b30', u.kind === 'boss' ? 0.55 : 0.4);
+    teamRim(rig.material, u.side === 'ally' ? '#ffd68a' : '#ff3b30', u.kind === 'boss' ? 0.6 : 0.55);
     rig.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.castShadow = true;
@@ -865,10 +886,16 @@ export class BattleScene3D implements PlacementView {
     const br = (rig.kind === 'quad' ? 1.0 : rig.kind === 'flyer' ? 0.7 : 0.62) * scale * (rig.height > 3 ? 1.5 : 1);
     blob.scale.set(br, br * 0.8, 1);
     this.world.add(blob);
+    const ring = new THREE.Mesh(this.blobGeo, u.side === 'ally' ? this.ringMats.ally : this.ringMats.enemy);
+    ring.rotation.x = -Math.PI / 2;
+    ring.scale.set(br * 0.95, br * 0.95, 1);
+    ring.renderOrder = 2;
+    this.world.add(ring);
     rig.root.rotation.order = 'YXZ';
     return {
       rig,
       blob,
+      ring,
       scale,
       baseY: 0,
       facing,
@@ -1169,6 +1196,7 @@ export class BattleScene3D implements PlacementView {
     rig.root.position.set(base.x + fx * lungeM + away * knock * motion, base.y + spawnY + (hop + dive) * motion, base.z + fz * lungeM);
     rig.root.rotation.y = v.yaw;
     v.blob.position.set(rig.root.position.x, 0.06, rig.root.position.z);
+    v.ring.position.set(rig.root.position.x, 0.065, rig.root.position.z);
 
     if (moving && !u.flying && rig.kind !== 'float' && !this.reducedMotion && this.time - v.lastDust > 0.32) {
       v.lastDust = this.time + Math.random() * 0.1;
@@ -1267,6 +1295,7 @@ export class BattleScene3D implements PlacementView {
       if (seen.has(id)) continue;
       this.views.delete(id);
       this.world.remove(v.blob);
+      this.world.remove(v.ring);
       const bubble = this.shields.get(id);
       if (bubble) {
         this.world.remove(bubble);

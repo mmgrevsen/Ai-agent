@@ -425,6 +425,16 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
             {boss.shield > 0 && <Bar value={boss.shield} max={boss.maxHp * 0.15} tone="blue" />}
           </div>
         )}
+        {useCam && !bigCam && (
+          // Big enough to read from the floor 2-3 m from the phone
+          <div className="far-counter" aria-hidden="true">
+            <span key={repFlash} className={`far-count ${repFlash ? 'rep-pop' : ''}`}>{repsDone}</span>
+            {repsNeeded > 0 && <span className="far-need">/ {repsNeeded}</span>}
+            <span className="far-depth">
+              <i style={{ width: `${Math.round((out?.depth ?? 0) * 100)}%` }} />
+            </span>
+          </div>
+        )}
         {tip && !sealed && <div className="battle-tip pop-in">{tip}</div>}
         {sealed && (
           <div className="seal-panel pop-in" role="status">
