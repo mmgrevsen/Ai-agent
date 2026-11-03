@@ -174,6 +174,7 @@ export class PortraitStudio {
     this.key.intensity = 1.6 * light;
     this.scene.environmentIntensity = 0.45 * light;
     this.embers.visible = spec.embers ?? true;
+    this.under.intensity = 1.6 * (spec.under ?? 1);
     (spec.pose ?? heroicPose)(rig);
     rig.root.rotation.y = spec.yaw ?? 0.45;
     rig.root.traverse((o) => {

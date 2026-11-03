@@ -250,6 +250,8 @@ Test coverage highlights:
 
 ## Latest changes
 
+- Pets were remodelled in the dark style (`src/ui/battle3d/dark/pets.ts`), each with one glowing accent matching its power. The active pet now follows the hero in battle (name tag and a ring in its colour), jumps to cheer every rep and leaps in when its ability fires.
+- The pet sanctuary became Beastwarden's Grove: stone walls with iron railings, a moonlit pond, a stone kennel, one rune stone per pet in that pet's colour; the pets roam the yard, trotting and stopping to look around. Base grass, flowers and trees were muted to the dusk palette and the base lighting lifted a little for readability.
 - Building and pet art is rendered from their own 3D base models in the portrait studio (the flat 2D drawings only show while a portrait bakes or without WebGL).
 - The 3D battle adapts its render resolution to the frame rate (four steps; the lowest also turns off ambient occlusion), because the camera, pose model and battle share one phone GPU.
 

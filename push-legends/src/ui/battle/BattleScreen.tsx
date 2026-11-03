@@ -156,7 +156,7 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
             scene3d = new BattleScene3D(
               host,
               { onSound: (id) => sound.play(id), onShake: (s) => s >= 8 && haptic('medium') },
-              { pixel: settings.graphics === 'pixel', reducedMotion: settings.reducedMotion, world: setup.world, cape: game.hero.cape, aura: game.hero.aura, goldSword: heroHasGoldSword(game) },
+              { pixel: settings.graphics === 'pixel', reducedMotion: settings.reducedMotion, world: setup.world, cape: game.hero.cape, aura: game.hero.aura, goldSword: heroHasGoldSword(game), pet: game.activePet },
             );
             const r = stage.getBoundingClientRect();
             scene3d.resize(r.width, r.height);

@@ -16,7 +16,7 @@ const setup = campaignSetup(createInitialState(Date.now(), 1234), world * STAGES
 const battle = new Battle(setup);
 const stage = document.getElementById('stage')!;
 const overlay = document.getElementById('overlay') as HTMLCanvasElement;
-const scene = new BattleScene3D(stage, { onSound: () => {}, onShake: () => {} }, { pixel: q.has('pixel'), reducedMotion: false, world, cape: '', aura: '', goldSword: false });
+const scene = new BattleScene3D(stage, { onSound: () => {}, onShake: () => {} }, { pixel: q.has('pixel'), reducedMotion: false, world, cape: '', aura: '', goldSword: false, pet: q.get('pet') });
 const w = stage.clientWidth;
 const h = stage.clientHeight;
 scene.resize(w, h);

@@ -139,7 +139,7 @@ export class BaseScene {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.14;
     const canvas = this.renderer.domElement;
     canvas.className = `base3d-canvas${this.pixel ? ' pixel' : ''}`;
     canvas.style.touchAction = 'none';
@@ -151,7 +151,7 @@ export class BaseScene {
     const sunDir = new THREE.Vector3(34, 20, 14).normalize();
     this.scene.environment = skyEnvironment(this.renderer, '#3c3d4c', '#b0704a', '#2e2a22', sunDir);
     this.scene.environmentIntensity = 0.55;
-    this.scene.add(new THREE.HemisphereLight('#9a8a86', '#2a2620', 0.35));
+    this.scene.add(new THREE.HemisphereLight('#a8988f', '#2a2620', 0.5));
     const sun = new THREE.DirectionalLight('#ffbf86', 3.0);
     sun.position.copy(sunDir).multiplyScalar(60);
     sun.castShadow = true;
@@ -337,7 +337,7 @@ export class BaseScene {
     flower.ball(0.05, 0, 0.42, 0, '#ffe066');
     const flowerMesh = flower.build(false, toonMaterial(0.2));
     const N = 900;
-    const F = 160;
+    const F = 90;
     const tufts = new THREE.InstancedMesh(tuftMesh.geometry, tuftMesh.material as THREE.Material, N);
     const flowers = new THREE.InstancedMesh(flowerMesh.geometry, flowerMesh.material as THREE.Material, F);
     const m4 = new THREE.Matrix4();
@@ -345,7 +345,8 @@ export class BaseScene {
     const up = new THREE.Vector3(0, 1, 0);
     let n = 0;
     let f = 0;
-    const flowerColors = ['#ff8ad8', '#ffffff', '#ffe066', '#b98eff', '#ff7a6a'];
+    // Dusk wildflowers: muted, so they sparkle a little without speckling the dark ground
+    const flowerColors = ['#a5566e', '#c8b48a', '#8668a8', '#b0674f'];
     for (let i = 0; i < 4000 && (n < N || f < F); i++) {
       const outside = rand() < 0.45;
       const x = outside ? (rand() * 2 - 1) * 60 : (rand() * 2 - 1) * (MAP.maxX - 1);
@@ -361,7 +362,7 @@ export class BaseScene {
         f++;
       } else if (n < N) {
         tufts.setMatrixAt(n, m4);
-        tufts.setColorAt(n, new THREE.Color(outside ? '#5aa83c' : '#63b143').offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.1));
+        tufts.setColorAt(n, new THREE.Color(outside ? '#465a30' : '#506638').offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.06));
         n++;
       }
     }

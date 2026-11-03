@@ -14,6 +14,8 @@ import { dropLabel, squadOffsets, type PlacementPreview, type PlacementView } fr
 import { buildBattlefield, FLY_Y, toX, toZ, XS, type Battlefield } from './battlefield3d';
 import { PAL } from '../art/darkArt';
 import { bossUnit, buildHero, CARD_UNITS, enemyUnit } from './dark/units';
+import { buildPet, PET_GLOW } from './dark/pets';
+import { PET_BY_ID } from '../../core/content/pets';
 import { teamRim, type Rig } from './rig';
 
 /**
@@ -34,6 +36,8 @@ export interface Scene3DOptions {
   cape: string;
   aura: string;
   goldSword: boolean;
+  /** The player's active pet (follows the hero), or null. */
+  pet?: string | null;
 }
 
 const TYPE_COLOR: Record<DamageType, string> = {
@@ -189,6 +193,8 @@ export class BattleScene3D implements PlacementView {
    * slow the render resolution steps down (and ambient occlusion turns off at the lowest step); it
    * steps back up after a stretch of fast frames.
    */
+  /** The active pet: a companion that trots beside the hero (not an engine unit). */
+  private pet: { rig: Rig; ring: THREE.Mesh; name: string; glow: string; pos: THREE.Vector3; walk: number; leapT: number; leapX: number } | null = null;
   private quality = 0;
   private slowFor = 0;
   private fastFor = 0;
@@ -371,6 +377,79 @@ export class BattleScene3D implements PlacementView {
     this.warCryRing.position.set(toX(30), 0.07, 0);
     this.warCryRing.scale.set(16, 5, 1);
     this.world.add(this.warCryRing);
+
+    if (opts.pet) {
+      const rig = buildPet(opts.pet);
+      rig.root.scale.setScalar(UNIT_SCALE * 1.5);
+      teamRim(rig.material, '#ffd68a', 0.5);
+      rig.root.rotation.y = Math.PI / 2;
+      rig.root.visible = false;
+      this.world.add(rig.root);
+      const glow = PET_GLOW[opts.pet] ?? '#ffd68a';
+      // A ring in the pet's own colour so it reads as "yours" from across the room
+      const ring = new THREE.Mesh(this.blobGeo, new THREE.MeshBasicMaterial({ map: this.ringMats.ally.map, color: new THREE.Color(glow).multiplyScalar(1.2), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.scale.setScalar(2.6);
+      ring.renderOrder = 2;
+      ring.visible = false;
+      this.world.add(ring);
+      this.pet = { rig, ring, name: PET_BY_ID.get(opts.pet)?.name ?? 'Pet', glow, pos: new THREE.Vector3(), walk: 0, leapT: -10, leapX: 0 };
+    }
+  }
+
+  /**
+   * The pet stays a little behind the hero on the near side, trots to keep up, and leaps towards
+   * the action with a flash of its colour whenever its ability fires.
+   */
+  private animatePet(battle: Battle, dt: number): void {
+    const p = this.pet;
+    if (!p) return;
+    const hero = battle.units.find((u) => u.kind === 'hero');
+    const hv = hero && !hero.dead ? this.views.get(hero.id) : undefined;
+    const rig = p.rig;
+    if (!hv) {
+      rig.root.visible = false;
+      p.ring.visible = false;
+      return;
+    }
+    const hp = hv.rig.root.position;
+    const target = this.tmp.set(hp.x + 3.2, 0, hp.z + 5.2);
+    if (!rig.root.visible) {
+      p.pos.copy(target);
+      rig.root.visible = true;
+    }
+    const before = p.pos.clone();
+    p.pos.lerp(target, Math.min(1, dt * 3));
+    const speed = before.distanceTo(p.pos) / Math.max(1e-3, dt);
+    const t = this.time;
+    const motion = this.reducedMotion ? 0 : 1;
+    const moving = speed > 0.8;
+    p.walk += dt * (moving ? 10 : 0);
+    // Leap: up and forward towards the target, then back
+    const lk = (t - p.leapT) / 0.6;
+    const leaping = lk >= 0 && lk < 1;
+    const leapH = leaping ? Math.sin(lk * Math.PI) * 2.6 * motion : 0;
+    const leapF = leaping ? Math.sin(lk * Math.PI) * Math.min(6, Math.max(0, p.leapX - p.pos.x)) * motion : 0;
+    rig.root.position.set(p.pos.x + leapF, leapH, p.pos.z);
+    p.ring.visible = true;
+    p.ring.position.set(p.pos.x + leapF, 0.07, p.pos.z);
+    rig.root.rotation.y = Math.PI / 2 + (leaping ? 0 : Math.sin(t * 0.7) * 0.25 * motion);
+    const swing = moving ? Math.sin(p.walk) * 0.7 : 0;
+    rig.legs.forEach((l, i) => (l.rotation.x = (rig.kind === 'biped' ? (i ? 1 : -1) : i === 0 || i === 3 ? 1 : -1) * swing * motion + (leaping ? (i < 2 ? -0.6 : 0.6) : 0)));
+    if (rig.armR && rig.armL) {
+      rig.armR.rotation.x = -swing * 0.8 * motion - (leaping ? 1.8 : 0);
+      rig.armL.rotation.x = swing * 0.8 * motion - (leaping ? 1.8 : 0);
+    }
+    const flap = rig.kind === 'float' ? Math.sin(t * 5) * 0.45 : Math.sin(t * (leaping ? 22 : 9)) * 0.5;
+    rig.wings.forEach((w) => {
+      const side = w.position.x > 0 ? 1 : -1;
+      if (rig.kind === 'float') w.rotation.y = -side * (0.35 + flap * motion);
+      else w.rotation.z = side * (0.25 + flap * motion);
+    });
+    if (rig.cape) rig.cape.rotation.y = Math.sin(t * (moving ? 7 : 2.4)) * 0.35 * motion;
+    if (rig.neck) rig.neck.rotation.set(Math.sin(t * 1.7) * 0.08 * motion - (leaping ? 0.25 : 0), Math.sin(t * 0.6) * 0.3 * motion, 0);
+    rig.body.position.y = rig.kind === 'float' ? (0.12 + Math.sin(t * 1.6) * 0.06) * motion : moving ? Math.abs(Math.sin(p.walk)) * 0.04 * motion : 0;
+    rig.body.scale.y = 1 + Math.sin(t * 2.4) * 0.025 * motion;
   }
 
   resize(w: number, h: number): void {
@@ -801,6 +880,13 @@ export class BattleScene3D implements PlacementView {
           const c = e.kind === 'fireball' ? '#ff8a3d' : e.kind === 'frostAura' ? '#8fd6ff' : '#7fd3ff';
           this.ring(toX(e.x), 0, 0.15, e.radius * 0.44 + 1, c, 0.5);
           this.burst(new THREE.Vector3(toX(e.x), 1, 0), c, 10, 5, 0.25, 0.5);
+          if (this.pet?.rig.root.visible) {
+            this.pet.leapT = this.time;
+            this.pet.leapX = toX(e.x);
+            const at = this.pet.rig.root.position.clone().setY(2);
+            this.burst(at, this.pet.glow, 12, 5, 0.25, 0.5);
+            this.ring(at.x, at.z, 0.14, 3, this.pet.glow, 0.45);
+          }
           break;
         }
         case 'rebirth': {
@@ -874,6 +960,11 @@ export class BattleScene3D implements PlacementView {
           this.world.add(mesh);
           this.projs.push({ mesh, from, to, born: this.time, life: 0.2, arc: 1, spin: 0, strike: true, trail: '#ffd23f' });
           this.heroStrikeAt = this.time;
+          // The pet jumps up to cheer every rep (no forward leap)
+          if (this.pet && this.time - this.pet.leapT > 0.6) {
+            this.pet.leapT = this.time;
+            this.pet.leapX = this.pet.pos.x;
+          }
           this.ring(to.x, 0, 0.16, BALANCE.exercise.repStrikeSplashRadius * 0.44 + 1, '#ffd23f', 0.4, 0.2);
           this.shakeBy(3);
           this.cb.onSound('crit');
@@ -1510,6 +1601,7 @@ export class BattleScene3D implements PlacementView {
     const t = this.time;
     if (!this.reducedMotion) this.field.update(t, dt);
     this.syncUnits(battle);
+    this.animatePet(battle, dt);
     this.syncTelegraphs(battle);
     this.updateProjectiles();
     this.updateFx();
@@ -1633,6 +1725,22 @@ export class BattleScene3D implements PlacementView {
     ctx.clearRect(0, 0, this.w, this.h);
     // Health bars and stun stars
     const labelled: { name: string; x: number; y: number }[] = [];
+    // The pet's name in its own colour (it is not an engine unit, so it has no health bar)
+    if (this.pet?.rig.root.visible) {
+      const r = this.pet.rig.root;
+      const s = this.project(this.tmp.copy(r.position).setY(r.position.y + this.pet.rig.height * r.scale.y + 0.4));
+      if (s.ok) {
+        ctx.font = '700 9px Cinzel, Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+        ctx.globalAlpha = 0.9;
+        ctx.strokeText(this.pet.name, s.x, s.y);
+        ctx.fillStyle = this.pet.glow;
+        ctx.fillText(this.pet.name, s.x, s.y);
+        ctx.globalAlpha = 1;
+      }
+    }
     for (const u of battle.units) {
       if (u.dead || u.kind === 'boss') continue;
       const top = this.topOf(u);

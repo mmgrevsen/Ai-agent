@@ -4,8 +4,9 @@ import { bossUnit, buildHero, CARD_UNITS, enemyUnit } from './dark/units';
 import type { PortraitSpec, UnitDef } from './dark/units/types';
 import * as THREE from 'three';
 import type { BuildingId } from '../../core/content/buildings';
-import { getPet } from '../../core/content/pets';
-import { buildPlot, petModel } from '../base3d/models';
+import { PET_BY_ID } from '../../core/content/pets';
+import { buildPlot } from '../base3d/models';
+import { buildPet } from './dark/pets';
 import { PLOT_BY_ID } from '../base3d/layout';
 import type { Rig } from './rig';
 import { PortraitStudio } from './portrait';
@@ -61,11 +62,18 @@ function resolve(key: string): { def: UnitDef; faction: Faction } | null {
     return { def: { build: () => buildingRig(id, Number.isFinite(tier) ? tier : 0, portrait)!, portrait }, faction: 'ash' };
   }
   if (kind === 'pet') {
-    const portrait: PortraitSpec = { from: -0.06, to: 1.08, yaw: 0.6, light: 2, pose: () => {} };
-    if (!PET_FACTION[a ?? '']) return null;
-    const pet = getPet(a!);
-    return { def: { build: () => propRig(petModel(pet.id, pet.palette.primary), portrait, 0.62, 2), portrait }, faction: PET_FACTION[pet.id]! };
+    if (!PET_BY_ID.has(a ?? '') || !PET_FACTION[a!]) return null;
+    const portrait: PortraitSpec = { from: -0.04, to: 1.1, yaw: 0.55, light: 1.6, under: 0.15, pose: () => {} };
+    // Shown at soldier size so the studio's lights sit where they do for units
+    const build = () => {
+      const rig = buildPet(a!);
+      rig.root.scale.setScalar(2.3);
+      rig.height *= 2.3;
+      return rig;
+    };
+    return { def: { build, portrait }, faction: PET_FACTION[a!]! };
   }
+
   if (kind === 'hero') return { def: { build: () => buildHero(a ?? '#5e0f14', b === 'goldsword' ? 'goldsword' : 'sword'), portrait: FULL }, faction: 'iron' };
   if (kind === 'boss') {
     const boss = BOSS_BY_ID.get(a ?? '');

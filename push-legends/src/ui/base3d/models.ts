@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { BuildingId } from '../../core/content/buildings';
 import { baseGuard, baseSergeant, baseTrainee } from '../battle3d/dark/baseFolk';
+import { buildPet, PET_GLOW } from '../battle3d/dark/pets';
 import { Kit } from './kit';
 import type { Plot } from './layout';
 import { bakeGroundAO } from './render';
@@ -300,15 +301,16 @@ export function tree(k: Kit, x: number, z: number, s = 1, pine = false): void {
   k.add(new THREE.CylinderGeometry(0.2 * s, 0.34 * s, 1.5 * s, 7), C.woodDark, x, 0.75 * s, z);
   for (let i = 0; i < 3; i++) k.add(new THREE.ConeGeometry(0.14 * s, 0.6 * s, 5), C.woodDark, x + Math.cos(i * 2.1) * 0.28 * s, 0.12 * s, z + Math.sin(i * 2.1) * 0.28 * s, Math.sin(i * 2.1) * 1.1, 0, -Math.cos(i * 2.1) * 1.1);
   if (pine) {
-    for (let i = 0; i < 4; i++) k.add(new THREE.ConeGeometry((1.45 - i * 0.28) * s, 1.3 * s, 8), i % 2 ? C.leafDark : '#2f8a3c', x, (1.4 + i * 0.75) * s, z);
+    for (let i = 0; i < 4; i++) k.add(new THREE.ConeGeometry((1.45 - i * 0.28) * s, 1.3 * s, 8), i % 2 ? C.leafDark : '#2c4a26', x, (1.4 + i * 0.75) * s, z);
     return;
   }
   const puffs: [number, number, number, number, string][] = [
     [0, 2.35, 0, 1.15, C.leaf],
-    [0.7, 2.0, 0.2, 0.8, '#43a047'],
-    [-0.65, 2.05, -0.1, 0.85, '#3d9b40'],
-    [0.2, 2.95, -0.2, 0.75, '#66bb6a'],
-    [-0.2, 2.2, 0.6, 0.7, '#57b05a'],
+    // Dusk greens (deep olive to moss), so trees sit in the dark palette
+    [0.7, 2.0, 0.2, 0.8, '#3a5a2a'],
+    [-0.65, 2.05, -0.1, 0.85, '#34502a'],
+    [0.2, 2.95, -0.2, 0.75, '#4f6e34'],
+    [-0.2, 2.2, 0.6, 0.7, '#46632f'],
   ];
   for (const [dx, dy, dz, r, hex] of puffs) k.add(new THREE.IcosahedronGeometry(r * s, 1), hex, x + dx * s, dy * s, z + dz * s);
 }
@@ -453,56 +455,6 @@ function pushupSoldier(cloth: string, i: number): THREE.Group {
   rig.root.position.set(0, 0.45, -1.1);
   addOutlines(rig.root, 0.02, (m) => m.material === rig.material);
   return holder;
-}
-
-/** Sculpted pets for the sanctuary (and their portraits). */
-export function petModel(petId: string, hex: string): THREE.Mesh {
-  const k = new K();
-  if (petId === 'moonmoth') {
-    k.ball(0.22, 0, 0.9, 0, '#f2ead7', 1, 1.2, 1);
-    k.ball(0.18, 0, 1.15, 0.12, hex);
-    for (const s of [-1, 1]) {
-      k.ball(0.5, s * 0.5, 0.95, 0, '#e8d8ff', 1, 0.06, 0.8);
-      k.ball(0.18, s * 0.6, 0.97, 0.05, hex, 1, 0.08, 1);
-      k.curve([[s * 0.06, 1.28, 0.15], [s * 0.15, 1.45, 0.2], [s * 0.25, 1.5, 0.15]], 0.02, 0.01, '#5b4a3a', 4);
-      k.ball(0.05, s * 0.07, 1.18, 0.28, '#1a1030');
-    }
-  } else if (petId === 'pebble_golem') {
-    k.add(new THREE.DodecahedronGeometry(0.4, 0), hex, 0, 0.42, 0);
-    k.add(new THREE.DodecahedronGeometry(0.3, 0), shade(hex, 0.12), 0, 0.92, 0.05);
-    for (const s of [-1, 1]) {
-      k.add(new THREE.DodecahedronGeometry(0.16, 0), shade(hex, -0.1), s * 0.45, 0.45, 0.05);
-      k.ball(0.05, s * 0.1, 0.96, 0.3, '#5dade2');
-    }
-    k.ball(0.09, 0.15, 1.18, -0.05, '#6aa84f', 1.2, 0.5, 1);
-  } else {
-    // Four-legged critters: fox, pup, sparkwing hatchling
-    const belly = petId === 'ember_fox' ? '#fdfefe' : shade(hex, 0.3);
-    k.pill(0.24, 0.4, 0, 0.38, 0, hex, Math.PI / 2);
-    k.ball(0.2, 0, 0.36, 0.1, belly, 0.9, 0.85, 1);
-    k.ball(0.25, 0, 0.62, 0.38, hex);
-    k.lathe([[0.12, 0], [0.09, 0.12], [0.001, 0.2]], 0, 0.58, 0.55, belly, 10, 1, 1, Math.PI / 2);
-    k.ball(0.04, 0, 0.6, 0.76, '#1a1030');
-    for (const s of [-1, 1]) {
-      k.plate(shapeFrom([[-0.08, 0], [0.08, 0], [0.01, 0.22]]), 0.04, 0.015, s * 0.14, 0.82, 0.32, hex, -0.2, 0, -s * 0.25);
-      k.ball(0.05, s * 0.1, 0.68, 0.58, '#1a1030');
-      k.ball(0.02, s * 0.1 - 0.02, 0.7, 0.62, '#ffffff');
-    }
-    for (const [x, z] of [
-      [-0.13, 0.2],
-      [0.13, 0.2],
-      [-0.13, -0.2],
-      [0.13, -0.2],
-    ] as const)
-      k.pill(0.06, 0.14, x, 0.12, z, hex);
-    if (petId === 'ember_fox') k.curve([[0, 0.45, -0.3], [0, 0.7, -0.6], [0, 0.6, -0.85]], 0.13, 0.05, hex, 7).ball(0.08, 0, 0.58, -0.88, '#fdfefe');
-    else k.curve([[0, 0.45, -0.3], [0, 0.6, -0.5]], 0.05, 0.02, hex, 5);
-    if (petId === 'sparkwing') for (const s of [-1, 1]) k.plate(shapeFrom([[0, 0], [0.4, 0.15], [0.3, -0.1]]), 0.02, 0.01, s * 0.2, 0.55, -0.05, '#f5b041', -Math.PI / 2, 0, s > 0 ? 0 : Math.PI);
-  }
-  const m = k.build(true, BUILD_MAT);
-  addOutlines(m, 0.015, () => true);
-  m.userData.noOutline = true;
-  return m;
 }
 
 // --- Buildings -----------------------------------------------------------------------------------
@@ -1106,84 +1058,162 @@ const guildHall: Builder = (k, g, plot, info, anim, rand) => {
   }
 };
 
+/**
+ * Beastwarden's Grove: a walled, mossy yard with a moonlit pond, a stone kennel and one rune stone
+ * per pet glowing in that pet's colour. The pets themselves (the same models that fight beside the
+ * hero) roam the yard. Grows with the tiers: a gnarled tree, feeding troughs, a rune obelisk and
+ * finally a spirit well.
+ */
 const petSanctuary: Builder = (k, g, plot, info, anim, rand) => {
   const t = info.tier;
-  k.rbox(plot.w, 0.24, plot.d, 0.08, 0, 0, 0, '#8fcf6a');
-  for (let i = 0; i < 40; i++) {
+  const MOSS = '#3b4a2a';
+  const MOSS_DK = '#2b3720';
+  k.rbox(plot.w, 0.24, plot.d, 0.08, 0, 0, 0, MOSS);
+  for (let i = 0; i < 14; i++) k.ball(0.5 + rand() * 0.6, (rand() - 0.5) * (plot.w - 2), 0.12, (rand() - 0.5) * (plot.d - 2), MOSS_DK, 1, 0.08, 1);
+  for (let i = 0; i < 22; i++) {
     const x = (rand() - 0.5) * (plot.w - 1);
     const z = (rand() - 0.5) * (plot.d - 1);
-    k.add(new THREE.ConeGeometry(0.06, 0.32, 4), rand() < 0.5 ? '#6fbf4a' : '#5fa83f', x, 0.28, z, 0, 0, (rand() - 0.5) * 0.4);
+    k.add(new THREE.ConeGeometry(0.05, 0.26, 4), rand() < 0.5 ? '#4f6236' : '#43552f', x, 0.25, z, 0, 0, (rand() - 0.5) * 0.4);
   }
-  // Picket fence
-  const fw = plot.w - 0.8;
-  const fd = plot.d - 0.8;
-  const picket = (x: number, z: number) => {
-    k.rbox(0.16, 0.8, 0.06, 0.02, x, 0.55, z, C.white);
-    k.spike(0.1, 0.18, x, 1.03, z, C.white, 0, Math.PI / 4, 0, 4);
+  // Low dry-stone wall with iron railings; open at the front
+  const fw = plot.w - 0.7;
+  const fd = plot.d - 0.7;
+  const wall = (x: number, z: number, len: number, alongX: boolean) => {
+    const n = Math.max(1, Math.round(len / 0.55));
+    for (let i = 0; i < n; i++) {
+      const u = -len / 2 + (i + 0.5) * (len / n);
+      const bx = alongX ? x + u : x;
+      const bz = alongX ? z : z + u;
+      k.rbox(alongX ? len / n - 0.04 : 0.42, 0.42 + rand() * 0.08, alongX ? 0.42 : len / n - 0.04, 0.06, bx, 0.33, bz, rand() < 0.5 ? C.stone : C.stoneDark);
+      if (i % 2 === 0) {
+        k.box(0.04, 0.6, 0.04, bx, 0.84, bz, C.iron);
+        k.spike(0.05, 0.14, bx, 1.2, bz, C.iron, 0, 0, 0, 4);
+      }
+    }
+    k.box(alongX ? len : 0.03, 0.03, alongX ? 0.03 : len, x, 1.05, z, C.iron);
   };
-  for (let x = -fw / 2; x <= fw / 2 + 0.01; x += 0.4) {
-    picket(x, -fd / 2);
-    if (Math.abs(x) > 1.2) picket(x, fd / 2);
+  wall(0, -fd / 2, fw, true);
+  for (const s of [-1, 1]) {
+    wall((s * fw) / 2, 0, fd, false);
+    wall(s * (fw / 4 + 0.9), fd / 2, fw / 2 - 1.8, true);
   }
-  for (let z = -fd / 2 + 0.4; z < fd / 2; z += 0.4) for (const s of [-1, 1]) picket(s * fw / 2, z);
-  // Pond with stones, lily pads and a flower
-  k.lathe([[0.001, 0], [1.8, 0], [1.8, 0.04]], -2.6, 0.13, 1.2, '#4aa8e0', 24);
-  k.tube(1.5, 1.5, 0.03, -2.6, 0.18, 1.2, '#7fd3ff', 0, 0, 0, 24);
+  // Gate arch with a hanging lantern
+  for (const s of [-1, 1]) {
+    k.rbox(0.45, 1.5, 0.45, 0.06, s * 1.0, 0.85, fd / 2, C.stoneDark);
+    k.spike(0.26, 0.3, s * 1.0, 1.75, fd / 2, C.slate, 0, Math.PI / 4, 0, 4);
+    lantern(k, g, s * 1.0, 1.95, fd / 2, '#ffcf8a');
+  }
+  k.box(2.4, 0.12, 0.14, 0, 1.55, fd / 2, C.woodDark);
+  // Moon pond: dark water, pale stones, a ring of glowing moss
+  k.lathe([[0.001, 0], [1.8, 0], [1.8, 0.04]], -2.7, 0.13, 1.0, C.mortar, 24);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(1.55, 32), new THREE.MeshStandardMaterial({ color: '#0f2430', roughness: 0.08, metalness: 0.4 }));
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(-2.7, 0.19, 1.0);
+  g.add(water);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
-    k.add(new THREE.DodecahedronGeometry(0.24, 0), i % 2 ? '#bdb5a8' : '#a99f91', -2.6 + Math.cos(a) * 1.85, 0.22, 1.2 + Math.sin(a) * 1.85);
+    k.add(new THREE.DodecahedronGeometry(0.24, 0), i % 2 ? '#8a847a' : '#6f6a62', -2.7 + Math.cos(a) * 1.85, 0.22, 1.0 + Math.sin(a) * 1.85);
   }
+  const moss = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.04, 4, 40), glowMaterial('#7fe0c0', 1.4));
+  moss.rotation.x = -Math.PI / 2;
+  moss.position.set(-2.7, 0.2, 1.0);
+  g.add(moss);
+  anim.push((time) => moss.scale.setScalar(1 + Math.sin(time * 1.3) * 0.015));
   for (const [x, z] of [
-    [-3.1, 0.8],
-    [-2.0, 1.6],
-    [-2.9, 1.8],
-  ] as const) {
-    k.add(new THREE.CylinderGeometry(0.28, 0.28, 0.03, 10, 1, false, 0.3, Math.PI * 1.8), '#4caf50', x, 0.22, z);
-  }
-  k.ball(0.09, -2.0, 0.3, 1.6, '#ff8ad8');
-  // Pet house
-  k.rbox(2.2, 1.6, 1.8, 0.12, 3.0, 1.0, -2.6, '#c98a4a');
-  for (let i = 0; i < 4; i++) k.rbox(2.24, 0.05, 1.84, 0.01, 3.0, 0.45 + i * 0.35, -2.6, '#a8703a');
-  gableRoof(k, 2.4, 2.0, 1.1, 3.0, 1.8, -2.6, C.red, false, 3, '#c98a4a');
-  k.add(new THREE.CircleGeometry(0.42, 14, 0, Math.PI), '#3a2a1a', 3.0, 0.62, -1.69, 0, 0, 0);
-  k.rbox(0.84, 0.42, 0.04, 0.02, 3.0, 0.41, -1.69, '#3a2a1a');
-  k.rbox(0.7, 0.24, 0.05, 0.04, 3.0, 1.55, -1.66, C.gold);
-  for (let i = 0; i < 2; i++) k.lathe([[0.18, 0], [0.22, 0.1], [0.2, 0.12]], 1.6 + i * 0.55, 0.13, -1.3, i ? '#4f7fe0' : '#e0574f', 12);
-  tree(k, -4.1, -3.0, 0.9);
-  if (t >= 1) tree(k, 4.8, 2.9, 0.7, true);
-  // Flower beds
-  for (let i = 0; i < 8; i++) {
-    const x = 0.6 + (i % 4) * 0.5;
-    const z = 2.6 + Math.floor(i / 4) * 0.5;
-    k.tube(0.015, 0.015, 0.35, x, 0.3, z, '#3d8b37', 0, 0, 0, 4);
-    k.ball(0.09, x, 0.5, z, ['#ff8ad8', '#ffe066', '#ffffff', '#b98eff'][i % 4]!);
-  }
+    [-3.2, 0.6],
+    [-2.1, 1.5],
+    [-3.0, 1.7],
+  ] as const)
+    k.add(new THREE.CylinderGeometry(0.26, 0.26, 0.03, 10, 1, false, 0.3, Math.PI * 1.8), '#2f4a2c', x, 0.22, z);
+  // Stone kennel with a slate roof and a warm window
+  k.rbox(2.4, 0.5, 2.0, 0.06, 3.0, 0.37, -2.5, C.stoneDark);
+  k.rbox(2.2, 1.3, 1.8, 0.08, 3.0, 1.2, -2.5, C.wood);
+  for (let i = 0; i < 3; i++) k.rbox(0.1, 1.3, 1.84, 0.02, 2.0 + i * 1.0, 1.2, -2.5, C.woodDark);
+  gableRoof(k, 2.6, 2.2, 1.1, 3.0, 1.85, -2.5, C.slate, false, 3, C.wood);
+  k.add(new THREE.CircleGeometry(0.45, 14, 0, Math.PI), '#0d0a08', 3.0, 0.6, -1.59, 0, 0, 0);
+  k.rbox(0.9, 0.45, 0.04, 0.02, 3.0, 0.38, -1.59, '#0d0a08');
+  k.ring(0.47, 0.06, 3.0, 0.6, -1.57, C.stone, 0, 0, 0, Math.PI);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.34), glowMaterial('#ffb35a', 2.2));
+  win.position.set(3.85, 1.4, -1.59);
+  g.add(win);
+  // Feeding bowls
+  for (let i = 0; i < 2; i++) k.lathe([[0.18, 0], [0.22, 0.1], [0.2, 0.12]], 1.6 + i * 0.55, 0.13, -1.2, C.iron, 12);
+  // One rune stone per pet along the back wall, glowing in that pet's colour
+  info.pets.forEach((petId, i) => {
+    const x = -4.6 + i * 1.0;
+    const z = -fd / 2 + 0.7;
+    k.rbox(0.5, 1.0, 0.24, 0.08, x, 0.62, z, C.stoneDark, 0, 0, (rand() - 0.5) * 0.1);
+    const rune = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.42), glowMaterial(PET_GLOW[petId] ?? '#ffd27a', 2.2));
+    rune.position.set(x, 0.7, z + 0.13);
+    g.add(rune);
+    anim.push((time) => rune.scale.setScalar(0.92 + Math.sin(time * 2 + i) * 0.08));
+  });
+  if (t >= 1) tree(k, -4.4, -2.6, 0.9);
+  if (t >= 1) tree(k, 4.7, 2.8, 0.7, true);
   if (t >= 2) {
-    k.add(new THREE.IcosahedronGeometry(0.6, 1), C.leafDark, 0.5, 0.5, -3.3);
-    k.add(new THREE.IcosahedronGeometry(0.5, 1), C.leaf, -0.3, 0.45, -3.5);
+    k.rbox(1.4, 0.32, 0.55, 0.05, 1.1, 0.3, 3.7, C.woodDark);
+    k.rbox(1.2, 0.1, 0.42, 0.03, 1.1, 0.48, 3.7, '#a5803a');
+    k.add(new THREE.IcosahedronGeometry(0.5, 1), C.leafDark, 0.4, 0.45, -3.4);
   }
   if (t >= 3) {
-    k.rbox(1.3, 0.35, 0.6, 0.05, 1.0, 0.3, 3.9, C.woodDark);
-    k.rbox(1.1, 0.12, 0.45, 0.03, 1.0, 0.5, 3.9, '#e8a05a');
+    // Rune obelisk beside the kennel
+    k.tube(0.18, 0.32, 2.4, 0.9, 1.4, -2.9, C.stoneDark, 0, 0, 0, 4);
+    k.spike(0.2, 0.4, 0.9, 2.8, -2.9, C.stoneDark, 0, Math.PI / 4, 0, 4);
+    const o = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), glowMaterial('#c9a2ff', 3));
+    o.position.set(0.9, 3.25, -2.9);
+    g.add(o);
+    anim.push((time) => {
+      o.rotation.y = time;
+      o.position.y = 3.25 + Math.sin(time * 1.5) * 0.08;
+    });
   }
   if (t >= 4) {
-    k.lathe([[0.7, 0], [0.75, 0.3], [0.6, 0.35], [0.15, 0.45], [0.12, 1.0], [0.35, 1.1]], -2.6, 0.18, 1.2, C.stone, 16);
-    const water = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glowMaterial('#9fe7ff', 2.5));
-    water.position.set(-2.6, 1.45, 1.2);
-    g.add(water);
-    anim.push((time) => water.scale.setScalar(0.9 + Math.sin(time * 4) * 0.12));
+    // Spirit well in the pond
+    k.lathe([[0.7, 0], [0.75, 0.3], [0.6, 0.35], [0.15, 0.45], [0.12, 1.0], [0.35, 1.1]], -2.7, 0.18, 1.0, C.stone, 16);
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glowMaterial('#9fe7ff', 2.5));
+    orb.position.set(-2.7, 1.45, 1.0);
+    g.add(orb);
+    anim.push((time) => orb.scale.setScalar(0.9 + Math.sin(time * 4) * 0.12));
   }
+  // The pets roam the yard: each wanders its own loop, trotting, pausing to look around
   info.pets.forEach((petId, i) => {
-    const m = petModel(petId, info.petColors[petId] ?? C.white);
-    g.add(m);
-    const r = 1.4 + (i % 3) * 0.6;
-    const speed = 0.35 + i * 0.07;
-    const cx = 1 - (i % 2) * 1.6;
-    anim.push((time) => {
-      const a = time * speed + i * 2;
-      const hop = Math.abs(Math.sin(time * 6 + i)) * 0.08;
-      m.position.set(cx + Math.cos(a) * r, petId === 'moonmoth' ? 0.5 + Math.sin(time * 3) * 0.3 : 0.15 + hop, 0.2 + Math.sin(a) * r * 0.6);
-      m.rotation.y = -a;
+    const rig = buildPet(petId);
+    rig.root.scale.setScalar(2.1);
+    g.add(rig.root);
+    const loop = [
+      { cx: 0.6, cz: 0.8, rx: 2.2, rz: 1.4 },
+      { cx: 1.4, cz: -0.4, rx: 1.4, rz: 1.0 },
+      { cx: -0.6, cz: 2.4, rx: 2.0, rz: 0.8 },
+      { cx: -2.7, cz: 1.0, rx: 2.4, rz: 2.3 },
+      { cx: 2.4, cz: 1.6, rx: 1.2, rz: 1.3 },
+    ][i % 5]!;
+    const speed = 0.22 + i * 0.04;
+    let phase = i * 1.7;
+    let walk = 0;
+    anim.push((time, dt) => {
+      // Trot for a while, then stop and look around (smooth start and stop)
+      const go = Math.max(0, Math.sin(time * 0.35 + i * 1.3) + 0.3);
+      const moving = go > 0.05;
+      phase += dt * speed * Math.min(1, go);
+      walk += dt * 9 * Math.min(1, go);
+      const x = loop.cx + Math.cos(phase) * loop.rx;
+      const z = loop.cz + Math.sin(phase) * loop.rz;
+      const float = rig.kind === 'float';
+      rig.root.position.set(x, 0.12 + (float ? 0.25 + Math.sin(time * 1.6 + i) * 0.12 : 0), z);
+      // Face along the path (models face +z)
+      rig.root.rotation.y = Math.atan2(-Math.sin(phase) * loop.rx, Math.cos(phase) * loop.rz);
+      const swing = moving ? Math.sin(walk) * 0.6 * Math.min(1, go) : 0;
+      rig.legs.forEach((l, j) => (l.rotation.x = (rig.kind === 'biped' ? (j ? 1 : -1) : j === 0 || j === 3 ? 1 : -1) * swing));
+      if (rig.armR) rig.armR.rotation.x = -swing * 0.7;
+      if (rig.armL) rig.armL.rotation.x = swing * 0.7;
+      rig.wings.forEach((w) => {
+        const side = w.position.x > 0 ? 1 : -1;
+        if (float) w.rotation.y = -side * (0.35 + Math.sin(time * 5 + i) * 0.45);
+        else w.rotation.z = side * (0.25 + Math.sin(time * 3 + i) * 0.15);
+      });
+      if (rig.cape) rig.cape.rotation.y = Math.sin(time * (moving ? 7 : 2.2) + i) * 0.35;
+      if (rig.neck) rig.neck.rotation.y = moving ? 0 : Math.sin(time * 0.9 + i) * 0.6;
+      rig.body.position.y = moving ? Math.abs(Math.sin(walk)) * 0.03 : 0;
     });
   });
 };

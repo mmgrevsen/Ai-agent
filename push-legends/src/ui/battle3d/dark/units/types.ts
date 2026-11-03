@@ -19,6 +19,8 @@ export interface PortraitSpec {
   light?: number;
   /** Drifting embers in front of the subject (default true). */
   embers?: boolean;
+  /** Glow from below the frame (default 1); small subjects show its reflection on the floor. */
+  under?: number;
 }
 
 export interface UnitDef {
