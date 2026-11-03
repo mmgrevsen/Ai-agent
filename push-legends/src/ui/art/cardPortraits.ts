@@ -184,6 +184,15 @@ export function drawCardArt(ctx: Ctx, cardId: string, w: number, h: number, t = 
   }
 }
 
+/** Draws a baked portrait cover-cropped around its centre into a w × h area (building and pet art). */
+export function drawPortraitCrop(ctx: Ctx, art: HTMLCanvasElement, w: number, h: number): void {
+  const s = Math.max(w / art.width, h / art.height);
+  const sw = w / s;
+  const sh = h / s;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(art, (art.width - sw) / 2, (art.height - sh) / 2, sw, sh, 0, 0, w, h);
+}
+
 const masked = new Map<string, HTMLCanvasElement>();
 
 /**

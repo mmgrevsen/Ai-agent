@@ -75,6 +75,8 @@ const PaintShader = {
 export interface Pipeline {
   render(): void;
   setSize(w: number, h: number, pixelRatio: number): void;
+  /** Turns ambient occlusion on or off (no-op when the pipeline was built without it). */
+  setAO(on: boolean): void;
   dispose(): void;
 }
 
@@ -124,6 +126,9 @@ export function createPipeline(
       paint?.uniforms.uTexel!.value.set(1 / (w * pr), 1 / (h * pr));
       // AO at (at most) native resolution: it is soft anyway and expensive on phones
       ao?.setSize(Math.round(w * Math.min(pr, 1)), Math.round(h * Math.min(pr, 1)));
+    },
+    setAO: (on) => {
+      if (ao) ao.enabled = on;
     },
     dispose: () => {
       ao?.dispose();

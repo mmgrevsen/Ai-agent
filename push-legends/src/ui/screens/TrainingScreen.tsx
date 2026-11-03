@@ -128,11 +128,11 @@ function DayChart({ days }: { days: TrainingSummary['days'] }) {
   return (
     <div className="col" style={{ gap: 6 }}>
       <div className="xsmall dim" aria-live="polite">
-        {sel.day === days[days.length - 1]!.day ? 'Today' : sel.day}: <b>{sel.reps}</b> push-ups{sel.best ? `, best battle ${sel.best}` : ''}
+        {sel.day === days[days.length - 1]!.day ? 'Today' : sel.day}: <b>{sel.reps}</b> reps{sel.best ? `, best battle ${sel.best}` : ''}
       </div>
       <div className="day-chart" role="list" aria-label="Reps per day, last 14 days">
         {days.map((d, i) => (
-          <button key={d.day} role="listitem" className={`day-bar ${i === pick ? 'on' : ''} ${i === days.length - 1 ? 'today' : ''}`} onClick={() => setPick(i)} aria-label={`${d.day}: ${d.reps} push-ups`}>
+          <button key={d.day} role="listitem" className={`day-bar ${i === pick ? 'on' : ''} ${i === days.length - 1 ? 'today' : ''}`} onClick={() => setPick(i)} aria-label={`${d.day}: ${d.reps} reps`}>
             <i style={{ height: `${d.reps ? Math.max(4, (d.reps / max) * 100) : 0}%` }} />
           </button>
         ))}

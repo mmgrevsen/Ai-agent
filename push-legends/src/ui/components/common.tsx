@@ -2,11 +2,12 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { store } from '../../app/store';
 import { getCard } from '../../core/content/cards';
 import { cardRank } from '../../core/systems/cards';
-import type { BuildingId } from '../../core/content/buildings';
+import { getBuilding, type BuildingId } from '../../core/content/buildings';
 import type { Reward } from '../../core/content/quests';
 import type { Rarity } from '../../core/content/types';
 import { formatNumber } from '../../core/util';
-import { drawCardArt, portraitState, subscribePortraits } from '../art/cardPortraits';
+import { cardPortrait, drawCardArt, drawPortraitCrop, portraitState, subscribePortraits } from '../art/cardPortraits';
+import { visualTier } from '../art/buildingTier';
 import type { Ctx } from '../art/draw';
 import { drawBuilding, drawItemIcon, drawPet } from '../art/scenery';
 import { Icon, type IconName } from './Icon';
@@ -68,12 +69,45 @@ export function ItemArt({ defId, size }: { defId: string; size: number }) {
   return <ArtCanvas width={size} height={size} draw={(ctx) => drawItemIcon(ctx, defId, size / 2, size / 2, size * 0.8)} />;
 }
 
+/** Pet art: the sanctuary's 3D pet rendered in the portrait studio; the 2D drawing while it bakes. */
 export function PetArt({ petId, size, animate = false }: { petId: string; size: number; animate?: boolean }) {
-  return <ArtCanvas width={size} height={size} animate={animate} draw={(ctx, t) => drawPet(ctx, petId, size / 2, size * 0.85, size * 0.8, t)} />;
+  const key = `pet:${petId}`;
+  const state = useSyncExternalStore(subscribePortraits, () => portraitState(key));
+  return (
+    <ArtCanvas
+      width={size}
+      height={size}
+      animate={animate && state !== 2}
+      redraw={`${key}:${state}`}
+      draw={(ctx, t) => {
+        const art = cardPortrait(key);
+        if (art) drawPortraitCrop(ctx, art, size, size);
+        else drawPet(ctx, petId, size / 2, size * 0.85, size * 0.8, t);
+      }}
+    />
+  );
 }
 
+/**
+ * Building art: the building's own 3D base model rendered in the portrait studio (cropped to the
+ * card's shape); the flat 2D drawing only while it bakes or without WebGL.
+ */
 export function BuildingArt({ id, level, width, height, animate = false }: { id: BuildingId; level: number; width: number; height: number; animate?: boolean }) {
-  return <ArtCanvas width={width} height={height} animate={animate} draw={(ctx, t) => drawBuilding(ctx, id, level, width / 2, height - 6, Math.min(width / 110, height / 95), t)} />;
+  const key = `building:${id}:${level <= 0 ? -1 : visualTier(level, getBuilding(id).maxLevel)}`;
+  const state = useSyncExternalStore(subscribePortraits, () => portraitState(key));
+  return (
+    <ArtCanvas
+      width={width}
+      height={height}
+      animate={animate && state !== 2}
+      redraw={`${key}:${state}`}
+      draw={(ctx, t) => {
+        const art = cardPortrait(key);
+        if (!art) return drawBuilding(ctx, id, level, width / 2, height - 6, Math.min(width / 110, height / 95), t);
+        drawPortraitCrop(ctx, art, width, height);
+      }}
+    />
+  );
 }
 
 // --- Small UI pieces ------------------------------------------------------------------------------

@@ -170,6 +170,10 @@ export class PortraitStudio {
     this.under.color.set(f.glow);
     (this.embers.material as THREE.PointsMaterial).color.set(f.glow).multiplyScalar(3);
 
+    const light = spec.light ?? 1;
+    this.key.intensity = 1.6 * light;
+    this.scene.environmentIntensity = 0.45 * light;
+    this.embers.visible = spec.embers ?? true;
     (spec.pose ?? heroicPose)(rig);
     rig.root.rotation.y = spec.yaw ?? 0.45;
     rig.root.traverse((o) => {
@@ -195,7 +199,7 @@ export class PortraitStudio {
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
     const fitH = span / 2 / Math.tan(fov / 2);
     const fitW = (width * 0.62) / Math.tan(fov / 2) / this.camera.aspect;
-    const dist = Math.max(fitH, fitW) * 1.05;
+    const dist = Math.max(fitH, fitW) * 1.05 * (spec.pad ?? 1);
     const midY = (y0 + y1) / 2;
     this.camera.position.set(cx - (spec.shift ?? 0) * span, midY - span * 0.08, cz + dist);
     this.camera.lookAt(cx - (spec.shift ?? 0) * span, midY, cz);

@@ -8,7 +8,7 @@ import { checkBuildingUpgrade, mineCapacity, mineStored } from '../../core/syste
 import { formatDuration, formatNumber } from '../../core/util';
 import { Icon } from '../components/Icon';
 import { BaseScene, webglAvailable, type BaseSceneState } from './BaseScene';
-import type { PlotInfo } from './models';
+import { visualTier, type PlotInfo } from './models';
 
 /**
  * The 3D base with floating building labels. Loaded lazily so three.js is only downloaded when the
@@ -16,11 +16,6 @@ import type { PlotInfo } from './models';
  */
 const BUILDING_IDS = BUILDINGS.map((b) => b.id);
 
-/** Visual tier 0..4 spread over each building's whole level range. */
-function visualTier(level: number, maxLevel: number): number {
-  if (level <= 1) return 0;
-  return Math.min(4, Math.floor(((level - 1) / Math.max(1, maxLevel - 1)) * 5));
-}
 
 function sceneState(game: GameState, now: number): BaseSceneState {
   const castle = game.buildings.castle.level;

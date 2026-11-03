@@ -154,6 +154,9 @@ const MAX_PARTICLES = 420;
 const DEBUG_FLAGS = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
 
 
+/** Render-resolution multipliers for the adaptive quality steps (the last one also drops AO). */
+const QUALITY_SCALE = [1, 0.85, 0.7, 0.6];
+
 export class BattleScene3D implements PlacementView {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
@@ -181,6 +184,15 @@ export class BattleScene3D implements PlacementView {
   private readonly shields = new Map<number, THREE.Mesh>();
   private time = 0;
   private frameDt = 0;
+  /**
+   * Adaptive quality: the camera, pose model and 3D battle share one phone GPU, so when frames get
+   * slow the render resolution steps down (and ambient occlusion turns off at the lowest step); it
+   * steps back up after a stretch of fast frames.
+   */
+  private quality = 0;
+  private slowFor = 0;
+  private fastFor = 0;
+  private avgFrame = 1 / 60;
   private debugFocus = 0;
   private debugLane = 0;
   private shake = 0;
@@ -365,12 +377,43 @@ export class BattleScene3D implements PlacementView {
     this.w = Math.max(1, w);
     this.h = Math.max(1, h);
     // MSAA keeps edges clean, so 1.5x density is plenty and saves a lot of GPU work on phones
-    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1) * QUALITY_SCALE[this.quality]!;
     this.renderer.setPixelRatio(this.opts.pixel ? Math.min(dpr, PIXEL_HEIGHT / this.h) : dpr);
     this.renderer.setSize(this.w, this.h, false);
     this.pipeline.setSize(this.w, this.h, this.renderer.getPixelRatio());
     this.camera.aspect = this.w / this.h;
     this.camera.updateProjectionMatrix();
+  }
+
+  /** Steps the render resolution down after ~1.5 s of slow frames, back up after ~6 s of fast ones. */
+  private adaptQuality(dt: number): void {
+    if (dt <= 0 || dt > 0.5 || this.opts.pixel) return; // paused, or a hitch (tab switch)
+    this.avgFrame += (dt - this.avgFrame) * 0.1;
+    if (this.avgFrame > 1 / 38) {
+      this.slowFor += dt;
+      this.fastFor = 0;
+    } else if (this.avgFrame < 1 / 55) {
+      this.fastFor += dt;
+      this.slowFor = 0;
+    } else {
+      this.slowFor = 0;
+      this.fastFor = 0;
+    }
+    const last = QUALITY_SCALE.length - 1;
+    let next = this.quality;
+    if (this.slowFor > 1.5 && this.quality < last) next++;
+    else if (this.fastFor > 6 && this.quality > 0) next--;
+    if (next === this.quality) return;
+    this.quality = next;
+    this.slowFor = 0;
+    this.fastFor = 0;
+    this.pipeline.setAO(next < last);
+    this.resize(this.w, this.h);
+  }
+
+  /** Current adaptive quality step (0 = full); for diagnostics and tests. */
+  get qualityStep(): number {
+    return this.quality;
   }
 
   showBanner(title: string, subtitle: string, color = '#ffc94a', life = 2): void {
@@ -1463,6 +1506,7 @@ export class BattleScene3D implements PlacementView {
   render(battle: Battle, dt: number, overlay: Ctx): void {
     this.time += dt;
     this.frameDt = dt;
+    this.adaptQuality(dt);
     const t = this.time;
     if (!this.reducedMotion) this.field.update(t, dt);
     this.syncUnits(battle);

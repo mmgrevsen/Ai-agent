@@ -47,6 +47,8 @@ export const C = {
 
 export type Animator = (t: number, dt: number) => void;
 
+export { visualTier } from '../art/buildingTier';
+
 export interface PlotInfo {
   level: number;
   tier: number;
@@ -453,8 +455,8 @@ function pushupSoldier(cloth: string, i: number): THREE.Group {
   return holder;
 }
 
-/** Sculpted pets for the sanctuary. */
-function petModel(petId: string, hex: string): THREE.Mesh {
+/** Sculpted pets for the sanctuary (and their portraits). */
+export function petModel(petId: string, hex: string): THREE.Mesh {
   const k = new K();
   if (petId === 'moonmoth') {
     k.ball(0.22, 0, 0.9, 0, '#f2ead7', 1, 1.2, 1);

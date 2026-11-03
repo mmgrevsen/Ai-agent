@@ -13,6 +13,12 @@ export interface PortraitSpec {
   /** Shift the subject sideways in the frame (units of frame width, default 0). */
   shift?: number;
   faction?: Faction;
+  /** Extra camera distance (1 = tight fit); wide subjects cropped to landscape need room. */
+  pad?: number;
+  /** Key light and sky reflection multiplier (1 = the dim unit look; scenery needs more). */
+  light?: number;
+  /** Drifting embers in front of the subject (default true). */
+  embers?: boolean;
 }
 
 export interface UnitDef {

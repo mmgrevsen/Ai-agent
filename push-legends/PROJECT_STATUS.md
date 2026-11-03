@@ -248,6 +248,11 @@ Test coverage highlights:
 - **Save:** round-trip, backup fallback after a torn write, unreadable data preserved, checksum mismatch, newer-version rejection, field repair, empty equipment slots, interrupted upgrades; social codes.
 - **Balance simulation:** 40 simulated days for three player profiles (see GAME_DESIGN.md §12).
 
+## Latest changes
+
+- Building and pet art is rendered from their own 3D base models in the portrait studio (the flat 2D drawings only show while a portrait bakes or without WebGL).
+- The 3D battle adapts its render resolution to the frame rate (four steps; the lowest also turns off ambient occlusion), because the camera, pose model and battle share one phone GPU.
+
 ## Known issues and limitations
 
 - Rep counting is only validated against synthetic landmark sequences and a fake camera. It needs testing with real people, lighting, phones and camera angles; thresholds are configurable for that tuning. Front placement is less reliable than side placement.
