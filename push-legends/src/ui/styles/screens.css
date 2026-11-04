@@ -499,6 +499,7 @@ svg.flip,
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
+  max-height: 68vh;
   border-radius: var(--radius-l);
   overflow: hidden;
   background: #000;
@@ -514,6 +515,13 @@ svg.flip,
   /* The whole picture (not a cropped middle slice), so the player can see their full body;
      the skeleton canvas has the video's aspect ratio and the same fit, so it stays aligned */
   object-fit: contain;
+}
+
+/* A phone held upright delivers a portrait picture: give it a portrait frame so it fills it */
+.cam-preview.tall {
+  aspect-ratio: 3 / 4;
+  margin: 0 auto;
+  width: min(100%, calc(68vh * 3 / 4));
 }
 
 .cam-preview video.mirror {

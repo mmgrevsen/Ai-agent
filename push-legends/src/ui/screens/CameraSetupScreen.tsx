@@ -166,7 +166,7 @@ options={[
 
         {live && (
           <>
-            <div className="cam-preview">
+            <div className={`cam-preview ${tracker.view && tracker.view.height > tracker.view.width ? 'tall' : ''}`}>
               <video ref={tracker.videoRef} playsInline muted className={s.cameraFacing === 'user' ? 'mirror' : ''} />
               <canvas ref={skeletonRef} width={480} height={360} />
               {step === 'preview' && <span className="big-count">{tracker.count}</span>}
@@ -175,7 +175,10 @@ options={[
                   <>
                     <div className="spread">
                       <span className={q === 'good' ? 'good-text' : q === 'fair' ? 'gold-text' : 'warn-text'}>Tracking: {q === 'lost' ? 'searching' : q}</span>
-                      <span className="xsmall faint">{tracker.fps} fps</span>
+                      <span className="xsmall faint">
+                        {tracker.view?.lens === 'ultrawide' ? 'Ultra-wide · ' : tracker.view?.zoom && tracker.view.zoom < 1 ? `${tracker.view.zoom}x · ` : ''}
+                        {tracker.fps} fps
+                      </span>
                     </div>
                     <Bar value={confidence} max={1} tone={q === 'good' ? 'green' : q === 'fair' ? '' : 'red'} />
                     <div style={{ marginTop: 4 }}>{step === 'calibrate' && cal ? cal.message : out ? feedbackText(s.exerciseMode, out.feedback) : ''}</div>

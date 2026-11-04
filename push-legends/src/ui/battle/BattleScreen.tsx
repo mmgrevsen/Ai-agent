@@ -82,7 +82,24 @@ export function BattleScreen({ setup, context }: { setup: BattleSetup; context: 
   const [speed, setSpeed] = useState(1);
   const [ending, setEnding] = useState(false);
   const [repFlash, setRepFlash] = useState(0);
-  const [bigCam, setBigCam] = useState(false);
+  // The big camera view is remembered on this device (a convenience, not game state)
+  const [bigCam, setBigCamState] = useState(() => {
+    try {
+      return localStorage.getItem('push-legends/big-cam') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setBigCam = (f: (b: boolean) => boolean) =>
+    setBigCamState((b) => {
+      const next = f(b);
+      try {
+        localStorage.setItem('push-legends/big-cam', next ? '1' : '0');
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
   const pausedRef = useRef(false);
   const speedRef = useRef(1);
   pausedRef.current = paused || ending;

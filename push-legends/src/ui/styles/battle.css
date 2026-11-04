@@ -165,8 +165,8 @@
 
 .cam-thumb {
   position: relative;
-  width: 84px;
-  height: 63px;
+  width: 112px;
+  height: 84px;
   flex: none;
   border-radius: 12px;
   overflow: hidden;
@@ -569,11 +569,12 @@ button.cam-thumb {
 
 .cam-thumb.big {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  left: 6px;
+  right: 6px;
+  top: calc(env(safe-area-inset-top, 0px) + 50px);
   width: auto;
-  height: 55vh;
+  /* Most of the screen, so the player can check their whole body from 2-3 m */
+  height: 72vh;
   z-index: 40;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
@@ -597,7 +598,8 @@ button.cam-thumb {
   left: 14px;
   font-family: var(--font-card);
   font-weight: 900;
-  font-size: 52px;
+  font-size: 84px;
+  line-height: 1;
   color: #f1e6cf;
   text-shadow: 0 2px 8px #000;
 }
@@ -606,8 +608,8 @@ button.cam-thumb {
   position: absolute;
   right: 12px;
   top: 14px;
-  bottom: 52px;
-  width: 12px;
+  bottom: 60px;
+  width: 18px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
@@ -630,7 +632,7 @@ button.cam-thumb {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.65);
   color: #f1e6cf;
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 700;
   text-align: center;
 }

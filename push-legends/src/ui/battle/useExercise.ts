@@ -3,7 +3,7 @@ import { SKELETON_EDGES, type Landmark, type PoseFrame } from '../../core/exerci
 import { calibratedConfig, defaultRepConfig, RepCounter, type FrameOutput, type RepEvent } from '../../core/exercise/repCounter';
 import type { Calibration, CameraPlacement, ExerciseMode } from '../../core/state/types';
 import { LandmarkSmoother } from '../../core/exercise/filter';
-import { PoseCamera, type CameraStatus } from '../../platform/pose';
+import { PoseCamera, type CameraStatus, type CameraView } from '../../platform/pose';
 import { voiceCoach } from '../../platform/voice';
 
 export interface ExerciseTracker {
@@ -12,6 +12,8 @@ export interface ExerciseTracker {
   output: FrameOutput | null;
   count: number;
   fps: number;
+  /** Resolution, lens and zoom the camera delivers (null until it opens). */
+  view: CameraView | null;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   landmarksRef: React.RefObject<Landmark[] | null>;
 }
@@ -42,6 +44,7 @@ export function useExerciseTracker(opts: {
   const [output, setOutput] = useState<FrameOutput | null>(null);
   const [count, setCount] = useState(0);
   const [fps, setFps] = useState(0);
+  const [view, setView] = useState<CameraView | null>(null);
 
   useEffect(() => {
     if (!opts.enabled || !videoRef.current) return;
@@ -73,6 +76,7 @@ export function useExerciseTracker(opts: {
       (s, err) => {
         setStatus(s);
         setError(err ?? '');
+        setView(camera.view);
       },
       opts.facing ?? 'user',
     );
@@ -84,7 +88,7 @@ export function useExerciseTracker(opts: {
     };
   }, [opts.enabled, opts.kind, opts.placement, opts.facing, opts.voice, opts.calibration?.topAngle, opts.calibration?.bottomAngle]);
 
-  return { status, error, output, count, fps, videoRef, landmarksRef };
+  return { status, error, output, count, fps, view, videoRef, landmarksRef };
 }
 
 /**

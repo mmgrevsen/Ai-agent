@@ -77,10 +77,70 @@ export function cameraSupported(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 }
 
+/** What the camera ended up delivering (shown in the camera setup). */
+export interface CameraView {
+  width: number;
+  height: number;
+  /** The lens in use: the ultra-wide back lens when the phone has one. */
+  lens: 'ultrawide' | 'standard';
+  /** Zoom factor in use when the browser reports one (below 1 = wider than the standard lens). */
+  zoom: number | null;
+}
+
+// Full-sensor 4:3 picture: phone sensors are 4:3, and asking for 16:9 crops the top and bottom
+// off, which is exactly the part needed to see a whole body on the floor
+const WIDE: MediaTrackConstraints = { width: { ideal: 1280 }, height: { ideal: 960 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 } };
+const ULTRA_WIDE = /ultra ?wide|0[.,]5 ?x|wide.?angle/i;
+
+/**
+ * Opens the camera with the widest view it offers: the full sensor, the ultra-wide back lens if
+ * the device lists one (labels are only readable once permission is granted, so it re-opens),
+ * and the lowest zoom the track supports.
+ */
+export async function openWideCamera(facing: 'user' | 'environment'): Promise<{ stream: MediaStream; view: CameraView }> {
+  const md = navigator.mediaDevices;
+  let stream = await md.getUserMedia({ video: { ...WIDE, facingMode: facing }, audio: false });
+  let lens: CameraView['lens'] = 'standard';
+  if (facing === 'environment' && md.enumerateDevices) {
+    try {
+      const current = stream.getVideoTracks()[0]?.getSettings().deviceId;
+      const devices = await md.enumerateDevices();
+      const wide = devices.find((d) => d.kind === 'videoinput' && ULTRA_WIDE.test(d.label) && !/front/i.test(d.label));
+      if (wide && wide.deviceId && wide.deviceId !== current) {
+        const next = await md.getUserMedia({ video: { ...WIDE, deviceId: { exact: wide.deviceId } }, audio: false });
+        stream.getTracks().forEach((t) => t.stop());
+        stream = next;
+        lens = 'ultrawide';
+      } else if (wide) lens = 'ultrawide';
+    } catch {
+      /* keep the standard lens */
+    }
+  }
+  const track = stream.getVideoTracks()[0];
+  let zoom: number | null = null;
+  if (track) {
+    type ZoomCaps = { zoom?: { min: number; max: number } };
+    const caps = (track.getCapabilities?.() ?? {}) as ZoomCaps;
+    const now = (track.getSettings() as { zoom?: number }).zoom;
+    if (caps.zoom && typeof now === 'number' && caps.zoom.min < now) {
+      try {
+        await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min } as MediaTrackConstraintSet] });
+      } catch {
+        /* zoom stays where it was */
+      }
+    }
+    const z = (track.getSettings() as { zoom?: number }).zoom;
+    zoom = typeof z === 'number' ? z : null;
+  }
+  const set = track?.getSettings() ?? {};
+  return { stream, view: { width: set.width ?? 0, height: set.height ?? 0, lens, zoom } };
+}
+
 export class PoseCamera {
   status: CameraStatus = 'idle';
   error = '';
   fps = 0;
+  view: CameraView | null = null;
   private stream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
   private landmarker: Landmarker | null = null;
@@ -107,10 +167,9 @@ export class PoseCamera {
     if (!cameraSupported()) return this.set('unavailable', 'This device or browser does not provide camera access.');
     this.set('requesting');
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: this.facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-        audio: false,
-      });
+      const opened = await openWideCamera(this.facing);
+      this.stream = opened.stream;
+      this.view = opened.view;
     } catch (err) {
       const name = err instanceof DOMException ? err.name : '';
       if (name === 'NotAllowedError' || name === 'SecurityError') return this.set('denied', 'Camera permission was not granted.');
