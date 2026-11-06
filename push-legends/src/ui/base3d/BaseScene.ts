@@ -27,8 +27,9 @@ export interface BaseSceneState {
 }
 
 const FOV = 35;
-const PITCH = (52 * Math.PI) / 180;
-const YAW = (18 * Math.PI) / 180;
+// Looking down a corner of the base, so the walled yard reads as a diamond (classic village view)
+const PITCH = (55 * Math.PI) / 180;
+const YAW = (45 * Math.PI) / 180;
 const MIN_DIST = 22;
 const MAX_DIST = 115;
 
@@ -139,20 +140,20 @@ export class BaseScene {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.14;
+    this.renderer.toneMappingExposure = 1.0;
     const canvas = this.renderer.domElement;
     canvas.className = `base3d-canvas${this.pixel ? ' pixel' : ''}`;
     canvas.style.touchAction = 'none';
     container.prepend(canvas);
 
-    // Golden-hour dusk over a dark keep (the same mood as the battle courtyard)
-    this.scene.background = new THREE.Color('#3a2f33');
-    this.scene.fog = new THREE.Fog('#4a3a36', 110, 300);
-    const sunDir = new THREE.Vector3(34, 20, 14).normalize();
-    this.scene.environment = skyEnvironment(this.renderer, '#3c3d4c', '#b0704a', '#2e2a22', sunDir);
-    this.scene.environmentIntensity = 0.55;
-    this.scene.add(new THREE.HemisphereLight('#a8988f', '#2a2620', 0.5));
-    const sun = new THREE.DirectionalLight('#ffbf86', 3.0);
+    // Bright midday: blue sky, high warm sun, soft sky fill (clear, readable, colourful)
+    this.scene.background = new THREE.Color('#8fd0f2');
+    this.scene.fog = new THREE.Fog('#a9dcf2', 140, 330);
+    const sunDir = new THREE.Vector3(-14, 40, 22).normalize();
+    this.scene.environment = skyEnvironment(this.renderer, '#74b4ec', '#e2f1fb', '#5f8f3c', sunDir);
+    this.scene.environmentIntensity = 0.75;
+    this.scene.add(new THREE.HemisphereLight('#d6ecff', '#5e8a3a', 0.75));
+    const sun = new THREE.DirectionalLight('#fff3dc', 3.2);
     sun.position.copy(sunDir).multiplyScalar(60);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -169,10 +170,10 @@ export class BaseScene {
     this.scene.add(sun);
     this.pipeline = createPipeline(this.renderer, this.scene, this.camera, {
       msaa: !this.pixel,
-      bloom: { strength: 0.35, radius: 0.5, threshold: 2.6 },
-      saturation: 1.0,
-      contrast: 1.08,
-      vignette: 0.26,
+      bloom: { strength: 0.25, radius: 0.5, threshold: 3 },
+      saturation: 1.15,
+      contrast: 1.04,
+      vignette: 0.12,
       ao: this.pixel ? null : { radius: 1.6, intensity: 1 },
     });
     this.scene.add(this.world);
@@ -197,29 +198,29 @@ export class BaseScene {
     const { minX, maxX, minZ, maxZ } = MAP;
     // Meadow outside, lush lawn inside the walls
     // Built with the Kit so the meadow gets the same procedural colour patches and grain
-    const grass = new K().add(new THREE.PlaneGeometry(500, 500, 40, 40), '#3e4a2e', 0, -0.2, 0, -Math.PI / 2).build(false);
+    const grass = new K().add(new THREE.PlaneGeometry(500, 500, 40, 40), '#5aac34', 0, -0.2, 0, -Math.PI / 2).build(false);
     this.world.add(grass);
 
     const ground = new K();
-    ground.box(maxX - minX, 0.2, maxZ - minZ, 0, -0.2, 0, '#475536');
+    ground.box(maxX - minX, 0.2, maxZ - minZ, 0, -0.2, 0, '#6cc23c');
     // Cobblestone roads
     for (const [x0, z0, x1, z1] of ROADS) {
-      ground.box(x1 - x0 + 0.5, 0.06, z1 - z0 + 0.5, (x0 + x1) / 2, -0.02, (z0 + z1) / 2, '#5a524a');
+      ground.box(x1 - x0 + 0.5, 0.06, z1 - z0 + 0.5, (x0 + x1) / 2, -0.02, (z0 + z1) / 2, '#a8987c');
       const step = 0.62;
       for (let x = x0 + step / 2; x < x1; x += step) {
         for (let z = z0 + step / 2; z < z1; z += step) {
           const ox = (Math.floor((z - z0) / step) % 2) * step * 0.5;
           if (x + ox > x1) continue;
-          ground.box(step - 0.1, 0.07, step - 0.1, x + ox, 0.0, z, shadeHex('#7a7268', (rand() - 0.5) * 0.14), rand() * 0.3);
+          ground.box(step - 0.1, 0.07, step - 0.1, x + ox, 0.0, z, shadeHex('#cdbf9f', (rand() - 0.5) * 0.12), rand() * 0.3);
         }
       }
     }
     // Road over the bridge and out of the gate
-    ground.box(5.2, 0.05, 30, 0, -0.15, maxZ + 18, '#6a5e4c');
+    ground.box(5.2, 0.05, 30, 0, -0.15, maxZ + 18, '#b9a582');
     for (let i = 0; i < 30; i++) {
       const a = rand() * Math.PI * 2;
       const r = 34 + rand() * 50;
-      ground.add(new THREE.CircleGeometry(2 + rand() * 4, 8), '#3f5530', Math.cos(a) * r, -0.18, Math.sin(a) * r, -Math.PI / 2, 0, rand() * 3);
+      ground.add(new THREE.CircleGeometry(2 + rand() * 4, 8), '#4f9f2e', Math.cos(a) * r, -0.18, Math.sin(a) * r, -Math.PI / 2, 0, rand() * 3);
     }
     const groundMesh = ground.build(false, BUILD_MAT);
     groundMesh.receiveShadow = true;
@@ -229,6 +230,7 @@ export class BaseScene {
     this.world.add(this.scatterTufts(rand));
 
     this.world.add(this.buildWalls(rand));
+    this.world.add(this.buildPlotWalls());
     this.buildMoat(rand);
 
     // Scenery outside the walls
@@ -337,7 +339,7 @@ export class BaseScene {
     flower.ball(0.05, 0, 0.42, 0, '#ffe066');
     const flowerMesh = flower.build(false, toonMaterial(0.2));
     const N = 900;
-    const F = 90;
+    const F = 140;
     const tufts = new THREE.InstancedMesh(tuftMesh.geometry, tuftMesh.material as THREE.Material, N);
     const flowers = new THREE.InstancedMesh(flowerMesh.geometry, flowerMesh.material as THREE.Material, F);
     const m4 = new THREE.Matrix4();
@@ -345,8 +347,7 @@ export class BaseScene {
     const up = new THREE.Vector3(0, 1, 0);
     let n = 0;
     let f = 0;
-    // Dusk wildflowers: muted, so they sparkle a little without speckling the dark ground
-    const flowerColors = ['#a5566e', '#c8b48a', '#8668a8', '#b0674f'];
+    const flowerColors = ['#ff7ab8', '#ffffff', '#ffd84a', '#b98eff', '#ff7a5a'];
     for (let i = 0; i < 4000 && (n < N || f < F); i++) {
       const outside = rand() < 0.45;
       const x = outside ? (rand() * 2 - 1) * 60 : (rand() * 2 - 1) * (MAP.maxX - 1);
@@ -362,7 +363,7 @@ export class BaseScene {
         f++;
       } else if (n < N) {
         tufts.setMatrixAt(n, m4);
-        tufts.setColorAt(n, new THREE.Color(outside ? '#465a30' : '#506638').offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.06));
+        tufts.setColorAt(n, new THREE.Color(outside ? '#57ad35' : '#69c23f').offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.08));
         n++;
       }
     }
@@ -495,6 +496,48 @@ export class BaseScene {
       const n = Math.round(len / 1.0);
       for (let i = 0; i < n; i++) for (const s of [-1, 1]) k.rbox(0.6, 0.62, 0.4, 0.08, cx - len / 2 + (len / n) * (i + 0.5), h + 0.5, cz + s * (th / 2 - 0.1), C.stone);
     }
+  }
+
+  /**
+   * Chunky stone walls around every building's yard (the sanctuary has its own), with an opening
+   * towards the central avenue: the base reads as a set of walled compartments.
+   */
+  private buildPlotWalls(): THREE.Mesh {
+    const k = new K();
+    const block = (x: number, z: number, alongX: boolean, post: boolean) => {
+      const h = post ? 1.05 : 0.8;
+      k.rbox(alongX ? 0.66 : 0.56, h, alongX ? 0.56 : 0.66, 0.08, x, h / 2, z, post ? '#7a7f88' : '#6c717b');
+      k.rbox(alongX ? 0.7 : 0.6, 0.12, alongX ? 0.6 : 0.7, 0.04, x, h + 0.04, z, '#a3a9b2');
+    };
+    for (const p of PLOTS) {
+      if (p.id === 'pet_sanctuary') continue;
+      const x0 = p.x - p.w / 2 - 0.35;
+      const x1 = p.x + p.w / 2 + 0.35;
+      const z0 = p.z - p.d / 2 - 0.35;
+      const z1 = p.z + p.d / 2 + 0.35;
+      // The opening faces the nearest road: the plaza for the north row, the cross road for the
+      // south row, the avenue or the side lanes for the middle row
+      const gap = p.z < -12 ? 'south' : p.z > 10 ? 'north' : p.x < 0 ? 'east' : 'west';
+      const side = (ax: number, az: number, bx: number, bz: number, name: string) => {
+        const len = Math.hypot(bx - ax, bz - az);
+        const n = Math.max(2, Math.round(len / 0.7));
+        const alongX = Math.abs(bx - ax) > Math.abs(bz - az);
+        for (let i = 0; i <= n; i++) {
+          const u = i / n;
+          if (name === gap && Math.abs(u - 0.5) < 1.3 / len) continue;
+          block(ax + (bx - ax) * u, az + (bz - az) * u, alongX, i % 4 === 0);
+        }
+      };
+      side(x0, z0, x1, z0, 'north');
+      side(x0, z1, x1, z1, 'south');
+      side(x0, z0, x0, z1, 'west');
+      side(x1, z0, x1, z1, 'east');
+    }
+    const mesh = k.build(true, BUILD_MAT);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    addOutlines(mesh, 0.03, () => true);
+    return mesh;
   }
 
   private buildWalls(rand: () => number): THREE.Group {
@@ -641,11 +684,30 @@ export class BaseScene {
 
   // --- Camera and input ---------------------------------------------------------------------------
 
+  /** The nearest camera distance at which the whole walled base (towers included) fits the view. */
   private defaultDist(): number {
-    const aspect = this.width / this.height;
-    const fitWidth = 50 / (2 * Math.tan(((FOV / 2) * Math.PI) / 180) * aspect);
-    const fitDepth = (48 / (2 * Math.tan(((FOV / 2) * Math.PI) / 180)) / Math.sin(PITCH)) * 0.82;
-    return THREE.MathUtils.clamp(Math.max(Math.min(fitWidth, 104), Math.min(fitDepth, 60)), MIN_DIST, MAX_DIST);
+    const { minX, maxX, minZ, maxZ } = MAP;
+    const corners: THREE.Vector3[] = [];
+    for (const x of [minX - 1, maxX + 1]) for (const z of [minZ - 1, maxZ + 1]) for (const y of [0, 6]) corners.push(new THREE.Vector3(x, y, z));
+    const cam = this.camera.clone();
+    cam.aspect = this.width / this.height;
+    cam.updateProjectionMatrix();
+    const target = new THREE.Vector3(0, 0, 0);
+    const v = new THREE.Vector3();
+    for (let d = MIN_DIST; d <= MAX_DIST; d += 1.5) {
+      const horiz = d * Math.cos(PITCH);
+      cam.position.set(horiz * Math.sin(YAW), d * Math.sin(PITCH), horiz * Math.cos(YAW));
+      cam.lookAt(target);
+      cam.updateMatrixWorld();
+      // A little over the edge is fine on narrow phones (pan to see the corners), so allow 1.12
+      const lim = cam.aspect < 0.8 ? 1.25 : 1.06;
+      if (corners.every((c) => {
+        v.copy(c).project(cam);
+        return Math.abs(v.x) <= lim && Math.abs(v.y) <= 1.04;
+      }))
+        return d;
+    }
+    return MAX_DIST;
   }
 
   private resize(): void {

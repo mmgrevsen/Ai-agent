@@ -16,34 +16,34 @@ import { addOutlines, glowMaterial, toonMaterial } from './style';
  */
 /** Natural, slightly muted palette (terracotta and slate roofs, weathered wood and stone). */
 export const C = {
-  // Dark-fantasy keep: weathered dark stone, slate and blood-red roofs, muted gold (matches the arenas)
-  sand: '#6e5d47',
-  pad: '#4f4a44',
-  padEdge: '#3a3632',
-  road: '#5c554d',
-  roadEdge: '#433d37',
-  grass: '#4a5a34',
-  grassDark: '#36452a',
-  stone: '#77716a',
-  stoneDark: '#55504a',
-  mortar: '#34302c',
-  wood: '#4f3826',
-  woodDark: '#33241a',
-  plaster: '#6a6256',
-  red: '#6e1d1f',
-  blue: '#323a46',
-  purple: '#3d3142',
-  green: '#30473a',
-  slate: '#33373e',
-  gold: '#b08d43',
-  iron: '#3e4349',
-  steel: '#8a929b',
-  skin: '#b9a693',
-  white: '#d6c9ad',
-  leaf: '#41602f',
-  leafDark: '#2b4421',
-  water: '#2a4a58',
-  glass: '#1c2232',
+  // Bright, sunny strategy-village palette: saturated roofs, warm wood, light stone, lush grass
+  sand: '#e2c184',
+  pad: '#c9bca2',
+  padEdge: '#9a8e78',
+  road: '#c2b293',
+  roadEdge: '#94866d',
+  grass: '#6dc23b',
+  grassDark: '#4f9e2c',
+  stone: '#bdb6a8',
+  stoneDark: '#8f887c',
+  mortar: '#625c53',
+  wood: '#a06d3b',
+  woodDark: '#6e4727',
+  plaster: '#efe3c6',
+  red: '#d2412d',
+  blue: '#3b74cf',
+  purple: '#8450c4',
+  green: '#3f9a4c',
+  slate: '#56637a',
+  gold: '#f5c533',
+  iron: '#5d646d',
+  steel: '#bcc6d0',
+  skin: '#e8bb90',
+  white: '#f6eed9',
+  leaf: '#52b233',
+  leafDark: '#2f8424',
+  water: '#41aee6',
+  glass: '#2a3a5a',
 };
 
 export type Animator = (t: number, dt: number) => void;
@@ -301,16 +301,16 @@ export function tree(k: Kit, x: number, z: number, s = 1, pine = false): void {
   k.add(new THREE.CylinderGeometry(0.2 * s, 0.34 * s, 1.5 * s, 7), C.woodDark, x, 0.75 * s, z);
   for (let i = 0; i < 3; i++) k.add(new THREE.ConeGeometry(0.14 * s, 0.6 * s, 5), C.woodDark, x + Math.cos(i * 2.1) * 0.28 * s, 0.12 * s, z + Math.sin(i * 2.1) * 0.28 * s, Math.sin(i * 2.1) * 1.1, 0, -Math.cos(i * 2.1) * 1.1);
   if (pine) {
-    for (let i = 0; i < 4; i++) k.add(new THREE.ConeGeometry((1.45 - i * 0.28) * s, 1.3 * s, 8), i % 2 ? C.leafDark : '#2c4a26', x, (1.4 + i * 0.75) * s, z);
+    for (let i = 0; i < 4; i++) k.add(new THREE.ConeGeometry((1.45 - i * 0.28) * s, 1.3 * s, 8), i % 2 ? C.leafDark : '#2f8a3c', x, (1.4 + i * 0.75) * s, z);
     return;
   }
   const puffs: [number, number, number, number, string][] = [
     [0, 2.35, 0, 1.15, C.leaf],
-    // Dusk greens (deep olive to moss), so trees sit in the dark palette
-    [0.7, 2.0, 0.2, 0.8, '#3a5a2a'],
-    [-0.65, 2.05, -0.1, 0.85, '#34502a'],
-    [0.2, 2.95, -0.2, 0.75, '#4f6e34'],
-    [-0.2, 2.2, 0.6, 0.7, '#46632f'],
+    // Lush, sunlit greens
+    [0.7, 2.0, 0.2, 0.8, '#43a33a'],
+    [-0.65, 2.05, -0.1, 0.85, '#3a9832'],
+    [0.2, 2.95, -0.2, 0.75, '#6cc24a'],
+    [-0.2, 2.2, 0.6, 0.7, '#58b43f'],
   ];
   for (const [dx, dy, dz, r, hex] of puffs) k.add(new THREE.IcosahedronGeometry(r * s, 1), hex, x + dx * s, dy * s, z + dz * s);
 }
@@ -1066,14 +1066,14 @@ const guildHall: Builder = (k, g, plot, info, anim, rand) => {
  */
 const petSanctuary: Builder = (k, g, plot, info, anim, rand) => {
   const t = info.tier;
-  const MOSS = '#3b4a2a';
-  const MOSS_DK = '#2b3720';
+  const MOSS = C.grass;
+  const MOSS_DK = C.grassDark;
   k.rbox(plot.w, 0.24, plot.d, 0.08, 0, 0, 0, MOSS);
   for (let i = 0; i < 14; i++) k.ball(0.5 + rand() * 0.6, (rand() - 0.5) * (plot.w - 2), 0.12, (rand() - 0.5) * (plot.d - 2), MOSS_DK, 1, 0.08, 1);
   for (let i = 0; i < 22; i++) {
     const x = (rand() - 0.5) * (plot.w - 1);
     const z = (rand() - 0.5) * (plot.d - 1);
-    k.add(new THREE.ConeGeometry(0.05, 0.26, 4), rand() < 0.5 ? '#4f6236' : '#43552f', x, 0.25, z, 0, 0, (rand() - 0.5) * 0.4);
+    k.add(new THREE.ConeGeometry(0.05, 0.26, 4), rand() < 0.5 ? '#5fb532' : '#4fa52c', x, 0.25, z, 0, 0, (rand() - 0.5) * 0.4);
   }
   // Low dry-stone wall with iron railings; open at the front
   const fw = plot.w - 0.7;
@@ -1106,7 +1106,7 @@ const petSanctuary: Builder = (k, g, plot, info, anim, rand) => {
   k.box(2.4, 0.12, 0.14, 0, 1.55, fd / 2, C.woodDark);
   // Moon pond: dark water, pale stones, a ring of glowing moss
   k.lathe([[0.001, 0], [1.8, 0], [1.8, 0.04]], -2.7, 0.13, 1.0, C.mortar, 24);
-  const water = new THREE.Mesh(new THREE.CircleGeometry(1.55, 32), new THREE.MeshStandardMaterial({ color: '#0f2430', roughness: 0.08, metalness: 0.4 }));
+  const water = new THREE.Mesh(new THREE.CircleGeometry(1.55, 32), new THREE.MeshStandardMaterial({ color: '#2a8fd0', roughness: 0.08, metalness: 0.2 }));
   water.rotation.x = -Math.PI / 2;
   water.position.set(-2.7, 0.19, 1.0);
   g.add(water);

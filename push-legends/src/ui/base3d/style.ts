@@ -27,7 +27,10 @@ export function toonRamp(): THREE.DataTexture {
  * cloth, wood and grass catch the light unevenly), and vertices marked as metal (`aMetal`, set by
  * the Kit from the colour palette) become shiny metal that reflects the sky.
  */
-export function realMaterial(opts: { grain?: number; bump?: number; roughness?: number; scale?: number; ornate?: number } = {}): THREE.MeshStandardMaterial {
+export function realMaterial(opts: { grain?: number; bump?: number; roughness?: number; scale?: number; ornate?: number; paint?: number } = {}): THREE.MeshStandardMaterial {
+  // Hand-painted character look: dark colours lifted, saturation pushed, and a cool fill in the
+  // shadows so a figure never sinks into black (0 = off, 1 = full)
+  const paint = opts.paint ?? 0;
   const grain = opts.grain ?? 1;
   // Engraved filigree on armour metal (characters): flowing inlaid lines, faded out where too fine
   const ornate = opts.ornate ?? 0;
@@ -85,7 +88,13 @@ void main() {`,
         float plAmt = ${f(grain)} * (1.0 - 0.6 * plMetal);
         diffuseColor.rgb *= mix(1.0, (0.85 + 0.3 * plLarge) * (0.93 + 0.14 * plFine), plAmt);
         // Warm / cool drift over larger areas (sun-bleached and damp patches)
-        diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(1.07, 1.0, 0.82), vec3(0.92, 1.0, 1.07), smoothstep(0.3, 0.7, plHue)), plAmt * 0.8);`,
+        diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(1.07, 1.0, 0.82), vec3(0.92, 1.0, 1.07), smoothstep(0.3, 0.7, plHue)), plAmt * 0.8);
+        ${paint > 0 ? `{
+          vec3 pc = pow(max(diffuseColor.rgb, vec3(0.0)), vec3(0.72));
+          float pl = dot(pc, vec3(0.299, 0.587, 0.114));
+          pc = max(vec3(0.0), mix(vec3(pl), pc, 1.45)) * 1.06;
+          diffuseColor.rgb = mix(diffuseColor.rgb, pc, ${f(paint)});
+        }` : ''}`,
       )
       .replace(
         '#include <roughnessmap_fragment>',
@@ -103,6 +112,11 @@ void main() {`,
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.48, 0.25), inl * 0.75);
           roughnessFactor = mix(roughnessFactor, 0.25, inl);
         }` : ''}`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        ${paint > 0 ? `totalEmissiveRadiance += diffuseColor.rgb * vec3(0.07, 0.085, 0.15) * ${f(paint)};` : ''}`,
       )
       .replace(
         '#include <metalnessmap_fragment>',
@@ -126,7 +140,7 @@ void main() {`,
         }`,
       );
   };
-  m.customProgramCacheKey = () => `real${grain}|${bump}|${scale}|${ornate}`;
+  m.customProgramCacheKey = () => `real${grain}|${bump}|${scale}|${ornate}|${paint}`;
   return m;
 }
 
