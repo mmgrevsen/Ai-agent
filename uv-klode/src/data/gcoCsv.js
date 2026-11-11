@@ -7,7 +7,7 @@
  * kolonner ud fra deres navn:
  *   - landekode: "Alpha-3 code" / "ISO3" (bogstaver) eller "ISO code" / "Population code" (tal, fx 208)
  *   - rate:      en kolonne hvis navn indeholder "ASR" (aldersstandardiseret rate, World)
- *   - navn:      "Population" / "Country" / "Label" (kun til fejlbeskeder)
+ *   - navn:      "Population" / "Country" / "Label" (bruges, hvis der ikke er en landekode)
  */
 
 /** Del én CSV-linje op i felter (håndterer anførselstegn og ; eller , som skilletegn). */
@@ -31,6 +31,32 @@ function delLinje(linje, skille) {
   return felter;
 }
 
+/** Gør et landenavn sammenligneligt: små bogstaver, uden accenter, parenteser og tegn. */
+export const normaliserNavn = (n) =>
+  String(n)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/[^a-z]/g, '');
+
+// GCO's navne, der skrives anderledes end i Natural Earth (GCO-navn → ISO3)
+const NAVNE_ALIAS = {
+  unitedstatesofamerica: 'USA', usa: 'USA', russianfederation: 'RUS', korearepublicof: 'KOR', republicofkorea: 'KOR',
+  southkorea: 'KOR', koreademocraticrepublicof: 'PRK', dempeoplesrepublicofkorea: 'PRK', northkorea: 'PRK',
+  irantheislamicrepublicof: 'IRN', iranislamicrepublicof: 'IRN', iran: 'IRN', vietnam: 'VNM', vietnamsocialistrepublic: 'VNM',
+  laopeoplesdemocraticrepublic: 'LAO', laopdr: 'LAO', syrianarabrepublic: 'SYR', bolivia: 'BOL', boliviaplurinationalstateof: 'BOL',
+  venezuela: 'VEN', venezuelabolivarianrepublicof: 'VEN', tanzaniaunitedrepublicof: 'TZA', unitedrepublicoftanzania: 'TZA',
+  democraticrepublicofthecongo: 'COD', drcongo: 'COD', congodemocraticrepublicof: 'COD', congorepublicof: 'COG', congo: 'COG',
+  cotedivoire: 'CIV', ivorycoast: 'CIV', czechia: 'CZE', czechrepublic: 'CZE', turkiye: 'TUR', turkey: 'TUR',
+  unitedkingdom: 'GBR', uk: 'GBR', france: 'FRA', francemetropolitan: 'FRA', moldova: 'MDA', republicofmoldova: 'MDA',
+  northmacedonia: 'MKD', bosniaandherzegovina: 'BIH', eswatini: 'SWZ', swaziland: 'SWZ', caboverde: 'CPV',
+  timorleste: 'TLS', brunei: 'BRN', bruneidarussalam: 'BRN', myanmar: 'MMR', centralafricanrepublic: 'CAF',
+  southsudan: 'SSD', dominicanrepublic: 'DOM', equatorialguinea: 'GNQ', solomonislands: 'SLB', gambia: 'GMB', thegambia: 'GMB',
+  westernsahara: 'ESH', palestine: 'PSE', stateofpalestine: 'PSE', gazastripandwestbank: 'PSE', taiwan: 'TWN',
+  chinataiwan: 'TWN', puertorico: 'PRI', newcaledonia: 'NCL', frenchguiana: 'GUF', falklandislands: 'FLK', greenland: 'GRL',
+};
+
 const find = (kolonner, ...test) => kolonner.findIndex((k) => test.some((t) => t.test(k)));
 
 /**
@@ -52,9 +78,11 @@ export function laesGcoCsv(tekst, lande, kilde = 'GLOBOCAN, gco.iarc.who.int (Ca
   const iNavn = find(kolonner, /population|country|label|name/);
 
   if (iRate < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med "ASR" i CSV-filen. Husk at vælge ASR (World) i Cancer Today.'] };
-  if (iAlpha < 0 && iTal < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med landekoder (ISO) i CSV-filen.'] };
+  if (iAlpha < 0 && iTal < 0 && iNavn < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med landekoder (ISO) i CSV-filen.'] };
 
   const talTilIso3 = new Map(lande.filter((l) => l.isoN3).map((l) => [l.isoN3, l.iso3]));
+  const navnTilIso3 = new Map(lande.filter((l) => l.navn).map((l) => [normaliserNavn(l.navn), l.iso3]));
+  const fraNavn = (n) => NAVNE_ALIAS[normaliserNavn(n)] ?? navnTilIso3.get(normaliserNavn(n)) ?? '';
   const ud = [];
   const advarsler = [];
 
@@ -63,6 +91,7 @@ export function laesGcoCsv(tekst, lande, kilde = 'GLOBOCAN, gco.iarc.who.int (Ca
     const navn = iNavn >= 0 ? f[iNavn] : '';
     let iso3 = iAlpha >= 0 ? (f[iAlpha] ?? '').toUpperCase() : '';
     if (!/^[A-Z]{3}$/.test(iso3) && iTal >= 0) iso3 = talTilIso3.get(Number(f[iTal])) ?? '';
+    if (!/^[A-Z]{3}$/.test(iso3) && navn) iso3 = fraNavn(navn); // sidste udvej: genkend landet på navnet
     const rate = Number(String(f[iRate] ?? '').replace(',', '.'));
     if (!iso3) {
       // Fx verdensdele og "World" – dem springer vi stille over, ellers giver vi besked

@@ -228,6 +228,13 @@ describe('GCO-CSV', async () => {
     expect(r.lande[0]).toMatchObject({ land: 'NOR', rate: 30.1 });
   });
 
+  it('genkender lande på navnet, når der ikke er landekoder', () => {
+    const l = [{ iso3: 'DNK', navn: 'Denmark' }, { iso3: 'CIV', navn: "Côte d'Ivoire" }];
+    const csv = 'Population,Number,ASR (World)\nDenmark,3055,27.8\n"Côte d\'Ivoire",10,0.5\nKorea, Republic of,1,1\n"United States of America",1,19.1\nEurope,1,10\n';
+    const r = laesGcoCsv(csv, l);
+    expect(r.lande.map((x) => x.land)).toEqual(['DNK', 'CIV', 'USA']);
+  });
+
   it('giver en tydelig fejl uden ASR-kolonne', () => {
     expect(laesGcoCsv('ISO code,Number\n208,3\n', lande).advarsler[0]).toMatch(/ASR/);
   });
