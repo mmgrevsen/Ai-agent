@@ -75,6 +75,11 @@ export default function Styring({ s, saet, hurtig, onIndlaesMelanom }) {
         <p className="lille">Dobson-enheder. Standard er 300 DU. Samme værdi over hele kloden.</p>
       </div>
 
+      <label className="afkryds">
+        <input type="checkbox" checked={s.kredse} onChange={(e) => saet({ kredse: e.target.checked })} />
+        Vis ækvator, vendekredse og polarcirkler
+      </label>
+
       <div className="felt">
         <span className="etiket">Farvelag</span>
         <div className="vaelger" role="radiogroup" aria-label="Farvelag">

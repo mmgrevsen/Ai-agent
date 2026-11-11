@@ -45,7 +45,7 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 .klode-omraade { position: absolute; inset: 0; }
 .klode-canvas { touch-action: none; }
 .tip {
-  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); margin: 0;
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); margin: 0;
   color: var(--daempet); font-size: 13px; background: rgba(7, 11, 20, 0.6); padding: 4px 12px; border-radius: 20px;
   pointer-events: none;
 }
@@ -154,3 +154,11 @@ td { font-variant-numeric: tabular-nums; }
   .legende .lille { display: none; }
   .tip { display: none; }
 }
+
+/* Forbedringer: aflæsning under musen, afkrydsning og symboler */
+.tip.aflaesning { color: var(--tekst); font-variant-numeric: tabular-nums; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.tip.aflaesning .uv-maerke { font-size: 12px; padding: 0 6px; }
+.afkryds { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+.afkryds input { accent-color: var(--accent); width: 16px; height: 16px; }
+.legende .symboler { margin-top: 6px; font-size: 12px; }
+.legende .symboler i.sol { width: 12px; height: 12px; border-radius: 50%; background: #ffe14d; box-shadow: 0 0 0 3px rgba(255, 181, 71, 0.35); margin: 0 3px; }

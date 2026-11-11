@@ -10,7 +10,10 @@ import StedPanel from './ui/StedPanel.jsx';
 import Sammenligning, { BYER } from './ui/Sammenligning.jsx';
 import OmModellen from './ui/OmModellen.jsx';
 import { dagNummer, datoFraDagOgMinut, dageIAaret } from './model/sol.js';
-import { STANDARD_OZON } from './model/uv.js';
+import { STANDARD_OZON, uvIndeks } from './model/uv.js';
+import { solhoejde } from './model/sol.js';
+import { breddeTekst, laengdeTekst, tal } from './ui/format.js';
+import { UvMaerke } from './ui/StedPanel.jsx';
 import { laesMelanomData } from './data/melanom.js';
 import melanomFil from '../data/melanom.json';
 
@@ -30,6 +33,7 @@ export default function App() {
     skydaekke: 0,
     ozon: STANDARD_OZON,
     lag: 'uv',
+    kredse: true,
   });
   const saet = useCallback((aendring) => setS((f) => ({ ...f, ...aendring })), []);
 
@@ -37,6 +41,21 @@ export default function App() {
   const [valgtSted, setValgtSted] = useState(null);
   const [melanom, setMelanom] = useState(() => laesMelanomData(melanomFil));
   const [besked, setBesked] = useState(null);
+  const [hover, setHover] = useState(null); // stedet under musen
+
+  // Mellemrumstasten starter/stopper afspilningen (men ikke når man skriver i et felt)
+  useEffect(() => {
+    const tast = (e) => {
+      if (e.code !== 'Space') return;
+      // Knapper, afkrydsningsfelter og lister bruger selv mellemrum – skyderne gør ikke
+      const t = e.target;
+      if (['SELECT', 'TEXTAREA', 'BUTTON'].includes(t.tagName) || (t.tagName === 'INPUT' && t.type !== 'range')) return;
+      e.preventDefault();
+      setS((f) => ({ ...f, spiller: !f.spiller }));
+    };
+    window.addEventListener('keydown', tast);
+    return () => window.removeEventListener('keydown', tast);
+  }, []);
 
   // Afspilning: flyt datoen frem med den valgte hastighed (dage pr. sekund).
   // Den præcise (kommatals-)dag holdes i en ref, og React opdateres kun, når
@@ -130,6 +149,8 @@ export default function App() {
             skydaekke={s.skydaekke / 100}
             tilstand={s.lag}
             lagStyrke={0.72}
+            visKredse={s.kredse}
+            onHover={setHover}
             melanomRater={melanom.rater}
             markoerer={markoerer}
             onVaelg={(sted) => {
@@ -138,7 +159,14 @@ export default function App() {
             }}
           />
           <Legende lag={s.lag} antalLandeMedData={melanom.rater.size} />
-          {!valgtSted && fane === 'klode' && <p className="tip">Træk for at dreje · rul for at zoome · klik på et sted for detaljer</p>}
+          {hover ? (
+            <p className="tip aflaesning">
+              {breddeTekst(hover.bredde)}, {laengdeTekst(hover.laengde)} · Sol {tal(solhoejde(hover.bredde, hover.laengde, dato))}° ·
+              UV <UvMaerke uv={uvIndeks(hover.bredde, hover.laengde, dato, indstillinger)} />
+            </p>
+          ) : (
+            !valgtSted && fane === 'klode' && <p className="tip">Træk for at dreje · rul for at zoome · klik på et sted for detaljer · mellemrum = afspil</p>
+          )}
         </div>
 
         <Styring s={s} saet={saet} hurtig={hurtig} onIndlaesMelanom={indlaesMelanom} />

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { vertexShader, fragmentShader, atmosfaereVertex, atmosfaereFragment } from './shader.js';
 import { bygGraenseGeometri, latLonTilVektor, lavGrundTekstur, lavMelanomTekstur, vektorTilLatLon } from './geo.js';
-import { solParametre } from '../model/sol.js';
+import { solParametre, solpunkt } from '../model/sol.js';
 import { skyFaktor } from '../model/uv.js';
 
 /** Musestyring: drej og zoom (ingen panorering). Drejer langsommere, når man er zoomet ind. */
@@ -38,6 +38,50 @@ function Styring({ start }) {
   return null;
 }
 
+// Særlige breddekredse: ækvator, vendekredsene og polarcirklerne (aksehældning 23,44°)
+const KREDSE = [
+  { bredde: 0, farve: '#ffffff', opacitet: 0.55 },
+  { bredde: 23.44, farve: '#ffd166', opacitet: 0.45 },
+  { bredde: -23.44, farve: '#ffd166', opacitet: 0.45 },
+  { bredde: 66.56, farve: '#9ad1ff', opacitet: 0.45 },
+  { bredde: -66.56, farve: '#9ad1ff', opacitet: 0.45 },
+];
+
+function Breddekredse() {
+  const kredse = useMemo(
+    () =>
+      KREDSE.map((k) => {
+        const punkter = [];
+        for (let l = -180; l <= 180; l += 2) punkter.push(latLonTilVektor(k.bredde, l, 1.003));
+        return { ...k, geometri: new THREE.BufferGeometry().setFromPoints(punkter) };
+      }),
+    [],
+  );
+  return kredse.map((k) => (
+    <line key={k.bredde} geometry={k.geometri}>
+      <lineBasicMaterial color={k.farve} transparent opacity={k.opacitet} />
+    </line>
+  ));
+}
+
+/** Solpunktet: en lille "sol", hvor solen står lodret over jorden. */
+function Solpunkt({ dato }) {
+  const { bredde, laengde } = solpunkt(dato);
+  const pos = latLonTilVektor(bredde, laengde, 1.006);
+  return (
+    <group position={pos}>
+      <mesh>
+        <sphereGeometry args={[0.018, 20, 20]} />
+        <meshBasicMaterial color="#ffe14d" />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[0.032, 20, 20]} />
+        <meshBasicMaterial color="#ffb547" transparent opacity={0.35} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
 /** En lille markør (prik + ring) på et sted på kloden. */
 function Markoer({ bredde, laengde, farve = '#ffffff' }) {
   const pos = useMemo(() => latLonTilVektor(bredde, laengde, 1.004), [bredde, laengde]);
@@ -59,7 +103,7 @@ function Markoer({ bredde, laengde, farve = '#ffffff' }) {
   );
 }
 
-function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, markoerer, onVaelg }) {
+function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, markoerer, onVaelg, onHover, visKredse }) {
   const grund = useMemo(() => lavGrundTekstur(), []);
   const melanom = useMemo(() => lavMelanomTekstur(melanomRater), [melanomRater]);
   const graenser = useMemo(() => bygGraenseGeometri(), []);
@@ -111,7 +155,12 @@ function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, 
 
   return (
     <>
-      <mesh onClick={klik} material={materiale}>
+      <mesh
+        onClick={klik}
+        material={materiale}
+        onPointerMove={(e) => onHover?.(vektorTilLatLon(e.point))}
+        onPointerOut={() => onHover?.(null)}
+      >
         <sphereGeometry args={[1, 192, 96]} />
       </mesh>
       <lineSegments geometry={graenser}>
@@ -128,6 +177,8 @@ function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, 
           depthWrite={false}
         />
       </mesh>
+      {visKredse && <Breddekredse />}
+      {tilstand !== 'melanom' && <Solpunkt dato={dato} />}
       {markoerer.map((m) => (
         <Markoer key={m.id} {...m} />
       ))}

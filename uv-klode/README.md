@@ -7,7 +7,9 @@ fælles naturfagsprøve i 9. klasse (fysik/kemi, biologi og geografi) om hudkræ
 - Vælg dato og klokkeslæt (UTC). Dag/nat-grænsen og UV-farvelaget følger solens rigtige position.
 - Tryk **Afspil året** for at se UV-bæltet flytte sig mod nord og syd.
 - Skru på skydække og ozonlag.
-- Klik et sted på kloden for at se solhøjde, UV-indeks og grafer for døgnet og året.
+- Klik et sted på kloden for at se solhøjde, UV-indeks og grafer for døgnet og året. Hold musen over kloden for en hurtig aflæsning.
+- Den gule sol viser solpunktet, hvor solen står lodret. Ækvator, vendekredse og polarcirkler kan slås til og fra.
+- Mellemrumstasten starter og stopper afspilningen.
 - Skift farvelaget til **Modermærkekræft pr. 100.000** for at sammenligne med UV-kortet.
 - Fanen **København og Sydney** viser de to byer side om side.
 - Fanen **Om modellen** forklarer beregningerne, begrænsningerne og et tjek mod virkeligheden.

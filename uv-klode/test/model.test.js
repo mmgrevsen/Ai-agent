@@ -197,3 +197,13 @@ describe('melanomdata', () => {
     expect(melanomFarve(35)).toBe('#67000d');
   });
 });
+
+describe('solpunkt', () => {
+  it('solen står lodret over solpunktet', async () => {
+    const { solpunkt } = await import('../src/model/sol.js');
+    for (const d of [new Date(Date.UTC(2026, 5, 21, 11)), new Date(Date.UTC(2026, 11, 21, 3, 30)), new Date(Date.UTC(2026, 2, 20, 20))]) {
+      const p = solpunkt(d);
+      expect(solhoejde(p.bredde, p.laengde, d)).toBeGreaterThan(89.9);
+    }
+  });
+});

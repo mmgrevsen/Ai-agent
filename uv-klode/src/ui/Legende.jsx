@@ -35,6 +35,11 @@ export default function Legende({ lag, antalLandeMedData }) {
           ))}
       </ul>
       <p className="lille">Natsiden er mørk (UV = 0). Den lyse linje er dag/nat-grænsen.</p>
+      <ul className="symboler">
+        <li><i className="sol" /> Solpunkt: solen står lodret</li>
+        <li><i style={{ background: '#ffd166', height: 2 }} /> Vendekredse (23,4°)</li>
+        <li><i style={{ background: '#9ad1ff', height: 2 }} /> Polarcirkler (66,6°)</li>
+      </ul>
     </aside>
   );
 }

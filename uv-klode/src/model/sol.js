@@ -147,3 +147,16 @@ export function solhoejdeVedMiddag(bredde, laengde, aar, dag) {
   const { deklination } = solParametre(middag);
   return 90 - Math.abs(bredde - deklination);
 }
+
+/**
+ * Solpunktet: stedet på jorden, hvor solen står lodret (solhøjde 90°) lige nu.
+ * Breddegraden er deklinationen δ. Længdegraden findes, hvor timevinklen er 0:
+ *   UTC-minutter + tidsligning + 4·λ = 720  ⇒  λ = (720 − UTC-minutter − tidsligning) / 4
+ */
+export function solpunkt(dato) {
+  const { deklination, tidsligning } = solParametre(dato);
+  const minutter = dato.getUTCHours() * 60 + dato.getUTCMinutes() + dato.getUTCSeconds() / 60;
+  let laengde = (720 - minutter - tidsligning) / 4;
+  laengde = ((((laengde + 180) % 360) + 360) % 360) - 180;
+  return { bredde: deklination, laengde };
+}
