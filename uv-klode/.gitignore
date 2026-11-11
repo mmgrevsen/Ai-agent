@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Rodmappens .gitignore ignorerer "data/" – men vores data skal med i git
+!data/

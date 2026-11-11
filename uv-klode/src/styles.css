@@ -1,0 +1,156 @@
+/* UV-kloden – mørkt tema, så kloden og farverne træder frem.
+   Kun systemskrifttyper, så appen virker uden internet. */
+:root {
+  --bg: #070b14;
+  --panel: rgba(16, 23, 38, 0.9);
+  --panel-kant: rgba(140, 170, 220, 0.18);
+  --tekst: #e8edf6;
+  --daempet: #9aa7bd;
+  --accent: #ffb547;
+  --accent-moerk: #3a2a0c;
+  --radius: 12px;
+  --skrift: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: radial-gradient(ellipse at 60% 40%, #13213b 0%, var(--bg) 70%);
+  color: var(--tekst);
+  font: 14px/1.45 var(--skrift);
+}
+button, select, input { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; line-height: 1.2; }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+
+/* Topbjælke */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 18px; border-bottom: 1px solid var(--panel-kant); background: rgba(7, 11, 20, 0.7);
+  flex-wrap: wrap;
+}
+.topbar h1 { font-size: 18px; letter-spacing: 0.2px; }
+.topbar h1 span { font-weight: 400; color: var(--daempet); font-size: 14px; margin-left: 8px; }
+.topbar nav { display: flex; gap: 4px; background: rgba(255, 255, 255, 0.05); padding: 4px; border-radius: 10px; }
+.topbar nav button {
+  border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; cursor: pointer; color: var(--daempet);
+}
+.topbar nav button:hover { color: var(--tekst); }
+.topbar nav button.aktiv { background: var(--accent); color: #1b1203; font-weight: 600; }
+
+/* Hovedområde: kloden fylder det hele, panelerne svæver ovenpå */
+.indhold { position: relative; flex: 1; min-height: 0; }
+.klode-omraade { position: absolute; inset: 0; }
+.klode-canvas { touch-action: none; }
+.tip {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); margin: 0;
+  color: var(--daempet); font-size: 13px; background: rgba(7, 11, 20, 0.6); padding: 4px 12px; border-radius: 20px;
+  pointer-events: none;
+}
+
+.panel {
+  position: absolute; top: 14px; background: var(--panel); border: 1px solid var(--panel-kant);
+  border-radius: var(--radius); padding: 14px 16px; backdrop-filter: blur(8px);
+  max-height: calc(100% - 28px); overflow-y: auto; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.panel header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.panel h2 { font-size: 17px; }
+.lille { font-size: 12px; color: var(--daempet); margin: 2px 0 0; }
+.advarsel { color: #f3c56b; }
+
+/* Styring (venstre) */
+.styring { left: 14px; width: 300px; display: flex; flex-direction: column; gap: 14px; }
+.felt label, .felt .etiket { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.felt output { font-weight: 400; color: var(--accent); font-variant-numeric: tabular-nums; }
+input[type='range'] { width: 100%; accent-color: var(--accent); margin: 2px 0; cursor: pointer; }
+.skala { display: flex; justify-content: space-between; font-size: 10px; color: var(--daempet); }
+.knapper { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.knapper button, .vaelger button, .fil-knap {
+  border: 1px solid var(--panel-kant); background: rgba(255, 255, 255, 0.06); padding: 6px 10px; border-radius: 8px; cursor: pointer;
+}
+.knapper button:hover, .vaelger button:hover, .fil-knap:hover { background: rgba(255, 255, 255, 0.12); }
+.knapper button.aktiv, .vaelger button.aktiv { background: var(--accent); color: #1b1203; border-color: var(--accent); font-weight: 600; }
+.hurtig button { flex: 1 1 calc(50% - 6px); font-size: 13px; }
+.hastighed { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--daempet); margin-left: auto; }
+.hastighed select { background: #1b2436; border: 1px solid var(--panel-kant); border-radius: 6px; padding: 4px; }
+.vaelger { display: flex; flex-direction: column; gap: 6px; }
+.vaelger button { text-align: left; }
+.fil-knap { display: block; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 400 !important; }
+.fil-knap input { display: none; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Legende (nederst til venstre for kloden, til højre for styringen) */
+.legende {
+  position: absolute; left: 328px; bottom: 14px; background: var(--panel); border: 1px solid var(--panel-kant);
+  border-radius: var(--radius); padding: 10px 12px; width: 210px;
+}
+.legende h3 { font-size: 13px; margin-bottom: 6px; }
+.legende ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+.legende li { display: flex; align-items: center; gap: 8px; }
+.legende i { width: 18px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+
+/* Sted-panel og sammenligning (højre) */
+.sted-panel, .sammenligning { right: 14px; width: 370px; }
+.luk { border: 0; background: rgba(255, 255, 255, 0.08); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 1; }
+.noegletal { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 8px; }
+.noegletal div { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 8px; }
+.noegletal .fuld { grid-column: 1 / -1; }
+.noegletal dt { font-size: 12px; color: var(--daempet); }
+.noegletal dd { margin: 2px 0 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.uv-maerke { display: inline-block; padding: 1px 8px; border-radius: 6px; font-weight: 700; font-size: 14px; }
+
+.graf { margin: 10px 0 0; }
+.graf figcaption { font-size: 12px; color: var(--daempet); margin-bottom: 2px; }
+.graf svg { width: 100%; height: auto; display: block; }
+.graf .akse { fill: var(--daempet); font-size: 9px; }
+.graf .gitter { stroke: rgba(255, 255, 255, 0.08); }
+.graf .markoer { stroke: #fff; stroke-dasharray: 3 3; opacity: 0.7; }
+.graf-noegle { display: flex; gap: 12px; font-size: 12px; color: var(--daempet); flex-wrap: wrap; }
+.graf-noegle i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; }
+
+.by-kort { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.by-kort article { border: 1px solid; border-left-width: 4px; border-radius: 8px; padding: 8px 10px; background: rgba(255, 255, 255, 0.03); }
+.by-kort h3 { font-size: 15px; }
+.by-kort dl { margin: 6px 0 0; }
+.by-kort dt { font-size: 11px; color: var(--daempet); margin-top: 6px; }
+.by-kort dd { margin: 0; font-variant-numeric: tabular-nums; }
+.aarstid { display: inline-block; margin: 6px 0 0; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.aarstid.sommer { background: #ffb547; color: #2a1a00; }
+.aarstid.vinter { background: #7fb3ff; color: #08162c; }
+.aarstid.forår { background: #8bd48b; color: #0b240b; }
+.aarstid.efterår { background: #d99a5b; color: #2a1505; }
+.forklaring { font-size: 13px; color: var(--daempet); margin: 10px 0 0; }
+
+/* Om modellen */
+.om-ramme { position: absolute; top: 14px; right: 14px; bottom: 14px; left: 328px; overflow-y: auto;
+  background: rgba(10, 15, 26, 0.96); border: 1px solid var(--panel-kant); border-radius: var(--radius); }
+.om-modellen { max-width: 760px; margin: 0 auto; padding: 22px 26px 30px; font-size: 15px; }
+.om-modellen h2 { font-size: 22px; margin-bottom: 8px; }
+.om-modellen h3 { font-size: 17px; margin: 22px 0 6px; color: var(--accent); }
+.om-modellen p, .om-modellen li { color: #d5dcea; }
+.om-modellen li { margin-bottom: 6px; }
+.formel { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; background: rgba(255, 181, 71, 0.1);
+  border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 4px; color: var(--tekst) !important; }
+.tabel-ramme { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--panel-kant); vertical-align: top; }
+th { color: var(--daempet); font-weight: 600; font-size: 12px; }
+td { font-variant-numeric: tabular-nums; }
+.kilder { font-size: 13px; }
+
+.besked { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: #24324d; border: 1px solid var(--panel-kant);
+  padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; align-items: center; max-width: 520px; z-index: 5; }
+.besked button { border: 0; background: none; cursor: pointer; font-size: 16px; }
+
+/* Smalle skærme: kloden øverst, panelerne under hinanden */
+@media (max-width: 980px) {
+  .indhold { overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px; }
+  .klode-omraade { position: relative; height: 62vh; flex: none; }
+  .panel, .om-ramme { position: static; width: auto; max-height: none; margin: 0 12px; }
+  .legende { left: 8px; bottom: 8px; width: 160px; padding: 6px 8px; font-size: 12px; }
+  .legende ul { font-size: 12px; }
+  .legende .lille { display: none; }
+  .tip { display: none; }
+}

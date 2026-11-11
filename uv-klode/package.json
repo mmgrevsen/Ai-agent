@@ -1,0 +1,27 @@
+{
+  "name": "uv-klode",
+  "version": "1.0.0",
+  "description": "Interaktiv 3D-jordklode med UV-indeks – model til den fælles naturfagsprøve",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "geodata": "node scripts/forbered-geodata.mjs"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.8.2",
+    "d3-geo": "^3.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^5.1.0"
+  }
+}

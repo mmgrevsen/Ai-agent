@@ -1,0 +1,17 @@
+{
+  "_vejledning": [
+    "Modermærkekræft (malignt melanom): antal nye tilfælde pr. 100.000 indbyggere pr. år, aldersstandardiseret (ASR, verdensstandard).",
+    "Udfyld 'rate' med et tal (brug punktum som decimaltegn, fx 31.2) og skriv i 'kilde' hvor tallet kommer fra, fx 'GLOBOCAN 2022, gco.iarc.who.int' eller 'NORDCAN, 2018-2022'.",
+    "'land' er landets ISO3-kode med store bogstaver, fx DNK (Danmark), SWE (Sverige), AUS (Australien).",
+    "Lande med rate null bliver vist som 'ingen data'. Tilføj selv flere lande ved at kopiere en linje.",
+    "Husk komma mellem linjerne, men ikke efter den sidste. Byg appen igen bagefter (npm run build)."
+  ],
+  "enhed": "nye tilfælde pr. 100.000 pr. år (aldersstandardiseret)",
+  "lande": [
+    { "land": "DNK", "rate": null, "kilde": "" },
+    { "land": "NOR", "rate": null, "kilde": "" },
+    { "land": "SWE", "rate": null, "kilde": "" },
+    { "land": "AUS", "rate": null, "kilde": "" },
+    { "land": "NZL", "rate": null, "kilde": "" }
+  ]
+}
