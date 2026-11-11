@@ -8,10 +8,30 @@
   ],
   "enhed": "nye tilfælde pr. 100.000 pr. år (aldersstandardiseret)",
   "lande": [
-    { "land": "DNK", "rate": null, "kilde": "" },
-    { "land": "NOR", "rate": null, "kilde": "" },
-    { "land": "SWE", "rate": null, "kilde": "" },
-    { "land": "AUS", "rate": null, "kilde": "" },
-    { "land": "NZL", "rate": null, "kilde": "" }
+    {
+      "land": "DNK",
+      "rate": 27.8,
+      "kilde": "GLOBOCAN 2024, GCO Cancer Today – faktaark for Danmark (ASR World, begge køn)"
+    },
+    {
+      "land": "NOR",
+      "rate": null,
+      "kilde": ""
+    },
+    {
+      "land": "SWE",
+      "rate": null,
+      "kilde": ""
+    },
+    {
+      "land": "AUS",
+      "rate": null,
+      "kilde": ""
+    },
+    {
+      "land": "NZL",
+      "rate": null,
+      "kilde": ""
+    }
   ]
 }

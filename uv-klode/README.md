@@ -52,41 +52,48 @@ Hele appen (JavaScript, styling, landegrænser og melanomdata) er samlet i den e
 filer, der kan blive væk. Brug en nyere udgave af Chrome, Edge, Firefox eller Safari. Kloden bruger WebGL 2, som
 alle nyere browsere og bærbare har.
 
-## Udfyld hudkræftdata (data/melanom.json)
+## Hudkræftdata (data/melanom.json)
 
-Appen indeholder **ingen** hudkræfttal fra start – I skal selv slå dem op, så I ved præcis, hvor tallene kommer
-fra. Filen `data/melanom.json` ser sådan ud:
+Appen opfinder ingen tal. Lige nu indeholder filen ét bekræftet tal: **Danmark 27,8** pr. 100.000
+(GLOBOCAN 2024, GCO's faktaark for Danmark). De øvrige lande skal hentes fra kilden.
+
+### Den hurtige vej: CSV-fil fra GCO (alle lande på én gang)
+
+1. Gå ind på Global Cancer Observatory – Cancer Today: https://gco.iarc.who.int/today
+2. Vælg en **tabel** med: Incidence, **Melanoma of skin**, begge køn, alle aldre, alle lande,
+   og målet **ASR (World)** pr. 100.000.
+3. Download tabellen som **CSV**.
+4. Indlæs den på én af to måder:
+   - **I appen (også på hjemmesiden):** vælg farvelaget *Modermærkekræft pr. 100.000* og tryk
+     **Indlæs data (GCO-CSV eller melanom.json) …**. Tallene vises med det samme, men gemmes ikke.
+   - **Permanent i projektet:** kør
+
+     ```bash
+     npm run importer-gco -- sti/til/filen.csv "GLOBOCAN 2024, gco.iarc.who.int"
+     ```
+
+     Så skrives tallene ind i `data/melanom.json` med kilden. Byg derefter igen med `npm run build`.
+
+Appen finder selv kolonnerne med landekode (talkode som 208 eller bogstavkode som DNK) og ASR. Verdensdele og
+"World" springes over. Lande, den ikke kan genkende, bliver vist i en advarsel.
+
+### Den manuelle vej: skriv tallene ind selv
+
+Filen ser sådan ud:
 
 ```json
 {
-  "enhed": "nye tilfælde pr. 100.000 pr. år (aldersstandardiseret)",
   "lande": [
-    { "land": "DNK", "rate": null, "kilde": "" },
+    { "land": "DNK", "rate": 27.8, "kilde": "GLOBOCAN 2024, GCO Cancer Today" },
     { "land": "AUS", "rate": null, "kilde": "" }
   ]
 }
 ```
 
-Sådan gør I:
-
-1. Find tallet for **modermærkekræft (melanoma of skin)**, **incidence**, **ASR (World)**, begge køn, pr. 100.000:
-   - Hele verden: Global Cancer Observatory, https://gco.iarc.who.int (Cancer Today).
-   - Norden: NORDCAN, https://nordcan.iarc.fr.
-2. Skriv tallet i `rate` med **punktum** som decimaltegn, fx `"rate": 31.2`.
-3. Skriv kilden i `kilde`, fx `"kilde": "GLOBOCAN 2022, gco.iarc.who.int"`.
-4. Tilføj flere lande ved at kopiere en linje. `land` er landets ISO3-kode med store bogstaver, fx
-   `DNK` (Danmark), `SWE` (Sverige), `NOR` (Norge), `DEU` (Tyskland), `GBR` (Storbritannien),
-   `USA`, `AUS` (Australien), `NZL` (New Zealand), `BRA` (Brasilien), `ZAF` (Sydafrika), `NGA` (Nigeria),
-   `IND` (Indien), `JPN` (Japan). Koden for et land kan også slås op på Wikipedia under "ISO 3166-1 alpha-3".
-5. Husk komma efter hver linje undtagen den sidste.
-6. Kør `npm run build` igen, så tallene kommer med i `dist/index.html`.
-
-Lande, hvor `rate` er `null`, vises som grå ("ingen data").
-
-**Uden at bygge igen:** Vælg farvelaget *Modermærkekræft pr. 100.000* og tryk **Indlæs anden melanom.json …**.
-Så kan man indlæse en udfyldt fil direkte i browseren. Den gemmes ikke – den er væk, når siden lukkes.
-
-Hvis der er en fejl i filen (fx en forkert landekode), viser appen en besked om, hvilken linje der er galt.
+- `land` er ISO3-koden, fx `DNK`, `SWE`, `NOR`, `AUS`, `NZL`, `USA`, `BRA`, `ZAF`, `NGA`, `IND`, `JPN`.
+- `rate` er tallet med **punktum** som decimaltegn. `null` betyder "ingen data" (gråt på kortet).
+- `kilde` er, hvor tallet kommer fra. NORDCAN (https://nordcan.iarc.fr) kan bruges til de nordiske lande.
+- Husk komma efter hver linje undtagen den sidste, og byg igen med `npm run build`.
 
 ## Modellen
 

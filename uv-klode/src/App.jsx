@@ -15,6 +15,8 @@ import { solhoejde } from './model/sol.js';
 import { breddeTekst, laengdeTekst, tal } from './ui/format.js';
 import { UvMaerke } from './ui/StedPanel.jsx';
 import { laesMelanomData } from './data/melanom.js';
+import { laesGcoCsv } from './data/gcoCsv.js';
+import { lande } from './klode/geo.js';
 import melanomFil from '../data/melanom.json';
 
 // Kameraet starter over Europa
@@ -101,13 +103,21 @@ export default function App() {
     const fil = e.target.files?.[0];
     if (!fil) return;
     try {
-      const data = laesMelanomData(JSON.parse(await fil.text()));
+      const tekst = await fil.text();
+      // CSV direkte fra GCO Cancer Today, eller en udfyldt melanom.json
+      const data = fil.name.toLowerCase().endsWith('.csv')
+        ? (() => {
+            const csv = laesGcoCsv(tekst, lande.features.map((f) => f.properties));
+            const d = laesMelanomData({ lande: csv.lande });
+            return { ...d, advarsler: [...csv.advarsler.slice(0, 5), ...d.advarsler] };
+          })()
+        : laesMelanomData(JSON.parse(tekst));
       setMelanom(data);
       setBesked(
         `Indlæst ${data.rater.size} lande fra ${fil.name}.` + (data.advarsler.length ? ` Advarsler: ${data.advarsler.join(' ')}` : ''),
       );
     } catch {
-      setBesked(`Kunne ikke læse ${fil.name}. Tjek at filen er gyldig JSON (fx kommaer og anførselstegn).`);
+      setBesked(`Kunne ikke læse ${fil.name}. Tjek at filen er en gyldig JSON- eller CSV-fil.`);
     }
   };
 

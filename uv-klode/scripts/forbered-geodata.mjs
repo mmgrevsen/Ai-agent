@@ -4,7 +4,7 @@
 // github.com/nvkelso/natural-earth-vector (public domain).
 // Den rå fil ligger i geodata/ne_110m_admin_0_countries.geojson.
 //
-// Scriptet beholder kun de felter, appen bruger (ISO3, ISO2 og navn),
+// Scriptet beholder kun de felter, appen bruger (ISO3, ISO2, numerisk ISO og navn),
 // og afrunder koordinaterne til 2 decimaler (~1 km), så filen bliver lille.
 // Kør:  npm run geodata
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -27,6 +27,8 @@ const ud = {
       properties: {
         iso3: vaelg(p.ISO_A3, p.ISO_A3_EH, p.ADM0_A3),
         iso2: vaelg(p.ISO_A2, p.ISO_A2_EH),
+        // Numerisk ISO-kode (fx 208 = Danmark) – GCO bruger den i sine CSV-filer
+        isoN3: vaelg(p.ISO_N3, p.ISO_N3_EH) ? Number(vaelg(p.ISO_N3, p.ISO_N3_EH)) : null,
         navn: p.NAME,
       },
       geometry: { type: f.geometry.type, coordinates: rundKoord(f.geometry.coordinates) },

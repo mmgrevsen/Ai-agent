@@ -185,11 +185,12 @@ describe('melanomdata', () => {
     expect(advarsler).toHaveLength(2);
   });
 
-  it('den medfølgende skabelon indeholder ingen opfundne tal', async () => {
-    const skabelon = (await import('../data/melanom.json')).default;
-    const { rater, advarsler } = laesMelanomData(skabelon);
+  it('datafilen er gyldig, og alle udfyldte tal har en kilde', async () => {
+    const fil = (await import('../data/melanom.json')).default;
+    const { rater, advarsler } = laesMelanomData(fil);
     expect(advarsler).toEqual([]);
-    expect(rater.size).toBe(0);
+    for (const [, r] of rater) expect(r.kilde.length).toBeGreaterThan(0);
+    expect(rater.get('DNK').rate).toBe(27.8); // GLOBOCAN 2024, faktaark for Danmark
   });
 
   it('farver: ingen data er grå', () => {
@@ -205,5 +206,29 @@ describe('solpunkt', () => {
       const p = solpunkt(d);
       expect(solhoejde(p.bredde, p.laengde, d)).toBeGreaterThan(89.9);
     }
+  });
+});
+
+describe('GCO-CSV', async () => {
+  const { laesGcoCsv } = await import('../src/data/gcoCsv.js');
+  const lande = [{ iso3: 'DNK', isoN3: 208 }, { iso3: 'AUS', isoN3: 36 }];
+
+  it('læser talkoder, semikolon og decimalkomma', () => {
+    const csv = '\uFEFFPopulation;ISO code;Number;ASR (World)\n"Denmark";208;3055;"27,8"\nAustralia;36;1;38.5\nWorld;900;1;3.1\nAtlantis;999;1;5\n';
+    const r = laesGcoCsv(csv, lande, 'test');
+    expect(r.lande).toEqual([
+      { land: 'DNK', rate: 27.8, kilde: 'test' },
+      { land: 'AUS', rate: 38.5, kilde: 'test' },
+    ]);
+    expect(r.advarsler).toEqual(['Kunne ikke finde landekoden for "Atlantis".']);
+  });
+
+  it('læser bogstavkoder (Alpha-3)', () => {
+    const r = laesGcoCsv('Alpha-3 code,Label,ASR (World) per 100 000\nNOR,Norway,30.1\n', lande);
+    expect(r.lande[0]).toMatchObject({ land: 'NOR', rate: 30.1 });
+  });
+
+  it('giver en tydelig fejl uden ASR-kolonne', () => {
+    expect(laesGcoCsv('ISO code,Number\n208,3\n', lande).advarsler[0]).toMatch(/ASR/);
   });
 });

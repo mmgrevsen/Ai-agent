@@ -97,8 +97,8 @@ export default function Styring({ s, saet, hurtig, onIndlaesMelanom }) {
         </div>
         {s.lag === 'melanom' && (
           <label className="fil-knap">
-            Indlæs anden melanom.json …
-            <input type="file" accept=".json,application/json" onChange={onIndlaesMelanom} />
+            Indlæs data (GCO-CSV eller melanom.json) …
+            <input type="file" accept=".json,.csv,application/json,text/csv" onChange={onIndlaesMelanom} />
           </label>
         )}
       </div>
