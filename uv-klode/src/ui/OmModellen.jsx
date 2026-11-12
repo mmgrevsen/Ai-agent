@@ -32,6 +32,12 @@ export default function OmModellen({ aar, ozon }) {
         Er h negativ, er solen under horisonten – så er det nat, og UV-indekset er 0. Den lyse linje på kloden er
         dag/nat-grænsen (terminatoren), hvor h = 0.
       </p>
+      <p>
+        Den gule prik på kloden er <b>solpunktet</b>: det sted, hvor solen står lodret lige nu. Solen ved siden af
+        kloden er placeret i præcis den retning, så dag/nat-grænsen altid vender væk fra den. Solens overflade er
+        derimod kun pynt – den er ikke en model af Solen, og afstanden er ikke i rigtig målestok (i virkeligheden er
+        Solen ca. 12.000 gange så langt væk som dens egen diameter).
+      </p>
 
       <h3>2. Hvor kraftig er UV-strålingen?</h3>
       <p>

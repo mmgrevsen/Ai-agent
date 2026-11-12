@@ -8,7 +8,8 @@ fælles naturfagsprøve i 9. klasse (fysik/kemi, biologi og geografi) om hudkræ
 - Tryk **Afspil året** for at se UV-bæltet flytte sig mod nord og syd.
 - Skru på skydække og ozonlag.
 - Klik et sted på kloden for at se solhøjde, UV-indeks og grafer for døgnet og året. Hold musen over kloden for en hurtig aflæsning.
-- Den gule sol viser solpunktet, hvor solen står lodret. Ækvator, vendekredse og polarcirkler kan slås til og fra.
+- En animeret sol ved siden af kloden står i den retning, solen faktisk er – dag/nat-grænsen vender altid væk fra den.
+- Den gule prik viser solpunktet, hvor solen står lodret. Sol, ækvator, vendekredse og polarcirkler kan slås til og fra.
 - Mellemrumstasten starter og stopper afspilningen.
 - Skift farvelaget til **Modermærkekræft pr. 100.000** for at sammenligne med UV-kortet.
 - Fanen **København og Sydney** viser de to byer side om side.
@@ -63,19 +64,23 @@ Appen opfinder ingen tal. Lige nu indeholder filen ét bekræftet tal: **Danmark
 2. Vælg en **tabel** med: Incidence, **Melanoma of skin**, begge køn, alle aldre, alle lande,
    og målet **ASR (World)** pr. 100.000.
 3. Download tabellen som **CSV**.
+   Hent den som **XLSX** (Excel) eller **CSV** – appen kan læse begge.
 4. Indlæs den på én af to måder:
    - **I appen (også på hjemmesiden):** vælg farvelaget *Modermærkekræft pr. 100.000* og tryk
-     **Indlæs data (GCO-CSV eller melanom.json) …**. Tallene vises med det samme, men gemmes ikke.
+     **Indlæs data fra GCO (.xlsx/.csv) …**. Tallene vises med det samme, men gemmes ikke.
    - **Permanent i projektet:** kør
 
      ```bash
-     npm run importer-gco -- sti/til/filen.csv "GLOBOCAN 2024, gco.iarc.who.int"
+     npm run importer-gco -- sti/til/filen.xlsx "GLOBOCAN 2024, gco.iarc.who.int"
      ```
 
      Så skrives tallene ind i `data/melanom.json` med kilden. Byg derefter igen med `npm run build`.
 
-Appen finder selv kolonnerne med landekode (talkode som 208 eller bogstavkode som DNK) og ASR. Verdensdele og
-"World" springes over. Lande, den ikke kan genkende, bliver vist i en advarsel.
+Appen finder selv kolonnerne med landekode (talkode som 208, bogstavkode som DNK eller landenavnet) og ASR.
+Verdensdele og "World" springes over. Lande, den ikke kan genkende, bliver vist i en advarsel.
+
+**Vigtigt:** tabellen skal være for **Melanoma of skin** alene. Henter man "All cancers", siger appen fra med en
+besked i stedet for at vise forkerte tal (GCO's kode for modermærkekræft er 16, alle kræftformer er 39).
 
 ### Den manuelle vej: skriv tallene ind selv
 
@@ -118,9 +123,9 @@ uv-klode/
 ├── scripts/forbered-geodata.mjs  Gør landegrænserne små nok til appen
 ├── src/
 │   ├── model/                 Fysikken: solens position og UV-indeks
-│   ├── klode/                 3D-kloden: shader, grænser, teksturer
+│   ├── klode/                 3D-kloden og solen: shaders, grænser, teksturer
 │   ├── ui/                    Paneler, grafer, faner
-│   ├── data/                  Landegrænser og indlæsning af melanomdata
+│   ├── data/                  Landegrænser, melanomdata og læsere af GCO-filer (.csv/.xlsx)
 │   └── App.jsx                Samler det hele
 └── test/model.test.js         Enhedstests
 ```

@@ -57,28 +57,56 @@ const NAVNE_ALIAS = {
   chinataiwan: 'TWN', puertorico: 'PRI', newcaledonia: 'NCL', frenchguiana: 'GUF', falklandislands: 'FLK', greenland: 'GRL',
 };
 
-const find = (kolonner, ...test) => kolonner.findIndex((k) => test.some((t) => t.test(k)));
+/** Find den første kolonne, der passer på et af mønstrene – mønstrene prøves i rækkefølge. */
+const find = (kolonner, ...moenstre) => {
+  for (const m of moenstre) {
+    const i = kolonner.findIndex((k) => m.test(k));
+    if (i >= 0) return i;
+  }
+  return -1;
+};
+
+// GCO's nummer for hver kræfttype. 16 = modermærkekræft, 39 = alle kræftformer.
+export const MELANOM_KODE = 16;
 
 /**
- * @param {string} tekst  hele CSV-filens indhold
- * @param {{isoN3: number|null, iso3: string}[]} lande  landeliste til at oversætte talkoder til ISO3
+ * Læs en tabel fra GCO, hvor hver række er et land, og første række er overskrifterne.
+ * @param {string[][]} raekker
+ * @param {{isoN3: number|null, iso3: string, navn: string}[]} lande  til at oversætte koder/navne til ISO3
  * @param {string} kilde  tekst, der gemmes som kilde for hvert tal
  * @returns {{lande: {land: string, rate: number, kilde: string}[], advarsler: string[]}}
  */
-export function laesGcoCsv(tekst, lande, kilde = 'GLOBOCAN, gco.iarc.who.int (Cancer Today)') {
-  const linjer = tekst.replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim() !== '');
-  if (linjer.length < 2) return { lande: [], advarsler: ['CSV-filen er tom.'] };
-
-  const skille = (linjer[0].match(/;/g) ?? []).length > (linjer[0].match(/,/g) ?? []).length ? ';' : ',';
-  const kolonner = delLinje(linjer[0], skille).map((k) => k.toLowerCase());
+export function laesGcoRaekker(raekker, lande, kilde = 'GLOBOCAN, gco.iarc.who.int (Cancer Today)') {
+  if (!raekker || raekker.length < 2) return { lande: [], advarsler: ['Filen er tom.'] };
+  const kolonner = raekker[0].map((k) => String(k ?? '').toLowerCase().trim());
 
   const iAlpha = find(kolonner, /alpha.?3/, /^iso.?3$/, /^iso_a3$/);
   const iTal = find(kolonner, /iso.*code/, /population.*code/, /^code$/, /^id$/);
   const iRate = find(kolonner, /asr/);
-  const iNavn = find(kolonner, /population|country|label|name/);
+  // Navnekolonnen må ikke være en kodekolonne: i GCO's filer indeholder både
+  // "Population code" og "Country" tal, mens "Label" indeholder landenavnet.
+  const navneKolonner = kolonner.map((k) => (/code|kode/.test(k) ? '' : k));
+  const iNavn = find(navneKolonner, /^label$/, /^country$|country name/, /^population$/, /name/, /population|country/);
 
-  if (iRate < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med "ASR" i CSV-filen. Husk at vælge ASR (World) i Cancer Today.'] };
-  if (iAlpha < 0 && iTal < 0 && iNavn < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med landekoder (ISO) i CSV-filen.'] };
+  const iKraeft = find(kolonner, /cancer.*code/);
+
+  if (iRate < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med "ASR" i filen. Husk at vælge ASR (World) i Cancer Today.'] };
+  if (iAlpha < 0 && iTal < 0 && iNavn < 0) return { lande: [], advarsler: ['Fandt ingen kolonne med lande (ISO-kode eller navn) i filen.'] };
+
+  // Fang den typiske fejl: tabellen er hentet med "All cancers" i stedet for modermærkekræft
+  if (iKraeft >= 0) {
+    const koder = [...new Set(raekker.slice(1).map((f) => String(f[iKraeft] ?? '').trim()).filter(Boolean))];
+    if (koder.length > 0 && !koder.includes(String(MELANOM_KODE))) {
+      return {
+        lande: [],
+        advarsler: [
+          `Filen er for kræfttype ${koder.slice(0, 3).join(', ')}` +
+            (koder.includes('39') ? ' ("alle kræftformer")' : '') +
+            `, ikke ${MELANOM_KODE}, som er modermærkekræft. Hent tabellen igen, hvor kun "Melanoma of skin" er valgt.`,
+        ],
+      };
+    }
+  }
 
   const talTilIso3 = new Map(lande.filter((l) => l.isoN3).map((l) => [l.isoN3, l.iso3]));
   const navnTilIso3 = new Map(lande.filter((l) => l.navn).map((l) => [normaliserNavn(l.navn), l.iso3]));
@@ -86,8 +114,10 @@ export function laesGcoCsv(tekst, lande, kilde = 'GLOBOCAN, gco.iarc.who.int (Ca
   const ud = [];
   const advarsler = [];
 
-  for (const linje of linjer.slice(1)) {
-    const f = delLinje(linje, skille);
+  for (const f of raekker.slice(1)) {
+    // Hvis filen indeholder flere kræfttyper, bruger vi kun modermærkekræft
+    const kode = iKraeft >= 0 ? String(f[iKraeft] ?? '').trim() : '';
+    if (kode && kode !== String(MELANOM_KODE)) continue;
     const navn = iNavn >= 0 ? f[iNavn] : '';
     let iso3 = iAlpha >= 0 ? (f[iAlpha] ?? '').toUpperCase() : '';
     if (!/^[A-Z]{3}$/.test(iso3) && iTal >= 0) iso3 = talTilIso3.get(Number(f[iTal])) ?? '';
@@ -107,4 +137,28 @@ export function laesGcoCsv(tekst, lande, kilde = 'GLOBOCAN, gco.iarc.who.int (Ca
     ud.push({ land: iso3, rate, kilde });
   }
   return { lande: ud, advarsler };
+}
+
+/**
+ * Som laesGcoRaekker, men med en CSV-fils tekst som input.
+ * Finder selv ud af, om felterne er adskilt med komma eller semikolon.
+ */
+export function laesGcoCsv(tekst, lande, kilde) {
+  const linjer = tekst.replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim() !== '');
+  if (linjer.length < 2) return { lande: [], advarsler: ['CSV-filen er tom.'] };
+  const skille = (linjer[0].match(/;/g) ?? []).length > (linjer[0].match(/,/g) ?? []).length ? ';' : ',';
+  return laesGcoRaekker(
+    linjer.map((l) => delLinje(l, skille)),
+    lande,
+    kilde,
+  );
+}
+
+/**
+ * Som laesGcoRaekker, men med indholdet af en .xlsx-fil (ArrayBuffer) som input.
+ * Det er den fil, man henter direkte fra Cancer Today.
+ */
+export async function laesGcoXlsx(buffer, lande, kilde) {
+  const { laesXlsx } = await import('./xlsx.js');
+  return laesGcoRaekker(await laesXlsx(buffer), lande, kilde);
 }

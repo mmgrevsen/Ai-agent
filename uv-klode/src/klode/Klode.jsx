@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { vertexShader, fragmentShader, atmosfaereVertex, atmosfaereFragment } from './shader.js';
 import { bygGraenseGeometri, latLonTilVektor, lavGrundTekstur, lavMelanomTekstur, vektorTilLatLon } from './geo.js';
 import { solParametre, solpunkt } from '../model/sol.js';
+import Sol from './Sol.jsx';
 import { skyFaktor } from '../model/uv.js';
 
 /** Musestyring: drej og zoom (ingen panorering). Drejer langsommere, når man er zoomet ind. */
@@ -18,14 +19,14 @@ function Styring({ start }) {
     c.enablePan = false;
     c.enableDamping = true;
     c.dampingFactor = 0.08;
-    c.minDistance = 1.35;
-    c.maxDistance = 6;
+    c.minDistance = 1.3;
+    c.maxDistance = 7;
     c.zoomSpeed = 0.8;
     return c;
   }, [camera, gl]);
 
   useEffect(() => {
-    camera.position.copy(latLonTilVektor(start.bredde, start.laengde, 3.1));
+    camera.position.copy(latLonTilVektor(start.bredde, start.laengde, 4.0));
     camera.lookAt(0, 0, 0);
     kontrol.update();
     return () => kontrol.dispose();
@@ -103,7 +104,7 @@ function Markoer({ bredde, laengde, farve = '#ffffff' }) {
   );
 }
 
-function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, markoerer, onVaelg, onHover, visKredse }) {
+function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, markoerer, onVaelg, onHover, visKredse, visSol }) {
   const grund = useMemo(() => lavGrundTekstur(), []);
   const melanom = useMemo(() => lavMelanomTekstur(melanomRater), [melanomRater]);
   const graenser = useMemo(() => bygGraenseGeometri(), []);
@@ -177,6 +178,7 @@ function KlodeScene({ dato, ozon, skydaekke, tilstand, lagStyrke, melanomRater, 
           depthWrite={false}
         />
       </mesh>
+      <Sol dato={dato} synlig={visSol} />
       {visKredse && <Breddekredse />}
       {tilstand !== 'melanom' && <Solpunkt dato={dato} />}
       {markoerer.map((m) => (
@@ -190,7 +192,7 @@ export default function Klode(props) {
   return (
     <Canvas
       className="klode-canvas"
-      camera={{ fov: 40, near: 0.01, far: 100 }}
+      camera={{ fov: 45, near: 0.01, far: 100 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
     >

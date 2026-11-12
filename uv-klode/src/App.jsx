@@ -15,7 +15,7 @@ import { solhoejde } from './model/sol.js';
 import { breddeTekst, laengdeTekst, tal } from './ui/format.js';
 import { UvMaerke } from './ui/StedPanel.jsx';
 import { laesMelanomData } from './data/melanom.js';
-import { laesGcoCsv } from './data/gcoCsv.js';
+import { laesGcoCsv, laesGcoXlsx } from './data/gcoCsv.js';
 import { lande } from './klode/geo.js';
 import melanomFil from '../data/melanom.json';
 
@@ -36,6 +36,7 @@ export default function App() {
     ozon: STANDARD_OZON,
     lag: 'uv',
     kredse: true,
+    sol: true,
   });
   const saet = useCallback((aendring) => setS((f) => ({ ...f, ...aendring })), []);
 
@@ -103,21 +104,29 @@ export default function App() {
     const fil = e.target.files?.[0];
     if (!fil) return;
     try {
-      const tekst = await fil.text();
-      // CSV direkte fra GCO Cancer Today, eller en udfyldt melanom.json
-      const data = fil.name.toLowerCase().endsWith('.csv')
-        ? (() => {
-            const csv = laesGcoCsv(tekst, lande.features.map((f) => f.properties));
-            const d = laesMelanomData({ lande: csv.lande });
-            return { ...d, advarsler: [...csv.advarsler.slice(0, 5), ...d.advarsler] };
-          })()
-        : laesMelanomData(JSON.parse(tekst));
+      const landeliste = lande.features.map((f) => f.properties);
+      const navn = fil.name.toLowerCase();
+      let data;
+      if (navn.endsWith('.xlsx')) {
+        // Excel-filen, man henter direkte fra GCO Cancer Today
+        const r = await laesGcoXlsx(await fil.arrayBuffer(), landeliste);
+        const d = laesMelanomData({ lande: r.lande });
+        data = { ...d, advarsler: [...r.advarsler.slice(0, 5), ...d.advarsler] };
+      } else if (navn.endsWith('.csv')) {
+        const r = laesGcoCsv(await fil.text(), landeliste);
+        const d = laesMelanomData({ lande: r.lande });
+        data = { ...d, advarsler: [...r.advarsler.slice(0, 5), ...d.advarsler] };
+      } else {
+        data = laesMelanomData(JSON.parse(await fil.text()));
+      }
+      if (data.rater.size === 0 && data.advarsler.length === 0) data.advarsler.push('Filen indeholdt ingen lande, appen kunne genkende.');
       setMelanom(data);
       setBesked(
-        `Indlæst ${data.rater.size} lande fra ${fil.name}.` + (data.advarsler.length ? ` Advarsler: ${data.advarsler.join(' ')}` : ''),
+        (data.rater.size > 0 ? `Indlæst ${data.rater.size} lande fra ${fil.name}.` : `Ingen tal indlæst fra ${fil.name}.`) +
+          (data.advarsler.length ? ` ${data.advarsler.join(' ')}` : ''),
       );
     } catch {
-      setBesked(`Kunne ikke læse ${fil.name}. Tjek at filen er en gyldig JSON- eller CSV-fil.`);
+      setBesked(`Kunne ikke læse ${fil.name}. Tjek at det er en fil fra GCO (.xlsx eller .csv) eller en gyldig melanom.json.`);
     }
   };
 
@@ -160,6 +169,7 @@ export default function App() {
             tilstand={s.lag}
             lagStyrke={0.72}
             visKredse={s.kredse}
+            visSol={s.sol}
             onHover={setHover}
             melanomRater={melanom.rater}
             markoerer={markoerer}

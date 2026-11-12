@@ -76,6 +76,11 @@ export default function Styring({ s, saet, hurtig, onIndlaesMelanom }) {
       </div>
 
       <label className="afkryds">
+        <input type="checkbox" checked={s.sol} onChange={(e) => saet({ sol: e.target.checked })} />
+        Vis solen ved siden af kloden
+      </label>
+
+      <label className="afkryds">
         <input type="checkbox" checked={s.kredse} onChange={(e) => saet({ kredse: e.target.checked })} />
         Vis ækvator, vendekredse og polarcirkler
       </label>
@@ -97,8 +102,8 @@ export default function Styring({ s, saet, hurtig, onIndlaesMelanom }) {
         </div>
         {s.lag === 'melanom' && (
           <label className="fil-knap">
-            Indlæs data (GCO-CSV eller melanom.json) …
-            <input type="file" accept=".json,.csv,application/json,text/csv" onChange={onIndlaesMelanom} />
+            Indlæs data fra GCO (.xlsx/.csv) …
+            <input type="file" accept=".xlsx,.csv,.json" onChange={onIndlaesMelanom} />
           </label>
         )}
       </div>

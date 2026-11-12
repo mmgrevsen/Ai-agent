@@ -140,7 +140,7 @@ th { color: var(--daempet); font-weight: 600; font-size: 12px; }
 td { font-variant-numeric: tabular-nums; }
 .kilder { font-size: 13px; }
 
-.besked { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: #24324d; border: 1px solid var(--panel-kant);
+.besked { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); background: #24324d; border: 1px solid var(--panel-kant);
   padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; align-items: center; max-width: 520px; z-index: 5; }
 .besked button { border: 0; background: none; cursor: pointer; font-size: 16px; }
 

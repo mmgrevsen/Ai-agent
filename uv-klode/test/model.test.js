@@ -235,7 +235,72 @@ describe('GCO-CSV', async () => {
     expect(r.lande.map((x) => x.land)).toEqual(['DNK', 'CIV', 'USA']);
   });
 
+  it('vælger navnekolonnen "Label" frem for "Population code"', () => {
+    const csv = 'Alpha-3 code,Cancer code,Population code (ISO/UN),Country,Label,ASR (World)\nDNK,16,208,208,Denmark,27.8\n,16,900,900,World,3.1\n';
+    const r = laesGcoCsv(csv, [{ iso3: 'DNK', isoN3: 208, navn: 'Denmark' }]);
+    expect(r.lande).toEqual([{ land: 'DNK', rate: 27.8, kilde: 'GLOBOCAN, gco.iarc.who.int (Cancer Today)' }]);
+    expect(r.advarsler).toEqual([]); // "World" springes stille over
+  });
+
+  it('afviser en tabel med alle kræftformer i stedet for modermærkekræft', () => {
+    const csv = 'Alpha-3 code,Cancer code,Label,ASR (World)\nAUS,39,Australia,461.3\n';
+    const r = laesGcoCsv(csv, [{ iso3: 'AUS', isoN3: 36, navn: 'Australia' }]);
+    expect(r.lande).toEqual([]);
+    expect(r.advarsler[0]).toMatch(/alle kræftformer.*Melanoma of skin/s);
+  });
+
   it('giver en tydelig fejl uden ASR-kolonne', () => {
     expect(laesGcoCsv('ISO code,Number\n208,3\n', lande).advarsler[0]).toMatch(/ASR/);
+  });
+});
+
+describe('xlsx-læseren', async () => {
+  const { laesXlsx } = await import('../src/data/xlsx.js');
+
+  /** Byg en lille .xlsx (ZIP uden komprimering) i hukommelsen – så testen ikke kræver en binær fil. */
+  function byg(raekker) {
+    const xml =
+      '<?xml version="1.0"?><worksheet><sheetData>' +
+      raekker
+        .map(
+          (r, i) =>
+            `<row r="${i + 1}">` +
+            r.map((v, j) => `<c r="${String.fromCharCode(65 + j)}${i + 1}" t="inlineStr"><is><t>${v}</t></is></c>`).join('') +
+            '</row>',
+        )
+        .join('') +
+      '</sheetData></worksheet>';
+    const navn = 'xl/worksheets/sheet1.xml';
+    const n = new TextEncoder().encode(navn);
+    const d = new TextEncoder().encode(xml);
+    const crc = (() => {
+      let c = ~0;
+      for (const b of d) {
+        c ^= b;
+        for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+      }
+      return ~c >>> 0;
+    })();
+    const del = [];
+    const put = (arr) => del.push(...arr);
+    const u16 = (v) => [v & 255, (v >> 8) & 255];
+    const u32 = (v) => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+    put(u32(0x04034b50)); put(u16(20)); put(u16(0)); put(u16(0)); put(u16(0)); put(u16(0));
+    put(u32(crc)); put(u32(d.length)); put(u32(d.length)); put(u16(n.length)); put(u16(0));
+    put(n); put(d);
+    const cd = del.length;
+    put(u32(0x02014b50)); put(u16(20)); put(u16(20)); put(u16(0)); put(u16(0)); put(u16(0)); put(u16(0));
+    put(u32(crc)); put(u32(d.length)); put(u32(d.length)); put(u16(n.length)); put(u16(0)); put(u16(0));
+    put(u16(0)); put(u16(0)); put(u32(0)); put(u32(0));
+    put(n);
+    const slut = del.length;
+    put(u32(0x06054b50)); put(u16(0)); put(u16(0)); put(u16(1)); put(u16(1));
+    put(u32(slut - cd)); put(u32(cd)); put(u16(0));
+    return new Uint8Array(del).buffer;
+  }
+
+  it('læser rækker og celler ud af en .xlsx-fil', async () => {
+    const raekker = await laesXlsx(byg([['Label', 'ASR (World)'], ['Denmark', '27.8']]));
+    expect(raekker).toEqual([['Label', 'ASR (World)'], ['Denmark', '27.8']]);
   });
 });
